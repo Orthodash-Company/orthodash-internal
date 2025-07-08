@@ -49,7 +49,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (cachedData) {
-        const cacheAge = Date.now() - new Date(cachedData.createdAt).getTime();
+        const cacheAge = Date.now() - new Date(cachedData.createdAt!).getTime();
         const cacheExpiry = 15 * 60 * 1000; // 15 minutes
         
         if (cacheAge < cacheExpiry) {

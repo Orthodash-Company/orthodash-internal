@@ -1,14 +1,4 @@
-import {
-  ChartComponent,
-  SeriesCollectionDirective,
-  SeriesDirective,
-  Inject,
-  Legend,
-  Category,
-  Tooltip,
-  StackingColumnSeries,
-  DataLabel
-} from '@syncfusion/ej2-react-charts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface StackedColumnChartProps {
   data: Array<{
@@ -21,45 +11,28 @@ interface StackedColumnChartProps {
 }
 
 export function StackedColumnChart({ data, title }: StackedColumnChartProps) {
-  const primaryxAxis = { valueType: 'Category' as const };
-  const primaryyAxis = { labelFormat: '{value}%' };
+  const chartData = data.map(item => ({
+    name: item.x,
+    Digital: item.digital,
+    Professional: item.professional,
+    Direct: item.direct
+  }));
 
   return (
-    <ChartComponent
-      id="stacked-column-chart"
-      primaryXAxis={primaryxAxis}
-      primaryYAxis={primaryyAxis}
-      title={title}
-      height="300px"
-      background="transparent"
-    >
-      <Inject services={[StackingColumnSeries, Legend, Tooltip, Category, DataLabel]} />
-      <SeriesCollectionDirective>
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="digital"
-          type="StackingColumn"
-          name="Digital"
-          fill="#1976D2"
-        />
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="professional"
-          type="StackingColumn"
-          name="Professional"
-          fill="#00BCD4"
-        />
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="direct"
-          type="StackingColumn"
-          name="Direct"
-          fill="#FF5722"
-        />
-      </SeriesCollectionDirective>
-    </ChartComponent>
+    <div className="w-full h-80">
+      {title && <h3 className="text-center text-lg font-semibold mb-4">{title}</h3>}
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }} />
+          <Tooltip formatter={(value) => [`${value}%`, '']} />
+          <Legend />
+          <Bar dataKey="Digital" stackId="a" fill="#1976D2" />
+          <Bar dataKey="Professional" stackId="a" fill="#00BCD4" />
+          <Bar dataKey="Direct" stackId="a" fill="#FF5722" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

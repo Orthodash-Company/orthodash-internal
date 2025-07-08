@@ -1,14 +1,4 @@
-import {
-  ChartComponent,
-  SeriesCollectionDirective,
-  SeriesDirective,
-  Inject,
-  Legend,
-  Category,
-  Tooltip,
-  SplineSeries,
-  DataLabel
-} from '@syncfusion/ej2-react-charts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface SplineChartProps {
   data: Array<{
@@ -21,51 +11,46 @@ interface SplineChartProps {
 }
 
 export function SplineChart({ data, title }: SplineChartProps) {
-  const primaryxAxis = { valueType: 'Category' as const };
-  const primaryyAxis = { labelFormat: '{value}%' };
+  const chartData = data.map(item => ({
+    name: item.x,
+    Digital: item.digital,
+    Professional: item.professional,
+    Direct: item.direct
+  }));
 
   return (
-    <ChartComponent
-      id="spline-chart"
-      primaryXAxis={primaryxAxis}
-      primaryYAxis={primaryyAxis}
-      title={title}
-      height="300px"
-      background="transparent"
-    >
-      <Inject services={[SplineSeries, Legend, Tooltip, Category, DataLabel]} />
-      <SeriesCollectionDirective>
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="digital"
-          type="Spline"
-          name="Digital"
-          width={3}
-          marker={{ visible: true, width: 8, height: 8 }}
-          fill="#1976D2"
-        />
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="professional"
-          type="Spline"
-          name="Professional"
-          width={3}
-          marker={{ visible: true, width: 8, height: 8 }}
-          fill="#00BCD4"
-        />
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="direct"
-          type="Spline"
-          name="Direct"
-          width={3}
-          marker={{ visible: true, width: 8, height: 8 }}
-          fill="#FF5722"
-        />
-      </SeriesCollectionDirective>
-    </ChartComponent>
+    <div className="w-full h-80">
+      {title && <h3 className="text-center text-lg font-semibold mb-4">{title}</h3>}
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }} />
+          <Tooltip formatter={(value) => [`${value}%`, '']} />
+          <Legend />
+          <Line 
+            type="monotone" 
+            dataKey="Digital" 
+            stroke="#1976D2" 
+            strokeWidth={3}
+            dot={{ fill: '#1976D2', strokeWidth: 2, r: 4 }}
+          />
+          <Line 
+            type="monotone" 
+            dataKey="Professional" 
+            stroke="#00BCD4" 
+            strokeWidth={3}
+            dot={{ fill: '#00BCD4', strokeWidth: 2, r: 4 }}
+          />
+          <Line 
+            type="monotone" 
+            dataKey="Direct" 
+            stroke="#FF5722" 
+            strokeWidth={3}
+            dot={{ fill: '#FF5722', strokeWidth: 2, r: 4 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

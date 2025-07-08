@@ -1,14 +1,4 @@
-import {
-  ChartComponent,
-  SeriesCollectionDirective,
-  SeriesDirective,
-  Inject,
-  Legend,
-  Category,
-  Tooltip,
-  ColumnSeries,
-  DataLabel
-} from '@syncfusion/ej2-react-charts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ColumnChartProps {
   data: Array<{
@@ -21,45 +11,28 @@ interface ColumnChartProps {
 }
 
 export function ColumnChart({ data, title }: ColumnChartProps) {
-  const primaryxAxis = { valueType: 'Category' as const };
-  const primaryyAxis = { labelFormat: '{value}%' };
+  const chartData = data.map(item => ({
+    name: item.x,
+    Digital: item.digital,
+    Professional: item.professional,
+    Direct: item.direct
+  }));
 
   return (
-    <ChartComponent
-      id="column-chart"
-      primaryXAxis={primaryxAxis}
-      primaryYAxis={primaryyAxis}
-      title={title}
-      height="300px"
-      background="transparent"
-    >
-      <Inject services={[ColumnSeries, Legend, Tooltip, Category, DataLabel]} />
-      <SeriesCollectionDirective>
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="digital"
-          type="Column"
-          name="Digital"
-          fill="#1976D2"
-        />
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="professional"
-          type="Column"
-          name="Professional"
-          fill="#00BCD4"
-        />
-        <SeriesDirective
-          dataSource={data}
-          xName="x"
-          yName="direct"
-          type="Column"
-          name="Direct"
-          fill="#FF5722"
-        />
-      </SeriesCollectionDirective>
-    </ChartComponent>
+    <div className="w-full h-80">
+      {title && <h3 className="text-center text-lg font-semibold mb-4">{title}</h3>}
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }} />
+          <Tooltip formatter={(value) => [`${value}%`, '']} />
+          <Legend />
+          <Bar dataKey="Digital" fill="#1976D2" />
+          <Bar dataKey="Professional" fill="#00BCD4" />
+          <Bar dataKey="Direct" fill="#FF5722" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
