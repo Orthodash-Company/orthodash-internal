@@ -1,0 +1,105 @@
+# ORTHODASH Analytics Platform
+
+## Overview
+
+ORTHODASH is a comprehensive analytics dashboard application for orthodontic practices. It provides practice owners with detailed insights into patient acquisition costs, referral sources, conversion rates, and operational metrics. The system integrates with Greyfinch API to fetch practice data and provides sophisticated analytics through interactive charts and period-to-period comparisons.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Styling**: Tailwind CSS with shadcn/ui component library
+- **State Management**: TanStack Query for server state, React hooks for local state
+- **Charts**: Syncfusion EJ2 React Charts for data visualization
+- **Routing**: Wouter for lightweight client-side routing
+- **Build Tool**: Vite for fast development and optimized builds
+
+### Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Database Provider**: Neon Database (serverless PostgreSQL)
+- **API Structure**: RESTful endpoints with proper error handling
+- **Session Management**: Express sessions with PostgreSQL store
+
+### Key Design Decisions
+- **Monorepo Structure**: Shared schema and types between client and server
+- **Type Safety**: Full TypeScript coverage with Zod validation
+- **Component Library**: shadcn/ui for consistent, accessible UI components
+- **Caching Strategy**: Database-level caching for expensive analytics queries
+
+## Key Components
+
+### Database Schema
+- **users**: User authentication and management
+- **locations**: Practice locations with Greyfinch integration
+- **acquisitionCosts**: Manual cost tracking per referral type and period
+- **analyticsCache**: Query result caching for performance optimization
+
+### API Endpoints
+- `GET /api/locations` - Fetch all practice locations
+- `POST /api/locations` - Create new practice location
+- `GET /api/analytics` - Fetch analytics data with date range filtering
+- `POST /api/acquisition-costs` - Save acquisition cost data
+- `GET /api/test-greyfinch` - Test Greyfinch API connectivity
+
+### Frontend Components
+- **Dashboard**: Main analytics view with period comparisons
+- **PeriodColumn**: Reusable component for displaying analytics data
+- **CostManagement**: Interface for managing acquisition costs
+- **Charts**: Specialized chart components (Pie, Column, Spline, StackedColumn)
+- **Header**: Navigation and branding component
+
+## Data Flow
+
+### Analytics Data Pipeline
+1. **Data Collection**: Greyfinch API provides patient and appointment data
+2. **Data Processing**: Server transforms raw data into analytics metrics
+3. **Caching**: Results stored in database cache for performance
+4. **Visualization**: Frontend renders charts and comparison views
+
+### User Interactions
+1. **Location Selection**: Filter analytics by specific practice locations
+2. **Period Selection**: Choose date ranges for comparison analysis
+3. **Cost Management**: Input acquisition costs for accurate ROI calculations
+4. **Real-time Updates**: Data refreshes based on user interactions
+
+## External Dependencies
+
+### Third-Party Services
+- **Greyfinch API**: Practice management system integration
+- **Neon Database**: Serverless PostgreSQL hosting
+- **Syncfusion Charts**: Advanced charting library
+
+### Key Libraries
+- **Drizzle ORM**: Type-safe database operations
+- **TanStack Query**: Server state management and caching
+- **Radix UI**: Accessible component primitives
+- **Zod**: Runtime type validation
+- **Date-fns**: Date manipulation utilities
+
+## Deployment Strategy
+
+### Development Environment
+- **Replit Integration**: Optimized for Replit development workflow
+- **Hot Reload**: Vite development server with HMR
+- **Error Handling**: Runtime error overlay for debugging
+
+### Production Build
+- **Client Build**: Vite builds optimized static assets
+- **Server Build**: ESBuild compiles Node.js application
+- **Database Migrations**: Drizzle Kit manages schema changes
+
+### Environment Configuration
+- **Database Connection**: Uses DATABASE_URL environment variable
+- **API Keys**: Greyfinch credentials stored securely
+- **Session Storage**: PostgreSQL-backed session management
+
+### Performance Optimizations
+- **Query Caching**: Database-level caching reduces API calls
+- **Code Splitting**: Vite automatically splits bundles
+- **Asset Optimization**: Tailwind CSS purging and compression
+- **Database Pooling**: Connection pooling for efficient resource usage
