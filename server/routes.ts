@@ -3,8 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { greyfinchService } from "./services/greyfinch";
 import { insertAcquisitionCostSchema, insertLocationSchema } from "@shared/schema";
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication first
+  setupAuth(app);
   // Get locations
   app.get("/api/locations", async (req, res) => {
     try {

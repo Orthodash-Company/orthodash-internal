@@ -14,6 +14,11 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
+
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -29,9 +34,19 @@ export interface IStorage {
   
   getAnalyticsCache(locationId: number | null, startDate: string, endDate: string, dataType: string): Promise<AnalyticsCache | undefined>;
   setAnalyticsCache(cache: InsertAnalyticsCache): Promise<AnalyticsCache>;
+
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
