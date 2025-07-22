@@ -74,3 +74,18 @@
 .e-chart-axis-label {
   font-family: 'Inter', sans-serif !important;
 }
+
+/* Hide scrollbar but keep scrolling functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Smooth scrolling for better UX */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}

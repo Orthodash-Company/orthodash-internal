@@ -47,11 +47,12 @@ Preferred communication style: Simple, everyday language.
 - `GET /api/test-greyfinch` - Test Greyfinch API connectivity
 
 ### Frontend Components
-- **Dashboard**: Main analytics view with period comparisons
-- **PeriodColumn**: Reusable component for displaying analytics data
+- **Dashboard**: Enhanced main analytics view with dynamic multi-period comparisons
+- **PeriodColumn**: Reusable component for displaying analytics data with period-to-period comparison
 - **CostManagement**: Interface for managing acquisition costs
 - **Charts**: Specialized chart components (Pie, Column, Spline, StackedColumn)
 - **Header**: Navigation and branding component
+- **Multi-Period Interface**: Dynamic period addition/removal with horizontal scrolling
 
 ## Data Flow
 
@@ -62,10 +63,13 @@ Preferred communication style: Simple, everyday language.
 4. **Visualization**: Frontend renders charts and comparison views
 
 ### User Interactions
-1. **Location Selection**: Filter analytics by specific practice locations
-2. **Period Selection**: Choose date ranges for comparison analysis
-3. **Cost Management**: Input acquisition costs for accurate ROI calculations
-4. **Real-time Updates**: Data refreshes based on user interactions
+1. **Dynamic Period Management**: Add/remove multiple time periods for comparison
+2. **Location Selection**: Filter analytics by specific practice locations per period
+3. **Flexible Date Ranges**: Independent date range selection for each period
+4. **Horizontal Navigation**: Swipe/scroll through multiple period columns
+5. **Period Customization**: Rename periods and configure individual settings
+6. **Cost Management**: Input acquisition costs for accurate ROI calculations
+7. **Real-time Updates**: Data refreshes based on user interactions
 
 ## External Dependencies
 
