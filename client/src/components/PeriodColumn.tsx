@@ -43,7 +43,7 @@ interface PeriodColumnProps {
 
 export function PeriodColumn({ title, dateRange, data, comparison, isLoading }: PeriodColumnProps) {
   // Provide default values if data is undefined
-  const defaultData = {
+  const defaultData: PeriodData = {
     avgNetProduction: 0,
     avgAcquisitionCost: 0,
     noShowRate: 0,
@@ -52,20 +52,38 @@ export function PeriodColumn({ title, dateRange, data, comparison, isLoading }: 
     trends: { weekly: [] }
   };
   
-  const safeData = data || defaultData;
+  // Ensure data is properly structured with safe defaults
+  const safeData: PeriodData = {
+    avgNetProduction: data?.avgNetProduction ?? defaultData.avgNetProduction,
+    avgAcquisitionCost: data?.avgAcquisitionCost ?? defaultData.avgAcquisitionCost,
+    noShowRate: data?.noShowRate ?? defaultData.noShowRate,
+    referralSources: {
+      digital: data?.referralSources?.digital ?? defaultData.referralSources.digital,
+      professional: data?.referralSources?.professional ?? defaultData.referralSources.professional,
+      direct: data?.referralSources?.direct ?? defaultData.referralSources.direct
+    },
+    conversionRates: {
+      digital: data?.conversionRates?.digital ?? defaultData.conversionRates.digital,
+      professional: data?.conversionRates?.professional ?? defaultData.conversionRates.professional,
+      direct: data?.conversionRates?.direct ?? defaultData.conversionRates.direct
+    },
+    trends: {
+      weekly: data?.trends?.weekly ?? defaultData.trends.weekly
+    }
+  };
   
   const pieData = [
-    { x: 'Digital', y: safeData.referralSources?.digital || 0, text: `${safeData.referralSources?.digital || 0}%` },
-    { x: 'Professional', y: safeData.referralSources?.professional || 0, text: `${safeData.referralSources?.professional || 0}%` },
-    { x: 'Direct', y: safeData.referralSources?.direct || 0, text: `${safeData.referralSources?.direct || 0}%` }
+    { x: 'Digital', y: safeData.referralSources.digital, text: `${safeData.referralSources.digital}%` },
+    { x: 'Professional', y: safeData.referralSources.professional, text: `${safeData.referralSources.professional}%` },
+    { x: 'Direct', y: safeData.referralSources.direct, text: `${safeData.referralSources.direct}%` }
   ];
 
   const conversionData = [
     {
       x: 'Conversion Rates',
-      digital: safeData.conversionRates?.digital || 0,
-      professional: safeData.conversionRates?.professional || 0,
-      direct: safeData.conversionRates?.direct || 0
+      digital: safeData.conversionRates.digital,
+      professional: safeData.conversionRates.professional,
+      direct: safeData.conversionRates.direct
     }
   ];
 

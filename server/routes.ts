@@ -129,11 +129,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test Greyfinch API connection
   app.get("/api/test-greyfinch", async (req, res) => {
     try {
-      const patients = await greyfinchService.getPatients();
+      // Test analytics endpoint instead of patients to avoid credential issues
+      const analytics = await greyfinchService.getAnalytics();
+      
+      // Check if we're getting mock data vs real data
+      const isMockData = analytics.avgNetProduction === 45000 && 
+                        analytics.avgAcquisitionCost === 250 && 
+                        analytics.noShowRate === 12;
+      
       res.json({ 
-        status: "connected", 
-        patientCount: patients.length,
-        message: "Successfully connected to Greyfinch API" 
+        status: isMockData ? "mock" : "connected", 
+        dataSource: isMockData ? "Mock data (API credentials issue)" : "Live Greyfinch API",
+        message: isMockData ? 
+          "Using demo data. Check API credentials for live connection." : 
+          "Successfully connected to Greyfinch API" 
       });
     } catch (error) {
       console.error('Greyfinch API test failed:', error);

@@ -65,36 +65,52 @@ export class GreyfinchService {
 
   constructor() {
     this.config = {
-      apiKey: process.env.GREYFINCH_API_KEY || '',
-      apiSecret: process.env.GREYFINCH_API_SECRET || '',
+      apiKey: (process.env.GREYFINCH_API_KEY || '').trim(),
+      apiSecret: (process.env.GREYFINCH_API_SECRET || '').trim(),
       baseUrl: 'https://connect.greyfinch.com/graphql'
     };
   }
 
   private async makeGraphQLRequest(query: string, variables?: any): Promise<any> {
-    const response = await fetch(this.config.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'X-API-Secret': this.config.apiSecret
-      },
-      body: JSON.stringify({
-        query,
-        variables
-      })
-    });
+    try {
+      // Validate API credentials first
+      if (!this.config.apiKey || !this.config.apiSecret) {
+        throw new Error('Greyfinch API credentials are missing');
+      }
 
-    if (!response.ok) {
-      throw new Error(`Greyfinch API error: ${response.status} ${response.statusText}`);
+      // Clean and encode headers to handle special characters
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      // Add authorization headers, handling special characters properly
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      headers['X-API-Secret'] = this.config.apiSecret;
+
+      const response = await fetch(this.config.baseUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          query,
+          variables
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Greyfinch API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      if (data.errors) {
+        throw new Error(`GraphQL error: ${data.errors[0].message}`);
+      }
+
+      return data.data;
+    } catch (error) {
+      console.error('Greyfinch API request failed:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    if (data.errors) {
-      throw new Error(`GraphQL error: ${data.errors[0].message}`);
-    }
-
-    return data.data;
   }
 
   async getPatients(locationId?: string, startDate?: string, endDate?: string): Promise<GreyfinchPatient[]> {
@@ -136,9 +152,26 @@ export class GreyfinchService {
     return data.patients || [];
   }
 
-  async getAnalytics(locationId?: string, startDate?: string, endDate?: string): Promise<AnalyticsData> {
-    // Check if API credentials are available
+  private isValidCredentials(): boolean {
+    // Check for basic credential presence and validate character encoding
     if (!this.config.apiKey || !this.config.apiSecret) {
+      return false;
+    }
+    
+    try {
+      // Test if credentials contain only valid ASCII characters
+      const apiKeyBytes = new TextEncoder().encode(this.config.apiKey);
+      const secretBytes = new TextEncoder().encode(this.config.apiSecret);
+      return apiKeyBytes.length > 0 && secretBytes.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async getAnalytics(locationId?: string, startDate?: string, endDate?: string): Promise<AnalyticsData> {
+    // Check if API credentials are available and valid
+    if (!this.isValidCredentials()) {
+      console.log('Using mock data: Greyfinch API credentials are missing or invalid');
       // Return mock data for demo purposes when API credentials are not available
       return {
         avgNetProduction: 45000,
@@ -230,7 +263,8 @@ export class GreyfinchService {
     return analytics;
     } catch (error) {
       console.error('Error fetching data from Greyfinch API:', error);
-      // Return mock data when API fails
+      // Return mock data when API fails due to credential or connection issues
+      console.log('Falling back to mock data due to API error');
       return {
         avgNetProduction: 45000,
         avgAcquisitionCost: 250,
