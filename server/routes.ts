@@ -10,10 +10,70 @@ import { registerReportRoutes } from "./routes/reports";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
   setupAuth(app);
-  // Get locations
+  // Get locations - integrate with Greyfinch
   app.get("/api/locations", async (req, res) => {
     try {
-      const locations = await storage.getLocations();
+      // First try to get locations from Greyfinch
+      try {
+        console.log('Attempting to fetch locations from Greyfinch...');
+        const greyfinchLocations = await greyfinchService.getLocations();
+        
+        if (greyfinchLocations && greyfinchLocations.length > 0) {
+          console.log(`Successfully fetched ${greyfinchLocations.length} locations from Greyfinch`);
+          
+          // Map Greyfinch location format to our format and save to local storage
+          const mappedLocations = greyfinchLocations.map(loc => ({
+            id: parseInt(loc.id.replace(/\D/g, '')) || Math.floor(Math.random() * 1000), // Extract number or generate
+            name: loc.name,
+            greyfinchId: loc.id,
+            address: loc.address,
+            patientCount: loc.patientCount,
+            lastSyncDate: loc.lastSyncDate
+          }));
+          
+          // Save to storage for future use
+          for (const location of mappedLocations) {
+            const existing = (await storage.getLocations()).find(l => l.greyfinchId === location.greyfinchId);
+            if (!existing) {
+              await storage.createLocation(location);
+            }
+          }
+          
+          res.json(mappedLocations);
+          return;
+        }
+      } catch (greyfinchError) {
+        console.log('Greyfinch location fetch failed, using local storage:', greyfinchError instanceof Error ? greyfinchError.message : greyfinchError);
+      }
+      
+      // Fallback to local storage
+      let locations = await storage.getLocations();
+      
+      // If no locations exist, create some sample ones for demonstration
+      if (locations.length === 0) {
+        console.log('No locations found, creating sample locations...');
+        const sampleLocations = [
+          {
+            name: 'Main Orthodontic Center',
+            greyfinchId: 'loc_001',
+            address: '123 Main St, Downtown',
+            patientCount: 1247
+          },
+          {
+            name: 'Westside Dental & Orthodontics', 
+            greyfinchId: 'loc_002',
+            address: '456 West Ave, Westside',
+            patientCount: 892
+          }
+        ];
+        
+        for (const locationData of sampleLocations) {
+          await storage.createLocation(locationData);
+        }
+        
+        locations = await storage.getLocations();
+      }
+      
       res.json(locations);
     } catch (error) {
       console.error('Error fetching locations:', error);

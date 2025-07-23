@@ -72,7 +72,7 @@ export function MobileFriendlyControls({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1">
             <Button
-              onClick={onAddPeriod}
+              onClick={() => onAddPeriod()}
               size="sm"
               className="flex items-center gap-1 px-3"
             >
@@ -244,7 +244,7 @@ export function MobileFriendlyControls({
                   onDataSelected={onGreyfinchDataSelected}
                 />
                 
-                <Button onClick={onAddPeriod} variant="outline" size="sm">
+                <Button onClick={() => onAddPeriod()} variant="outline" size="sm">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Period
                 </Button>
