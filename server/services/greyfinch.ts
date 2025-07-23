@@ -306,6 +306,71 @@ export class GreyfinchService {
       { week: 'Week 4', digital: 52, professional: 28, direct: 20 }
     ];
   }
+
+  async getLocations(): Promise<any[]> {
+    if (!this.config.apiKey || !this.config.apiSecret) {
+      // Return mock locations when API credentials are not available
+      return [
+        {
+          id: "loc-1",
+          name: "Downtown Orthodontics",
+          address: "123 Main St, City, State 12345",
+          patientCount: 1250,
+          lastSync: new Date().toISOString()
+        },
+        {
+          id: "loc-2", 
+          name: "Suburban Family Orthodontics",
+          address: "456 Oak Ave, Suburb, State 67890",
+          patientCount: 890,
+          lastSync: new Date().toISOString()
+        },
+        {
+          id: "loc-3",
+          name: "Westside Orthodontic Center", 
+          address: "789 Pine St, Westside, State 54321",
+          patientCount: 1100,
+          lastSync: new Date().toISOString()
+        }
+      ];
+    }
+
+    try {
+      const query = `
+        query GetLocations {
+          locations {
+            id
+            name
+            address
+            patientCount
+            lastSyncDate
+          }
+        }
+      `;
+
+      const response = await this.makeGraphQLRequest(query);
+      return response.data?.locations || [];
+    } catch (error) {
+      console.error('Error fetching Greyfinch locations:', error);
+      // Return mock data on API error
+      return [
+        {
+          id: "loc-1",
+          name: "Downtown Orthodontics",
+          address: "123 Main St, City, State 12345",
+          patientCount: 1250,
+          lastSync: new Date().toISOString()
+        },
+        {
+          id: "loc-2", 
+          name: "Suburban Family Orthodontics",
+          address: "456 Oak Ave, Suburb, State 67890",
+          patientCount: 890,
+          lastSync: new Date().toISOString()
+        }
+      ];
+    }
+  }
 }
 
 export const greyfinchService = new GreyfinchService();

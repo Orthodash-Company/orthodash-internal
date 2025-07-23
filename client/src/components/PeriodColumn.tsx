@@ -1,9 +1,37 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Label } from "@/components/ui/label";
 import { PieChart } from "./charts/PieChart";
 import { ColumnChart } from "./charts/ColumnChart";
 import { SplineChart } from "./charts/SplineChart";
 import { StackedColumnChart } from "./charts/StackedColumnChart";
-import { DollarSign, CreditCard, CalendarX, TrendingUp, TrendingDown } from "lucide-react";
+import { 
+  DollarSign, 
+  CreditCard, 
+  CalendarX, 
+  TrendingUp, 
+  TrendingDown, 
+  Edit3,
+  Calendar,
+  MapPin
+} from "lucide-react";
+import { format } from "date-fns";
+
+interface PeriodConfig {
+  id: string;
+  title: string;
+  locationId: string;
+  startDate: Date;
+  endDate: Date;
+}
+
+interface Location {
+  id: number;
+  name: string;
+  greyfinchId?: string;
+}
 
 interface PeriodData {
   avgNetProduction: number;
@@ -30,18 +58,18 @@ interface PeriodData {
 }
 
 interface PeriodColumnProps {
-  title: string;
-  dateRange: string;
-  data: PeriodData;
-  comparison?: {
-    avgNetProduction: number;
-    avgAcquisitionCost: number;
-    noShowRate: number;
-  };
-  isLoading?: boolean;
+  period: PeriodConfig;
+  query: any;
+  locations: Location[];
+  onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
+  isCompact?: boolean;
 }
 
-export function PeriodColumn({ title, dateRange, data, comparison, isLoading }: PeriodColumnProps) {
+export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompact = false }: PeriodColumnProps) {
+  const data = query?.data;
+  const isLoading = query?.isLoading;
+  const error = query?.error;
+
   // Provide default values if data is undefined
   const defaultData: PeriodData = {
     avgNetProduction: 0,
@@ -79,173 +107,192 @@ export function PeriodColumn({ title, dateRange, data, comparison, isLoading }: 
   ];
 
   const conversionData = [
-    {
-      x: 'Conversion Rates',
-      digital: safeData.conversionRates.digital,
-      professional: safeData.conversionRates.professional,
-      direct: safeData.conversionRates.direct
-    }
+    { x: 'Digital', digital: safeData.conversionRates.digital, professional: 0, direct: 0 },
+    { x: 'Professional', digital: 0, professional: safeData.conversionRates.professional, direct: 0 },
+    { x: 'Direct', digital: 0, professional: 0, direct: safeData.conversionRates.direct }
   ];
 
-  const generateStory = () => {
-    const leadingSource = safeData.referralSources.digital >= safeData.referralSources.professional && safeData.referralSources.digital >= safeData.referralSources.direct
-      ? 'digital'
-      : safeData.referralSources.professional >= safeData.referralSources.direct
-      ? 'professional'
-      : 'direct';
+  const trendsData = safeData.trends.weekly;
 
-    const bestConversion = safeData.conversionRates.digital >= safeData.conversionRates.professional && safeData.conversionRates.digital >= safeData.conversionRates.direct
-      ? 'digital'
-      : safeData.conversionRates.professional >= safeData.conversionRates.direct
-      ? 'professional'
-      : 'direct';
-
-    return `${title} showed ${leadingSource} referrals leading at ${safeData.referralSources[leadingSource as keyof typeof safeData.referralSources]}% of total volume, generating $${(safeData.avgNetProduction * safeData.referralSources[leadingSource as keyof typeof safeData.referralSources] / 100).toFixed(0)}K in net production. ${bestConversion} referrals maintained the highest conversion at ${safeData.conversionRates[bestConversion as keyof typeof safeData.conversionRates]}%, while the overall no-show rate was ${safeData.noShowRate}%. Average acquisition cost was $${safeData.avgAcquisitionCost} per new patient.`;
-  };
-
-  const getComparisonIcon = (current: number, previous: number) => {
-    if (current > previous) return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (current < previous) return <TrendingDown className="h-4 w-4 text-red-500" />;
-    return null;
-  };
-
-  const getComparisonText = (current: number, previous: number, isPercentage = false, inverse = false) => {
-    if (!comparison) return null;
-    
-    const diff = current - previous;
-    const percentDiff = previous !== 0 ? (diff / previous) * 100 : 0;
-    const isPositive = inverse ? diff < 0 : diff > 0;
-    
-    if (Math.abs(percentDiff) < 0.1) return null;
-    
+  if (error) {
     return (
-      <p className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-        {isPositive ? '+' : ''}{isPercentage ? diff.toFixed(1) + 'pp' : percentDiff.toFixed(1) + '%'} vs previous
-      </p>
+      <Card className="h-full">
+        <CardContent className="flex items-center justify-center h-32">
+          <p className="text-red-500">Error loading data</p>
+        </CardContent>
+      </Card>
     );
-  };
+  }
 
-  if (isLoading) {
+  if (isCompact) {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-              <div className="h-32 bg-gray-200 rounded mb-6"></div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="h-20 bg-gray-200 rounded"></div>
-                <div className="h-20 bg-gray-200 rounded"></div>
-                <div className="h-20 bg-gray-200 rounded"></div>
+      <div className="space-y-4">
+        {/* Key Metrics - Compact View */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-4 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600">Net Production</p>
+                <p className="text-lg font-semibold">${safeData.avgNetProduction.toLocaleString()}</p>
               </div>
+              <DollarSign className="h-8 w-8 text-blue-500" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          
+          <div className="bg-white p-4 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600">No-Show Rate</p>
+                <p className="text-lg font-semibold">{safeData.noShowRate}%</p>
+              </div>
+              <CalendarX className="h-8 w-8 text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Charts - Compact */}
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-2">Referral Sources</h4>
+            <PieChart data={pieData} />
+          </div>
+          
+          <div className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-2">Conversion Rates</h4>
+            <ColumnChart data={conversionData} />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-gray-900">{title}</CardTitle>
-            <span className="text-sm text-gray-500">{dateRange}</span>
+    <Card className="h-full">
+      <CardHeader className="space-y-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">{period.title}</CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => {
+              const newTitle = prompt('Enter new period name:', period.title);
+              if (newTitle && newTitle.trim()) {
+                onUpdatePeriod(period.id, { title: newTitle.trim() });
+              }
+            }}
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Period Configuration */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <Label className="text-xs text-gray-600">Location</Label>
+              <Select
+                value={period.locationId}
+                onValueChange={(value) => onUpdatePeriod(period.id, { locationId: value })}
+              >
+                <SelectTrigger className="h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id.toString()}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-gray-600">Start Date</Label>
+                <DatePicker
+                  date={period.startDate}
+                  setDate={(date) => date && onUpdatePeriod(period.id, { startDate: date })}
+                  className="h-8"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">End Date</Label>
+                <DatePicker
+                  date={period.endDate}
+                  setDate={(date) => date && onUpdatePeriod(period.id, { endDate: date })}
+                  className="h-8"
+                />
+              </div>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          {/* Story Summary */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-6">
-            <h4 className="font-medium text-blue-800 mb-2">Performance Summary</h4>
-            <p className="text-sm text-gray-700">{generateStory()}</p>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-
-          {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-green-50">
-              <CardContent className="p-4">
-                <div className="flex items-center">
-                  <DollarSign className="text-green-600 text-lg mr-3" size={20} />
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">Avg Net Production</p>
-                    <p className="text-xl font-semibold text-gray-900">${safeData.avgNetProduction.toLocaleString()}</p>
-                    {comparison && getComparisonText(safeData.avgNetProduction, comparison.avgNetProduction)}
+        ) : (
+          <>
+            {/* Key Metrics Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600">Avg Net Production</p>
+                    <p className="text-xl font-bold">${safeData.avgNetProduction.toLocaleString()}</p>
                   </div>
-                  {comparison && getComparisonIcon(safeData.avgNetProduction, comparison.avgNetProduction)}
+                  <DollarSign className="h-8 w-8 text-blue-500" />
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-orange-50">
-              <CardContent className="p-4">
-                <div className="flex items-center">
-                  <CreditCard className="text-orange-600 text-lg mr-3" size={20} />
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">Avg Acquisition Cost</p>
-                    <p className="text-xl font-semibold text-gray-900">${safeData.avgAcquisitionCost}</p>
-                    {comparison && getComparisonText(safeData.avgAcquisitionCost, comparison.avgAcquisitionCost, false, true)}
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600">Acquisition Cost</p>
+                    <p className="text-xl font-bold">${safeData.avgAcquisitionCost}</p>
                   </div>
-                  {comparison && getComparisonIcon(comparison.avgAcquisitionCost, safeData.avgAcquisitionCost)}
+                  <CreditCard className="h-8 w-8 text-green-500" />
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-red-50">
-              <CardContent className="p-4">
-                <div className="flex items-center">
-                  <CalendarX className="text-red-600 text-lg mr-3" size={20} />
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">No-Show Rate</p>
-                    <p className="text-xl font-semibold text-gray-900">{safeData.noShowRate}%</p>
-                    {comparison && getComparisonText(safeData.noShowRate, comparison.noShowRate, true, true)}
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg col-span-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600">No-Show Rate</p>
+                    <p className="text-xl font-bold">{safeData.noShowRate}%</p>
                   </div>
-                  {comparison && getComparisonIcon(comparison.noShowRate, safeData.noShowRate)}
+                  <CalendarX className="h-8 w-8 text-red-500" />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </div>
 
-          {/* Charts */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Referral Sources Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
+            {/* Charts */}
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
                 <PieChart data={pieData} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">TC Conversion Rates by Source</CardTitle>
-              </CardHeader>
-              <CardContent>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
                 <ColumnChart data={conversionData} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Referral Source Trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SplineChart data={safeData.trends.weekly} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Referral Source Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StackedColumnChart data={safeData.trends.weekly} />
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              </div>
+              
+              {safeData.trends.weekly.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
+                  <SplineChart data={trendsData} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

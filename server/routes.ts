@@ -156,6 +156,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Greyfinch locations
+  app.get("/api/greyfinch/locations", async (req, res) => {
+    try {
+      const locations = await greyfinchService.getLocations();
+      res.json(locations);
+    } catch (error) {
+      console.error("Error fetching Greyfinch locations:", error);
+      // Return mock locations for development
+      res.json([
+        {
+          id: "loc-1",
+          name: "Downtown Orthodontics",
+          address: "123 Main St, City, State 12345",
+          patientCount: 1250,
+          lastSync: new Date().toISOString()
+        },
+        {
+          id: "loc-2", 
+          name: "Suburban Family Orthodontics",
+          address: "456 Oak Ave, Suburb, State 67890",
+          patientCount: 890,
+          lastSync: new Date().toISOString()
+        }
+      ]);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

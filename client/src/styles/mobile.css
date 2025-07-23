@@ -1,0 +1,45 @@
+/* Mobile-specific styles and optimizations */
+
+/* Hide scrollbars on mobile */
+.mobile-scroll-container {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch-friendly button sizes */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Improve touch scrolling */
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Snap scrolling for periods */
+  .period-snap-container {
+    scroll-snap-type: x mandatory;
+  }
+  
+  .period-snap-item {
+    scroll-snap-align: center;
+  }
+  
+  /* Better mobile spacing */
+  .mobile-spacing {
+    padding: 1rem;
+  }
+  
+  /* Mobile-first card layouts */
+  .mobile-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
