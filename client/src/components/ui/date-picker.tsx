@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface DatePickerProps {
   date: Date | undefined;
@@ -13,8 +14,10 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, setDate, placeholder = "Pick a date", className }: DatePickerProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant={"outline"}
@@ -24,20 +27,35 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
             className
           )}
           type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(!open);
+          }}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
           {date ? format(date, "PPP") : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 z-50">
+      <PopoverContent 
+        className="w-auto p-0 z-[9999]" 
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <Calendar
           mode="single"
           selected={date}
           onSelect={(selectedDate) => {
+            console.log('Date selected:', selectedDate);
             setDate(selectedDate);
+            setOpen(false); // Close popover after selection
           }}
           initialFocus
-          className="rounded-md border"
+          className="rounded-md border-0"
+          disabled={false}
+          captionLayout="dropdown-buttons"
+          fromYear={2020}
+          toYear={2030}
         />
       </PopoverContent>
     </Popover>
