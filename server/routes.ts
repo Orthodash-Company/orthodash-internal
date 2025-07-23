@@ -136,12 +136,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Test locations endpoint first (simpler than analytics)
       const locations = await greyfinchService.getLocations();
       
-      res.json({ 
-        status: "connected", 
-        dataSource: "Live Greyfinch API",
-        message: "Successfully connected to Greyfinch API",
-        locationCount: locations.length
-      });
+      // If we get data (either from API or fallback), report success
+      if (locations && locations.length > 0) {
+        const isLiveAPI = locations[0].id?.startsWith('loc_') ? false : true;
+        res.json({ 
+          status: "connected", 
+          dataSource: isLiveAPI ? "Live Greyfinch API" : "Development Data (Live API Unavailable)",
+          message: isLiveAPI ? "Successfully connected to Greyfinch API" : "Using development data - Greyfinch API connection unavailable",
+          locationCount: locations.length,
+          apiCredentialsConfigured: !!(process.env.GREYFINCH_API_KEY && process.env.GREYFINCH_API_SECRET)
+        });
+      } else {
+        throw new Error('No location data available');
+      }
     } catch (error) {
       console.error('Greyfinch API test failed:', error);
       res.status(500).json({ 
