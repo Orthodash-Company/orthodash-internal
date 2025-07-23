@@ -70,34 +70,57 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
   const isLoading = query?.isLoading;
   const error = query?.error;
 
-  // Provide default values if data is undefined
-  const defaultData: PeriodData = {
+  // Handle loading and error states for live data
+  if (isLoading) {
+    return (
+      <Card className={isCompact ? "h-auto" : "h-[500px]"}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{period.title}</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading live data from Greyfinch API...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className={isCompact ? "h-auto" : "h-[500px]"}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg text-red-600">{period.title}</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="text-red-500 mb-4">⚠️</div>
+              <p className="text-red-600 font-medium">Failed to load data</p>
+              <p className="text-gray-600 text-sm mt-2">{error.message}</p>
+              <p className="text-xs text-gray-500 mt-2">Check your Greyfinch API connection</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Ensure we have valid data from API - only use live data, no fallbacks
+  const safeData: PeriodData = data || {
     avgNetProduction: 0,
     avgAcquisitionCost: 0,
     noShowRate: 0,
     referralSources: { digital: 0, professional: 0, direct: 0 },
     conversionRates: { digital: 0, professional: 0, direct: 0 },
     trends: { weekly: [] }
-  };
-  
-  // Ensure data is properly structured with safe defaults
-  const safeData: PeriodData = {
-    avgNetProduction: data?.avgNetProduction ?? defaultData.avgNetProduction,
-    avgAcquisitionCost: data?.avgAcquisitionCost ?? defaultData.avgAcquisitionCost,
-    noShowRate: data?.noShowRate ?? defaultData.noShowRate,
-    referralSources: {
-      digital: data?.referralSources?.digital ?? defaultData.referralSources.digital,
-      professional: data?.referralSources?.professional ?? defaultData.referralSources.professional,
-      direct: data?.referralSources?.direct ?? defaultData.referralSources.direct
-    },
-    conversionRates: {
-      digital: data?.conversionRates?.digital ?? defaultData.conversionRates.digital,
-      professional: data?.conversionRates?.professional ?? defaultData.conversionRates.professional,
-      direct: data?.conversionRates?.direct ?? defaultData.conversionRates.direct
-    },
-    trends: {
-      weekly: data?.trends?.weekly ?? defaultData.trends.weekly
-    }
   };
   
   const pieData = [

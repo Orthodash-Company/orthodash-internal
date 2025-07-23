@@ -133,26 +133,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test Greyfinch API connection
   app.get("/api/test-greyfinch", async (req, res) => {
     try {
-      // Test analytics endpoint instead of patients to avoid credential issues
-      const analytics = await greyfinchService.getAnalytics();
-      
-      // Check if we're getting mock data vs real data
-      const isMockData = analytics.avgNetProduction === 45000 && 
-                        analytics.avgAcquisitionCost === 250 && 
-                        analytics.noShowRate === 12;
+      // Test locations endpoint first (simpler than analytics)
+      const locations = await greyfinchService.getLocations();
       
       res.json({ 
-        status: isMockData ? "mock" : "connected", 
-        dataSource: isMockData ? "Mock data (API credentials issue)" : "Live Greyfinch API",
-        message: isMockData ? 
-          "Using demo data. Check API credentials for live connection." : 
-          "Successfully connected to Greyfinch API" 
+        status: "connected", 
+        dataSource: "Live Greyfinch API",
+        message: "Successfully connected to Greyfinch API",
+        locationCount: locations.length
       });
     } catch (error) {
       console.error('Greyfinch API test failed:', error);
       res.status(500).json({ 
         status: "error", 
-        message: error instanceof Error ? error.message : "Unknown error" 
+        message: error instanceof Error ? error.message : "Connection failed - check API credentials" 
       });
     }
   });
@@ -164,23 +158,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(locations);
     } catch (error) {
       console.error("Error fetching Greyfinch locations:", error);
-      // Return mock locations for development
-      res.json([
-        {
-          id: "loc-1",
-          name: "Downtown Orthodontics",
-          address: "123 Main St, City, State 12345",
-          patientCount: 1250,
-          lastSync: new Date().toISOString()
-        },
-        {
-          id: "loc-2", 
-          name: "Suburban Family Orthodontics",
-          address: "456 Oak Ave, Suburb, State 67890",
-          patientCount: 890,
-          lastSync: new Date().toISOString()
-        }
-      ]);
+      res.status(500).json({ 
+        error: "Failed to fetch locations from Greyfinch API",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

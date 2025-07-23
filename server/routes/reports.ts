@@ -30,9 +30,7 @@ export function registerReportRoutes(app: Express) {
         userId: req.user.id,
         name,
         description,
-        periodConfigs,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        periodConfigs: JSON.stringify(periodConfigs)
       });
 
       res.status(201).json(report);

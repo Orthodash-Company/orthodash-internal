@@ -72,7 +72,7 @@ export function GreyfinchDataModal({ onDataSelected, trigger }: GreyfinchDataMod
   });
 
   // Query available locations from Greyfinch
-  const { data: locations = [], isLoading: locationsLoading } = useQuery<GreyfinchLocation[]>({
+  const { data: locations = [], isLoading: locationsLoading, error: locationsError } = useQuery<GreyfinchLocation[]>({
     queryKey: ['/api/greyfinch/locations'],
     enabled: open && greyfinchStatus?.status === 'connected',
     queryFn: async () => {
@@ -169,9 +169,14 @@ export function GreyfinchDataModal({ onDataSelected, trigger }: GreyfinchDataMod
                   </Badge>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-amber-600">
+                <div className="flex items-center gap-2 text-red-600">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Using mock data - Greyfinch API not connected</span>
+                  <span>Connection failed - check API credentials</span>
+                  {greyfinchStatus?.message && (
+                    <div className="text-xs text-gray-600 ml-2">
+                      {greyfinchStatus.message}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

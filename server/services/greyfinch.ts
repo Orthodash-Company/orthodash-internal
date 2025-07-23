@@ -83,9 +83,17 @@ export class GreyfinchService {
         'Content-Type': 'application/json'
       };
 
-      // Add authorization headers, handling special characters properly
-      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
-      headers['X-API-Secret'] = this.config.apiSecret;
+      // Validate and clean headers before adding them
+      const cleanApiKey = this.config.apiKey.replace(/[^\x00-\x7F]/g, "").trim();
+      const cleanSecret = this.config.apiSecret.replace(/[^\x00-\x7F]/g, "").trim();
+      
+      if (!cleanApiKey || !cleanSecret) {
+        throw new Error('API credentials contain invalid characters for HTTP headers');
+      }
+
+      // Add authorization headers with cleaned values
+      headers['Authorization'] = `Bearer ${cleanApiKey}`;
+      headers['X-API-Secret'] = cleanSecret;
 
       const response = await fetch(this.config.baseUrl, {
         method: 'POST',
@@ -159,35 +167,19 @@ export class GreyfinchService {
     }
     
     try {
-      // Test if credentials contain only valid ASCII characters
-      const apiKeyBytes = new TextEncoder().encode(this.config.apiKey);
-      const secretBytes = new TextEncoder().encode(this.config.apiSecret);
-      return apiKeyBytes.length > 0 && secretBytes.length > 0;
+      // Test if credentials contain only valid ASCII characters for HTTP headers
+      const apiKeyValid = /^[\x00-\x7F]*$/.test(this.config.apiKey);
+      const secretValid = /^[\x00-\x7F]*$/.test(this.config.apiSecret);
+      return apiKeyValid && secretValid && this.config.apiKey.length > 0 && this.config.apiSecret.length > 0;
     } catch {
       return false;
     }
   }
 
   async getAnalytics(locationId?: string, startDate?: string, endDate?: string): Promise<AnalyticsData> {
-    // Check if API credentials are available and valid
+    // Validate API credentials
     if (!this.isValidCredentials()) {
-      console.log('Using mock data: Greyfinch API credentials are missing or invalid');
-      // Return mock data for demo purposes when API credentials are not available
-      return {
-        avgNetProduction: 45000,
-        avgAcquisitionCost: 250,
-        noShowRate: 12,
-        referralSources: { digital: 45, professional: 35, direct: 20 },
-        conversionRates: { digital: 68, professional: 72, direct: 58 },
-        trends: { 
-          weekly: [
-            { week: 'Week 1', digital: 45, professional: 35, direct: 20 },
-            { week: 'Week 2', digital: 48, professional: 33, direct: 19 },
-            { week: 'Week 3', digital: 50, professional: 31, direct: 19 },
-            { week: 'Week 4', digital: 52, professional: 29, direct: 19 }
-          ]
-        }
-      };
+      throw new Error('Greyfinch API credentials are missing or invalid. Please provide valid GREYFINCH_API_KEY and GREYFINCH_API_SECRET.');
     }
 
     try {
@@ -263,23 +255,7 @@ export class GreyfinchService {
     return analytics;
     } catch (error) {
       console.error('Error fetching data from Greyfinch API:', error);
-      // Return mock data when API fails due to credential or connection issues
-      console.log('Falling back to mock data due to API error');
-      return {
-        avgNetProduction: 45000,
-        avgAcquisitionCost: 250,
-        noShowRate: 12,
-        referralSources: { digital: 45, professional: 35, direct: 20 },
-        conversionRates: { digital: 68, professional: 72, direct: 58 },
-        trends: { 
-          weekly: [
-            { week: 'Week 1', digital: 45, professional: 35, direct: 20 },
-            { week: 'Week 2', digital: 48, professional: 33, direct: 19 },
-            { week: 'Week 3', digital: 50, professional: 31, direct: 19 },
-            { week: 'Week 4', digital: 52, professional: 29, direct: 19 }
-          ]
-        }
-      };
+      throw new Error(`Failed to fetch analytics from Greyfinch API: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -297,42 +273,50 @@ export class GreyfinchService {
   }
 
   private generateWeeklyTrends(patients: GreyfinchPatient[], startDate?: string, endDate?: string): any[] {
-    // This is a simplified implementation
-    // In a real implementation, you'd group patients by week and calculate trends
-    return [
-      { week: 'Week 1', digital: 45, professional: 30, direct: 25 },
-      { week: 'Week 2', digital: 48, professional: 28, direct: 24 },
-      { week: 'Week 3', digital: 50, professional: 29, direct: 21 },
-      { week: 'Week 4', digital: 52, professional: 28, direct: 20 }
-    ];
+    if (!patients.length) return [];
+
+    // Group patients by week based on their creation/first appointment date
+    const weeklyData: { [key: string]: { digital: number; professional: number; direct: number } } = {};
+    
+    patients.forEach(patient => {
+      // Use first appointment date or a fallback date
+      const patientDate = patient.appointments?.[0]?.date || patient.person?.birthDate || startDate || new Date().toISOString();
+      const date = new Date(patientDate);
+      const weekNumber = this.getWeekNumber(date);
+      const weekKey = `Week ${weekNumber}`;
+      
+      if (!weeklyData[weekKey]) {
+        weeklyData[weekKey] = { digital: 0, professional: 0, direct: 0 };
+      }
+      
+      const source = this.categorizeReferralSource(patient.referralSource);
+      weeklyData[weekKey][source]++;
+    });
+
+    // Convert to array format and calculate percentages
+    return Object.entries(weeklyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([week, counts]) => {
+        const total = counts.digital + counts.professional + counts.direct;
+        return {
+          week,
+          digital: total > 0 ? Math.round((counts.digital / total) * 100) : 0,
+          professional: total > 0 ? Math.round((counts.professional / total) * 100) : 0,
+          direct: total > 0 ? Math.round((counts.direct / total) * 100) : 0
+        };
+      });
+  }
+
+  private getWeekNumber(date: Date): number {
+    const start = new Date(date.getFullYear(), 0, 1);
+    const diff = date.getTime() - start.getTime();
+    const week = Math.ceil(diff / (7 * 24 * 60 * 60 * 1000));
+    return week;
   }
 
   async getLocations(): Promise<any[]> {
     if (!this.config.apiKey || !this.config.apiSecret) {
-      // Return mock locations when API credentials are not available
-      return [
-        {
-          id: "loc-1",
-          name: "Downtown Orthodontics",
-          address: "123 Main St, City, State 12345",
-          patientCount: 1250,
-          lastSync: new Date().toISOString()
-        },
-        {
-          id: "loc-2", 
-          name: "Suburban Family Orthodontics",
-          address: "456 Oak Ave, Suburb, State 67890",
-          patientCount: 890,
-          lastSync: new Date().toISOString()
-        },
-        {
-          id: "loc-3",
-          name: "Westside Orthodontic Center", 
-          address: "789 Pine St, Westside, State 54321",
-          patientCount: 1100,
-          lastSync: new Date().toISOString()
-        }
-      ];
+      throw new Error('Greyfinch API credentials are missing. Please provide valid GREYFINCH_API_KEY and GREYFINCH_API_SECRET.');
     }
 
     try {
@@ -349,26 +333,10 @@ export class GreyfinchService {
       `;
 
       const response = await this.makeGraphQLRequest(query);
-      return response.data?.locations || [];
+      return response.locations || [];
     } catch (error) {
       console.error('Error fetching Greyfinch locations:', error);
-      // Return mock data on API error
-      return [
-        {
-          id: "loc-1",
-          name: "Downtown Orthodontics",
-          address: "123 Main St, City, State 12345",
-          patientCount: 1250,
-          lastSync: new Date().toISOString()
-        },
-        {
-          id: "loc-2", 
-          name: "Suburban Family Orthodontics",
-          address: "456 Oak Ave, Suburb, State 67890",
-          patientCount: 890,
-          lastSync: new Date().toISOString()
-        }
-      ];
+      throw new Error(`Failed to fetch locations from Greyfinch API: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
