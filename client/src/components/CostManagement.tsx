@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -60,10 +60,10 @@ export function CostManagement({ locationId, period, initialCosts }: CostManagem
     saveCostsMutation.mutate(costs);
   };
 
-  const handleCostChange = (type: keyof typeof costs, value: string) => {
+  const handleCostChange = (type: keyof typeof costs, value: number) => {
     setCosts(prev => ({
       ...prev,
-      [type]: parseFloat(value) || 0
+      [type]: value
     }));
   };
 
@@ -76,49 +76,37 @@ export function CostManagement({ locationId, period, initialCosts }: CostManagem
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <Label htmlFor="digital-cost">Digital Marketing Cost</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-400">$</span>
-              <Input
-                id="digital-cost"
-                type="number"
-                className="pl-8"
-                value={costs.digital}
-                onChange={(e) => handleCostChange('digital', e.target.value)}
-              />
-            </div>
+            <CurrencyInput
+              id="digital-cost"
+              value={costs.digital}
+              onChange={(value) => handleCostChange('digital', value)}
+              placeholder="0.00"
+            />
           </div>
           <div>
             <Label htmlFor="professional-cost">Professional Relations Cost</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-400">$</span>
-              <Input
-                id="professional-cost"
-                type="number"
-                className="pl-8"
-                value={costs.professional}
-                onChange={(e) => handleCostChange('professional', e.target.value)}
-              />
-            </div>
+            <CurrencyInput
+              id="professional-cost"
+              value={costs.professional}
+              onChange={(value) => handleCostChange('professional', value)}
+              placeholder="0.00"
+            />
           </div>
           <div>
             <Label htmlFor="direct-cost">Direct Marketing Cost</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-400">$</span>
-              <Input
-                id="direct-cost"
-                type="number"
-                className="pl-8"
-                value={costs.direct}
-                onChange={(e) => handleCostChange('direct', e.target.value)}
-              />
-            </div>
+            <CurrencyInput
+              id="direct-cost"
+              value={costs.direct}
+              onChange={(value) => handleCostChange('direct', value)}
+              placeholder="0.00"
+            />
           </div>
         </div>
         <div className="mt-6 flex justify-end">
           <Button 
             onClick={handleSave} 
             disabled={saveCostsMutation.isPending}
-            className="bg-secondary hover:bg-secondary/90"
+            className="bg-[#1d1d52] hover:bg-[#1d1d52]/90 text-white"
           >
             <Save className="mr-2 h-4 w-4" />
             {saveCostsMutation.isPending ? 'Saving...' : 'Save Cost Data'}

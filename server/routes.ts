@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { greyfinchService } from "./services/greyfinch";
+import { generateAnalyticsSummary } from "./services/openai";
 import { insertAcquisitionCostSchema, insertLocationSchema } from "@shared/schema";
 import { setupAuth } from "./auth";
 import { registerReportRoutes } from "./routes/reports";
@@ -167,6 +168,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching Greyfinch locations:", error);
       res.status(500).json({ 
         error: "Failed to fetch locations from Greyfinch API",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Generate AI analytics summary
+  app.post("/api/generate-summary", async (req, res) => {
+    try {
+      const { periods, periodData } = req.body;
+      
+      if (!periods || !periodData) {
+        return res.status(400).json({ error: "Periods and period data are required" });
+      }
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OpenAI API key not configured" });
+      }
+
+      const summary = await generateAnalyticsSummary(periods, periodData);
+      res.json(summary);
+    } catch (error) {
+      console.error('Error generating AI summary:', error);
+      res.status(500).json({ 
+        error: "Failed to generate AI summary",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

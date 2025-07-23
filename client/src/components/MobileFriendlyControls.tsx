@@ -46,7 +46,7 @@ interface Location {
 interface MobileFriendlyControlsProps {
   periods: PeriodConfig[];
   locations: Location[];
-  onAddPeriod: () => void;
+  onAddPeriod: (periodData?: Partial<PeriodConfig>) => void;
   onUpdateAnalysis: () => void;
   onExport: () => void;
   onShare: () => void;

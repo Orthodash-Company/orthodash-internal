@@ -4,10 +4,12 @@ import { Header } from "@/components/Header";
 import { HorizontalPeriodLayout } from "@/components/HorizontalPeriodLayout";
 import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
 import { CostManagement } from "@/components/CostManagement";
+import { AISummaryGenerator } from "@/components/AISummaryGenerator";
 import { format } from "date-fns";
 
 interface PeriodConfig {
   id: string;
+  name: string;
   title: string;
   locationId: string;
   startDate: Date;
@@ -25,6 +27,7 @@ export default function Dashboard() {
   const [periods, setPeriods] = useState<PeriodConfig[]>([
     {
       id: 'period-1',
+      name: 'Period A',
       title: 'Period A',
       locationId: 'all',
       startDate: new Date(2024, 0, 1), // Jan 1, 2024
@@ -124,6 +127,19 @@ export default function Dashboard() {
           onRemovePeriod={handleRemovePeriod}
           onUpdatePeriod={handleUpdatePeriod}
         />
+
+        {/* AI Summary Generator */}
+        <div className="mt-8">
+          <AISummaryGenerator 
+            periods={periods}
+            periodData={Object.fromEntries(
+              periodQueries.map((query, index) => [
+                periods[index].id,
+                query.data || {}
+              ]).filter(([_, data]) => Object.keys(data).length > 0)
+            )}
+          />
+        </div>
 
         {/* Cost Management Section - Desktop Only */}
         <div className="hidden lg:block mt-8">
