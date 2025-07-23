@@ -30,7 +30,7 @@ export function StackedColumnChart({ data, title }: StackedColumnChartProps) {
           <Legend />
           <Bar dataKey="Digital" stackId="a" fill="#1976D2" />
           <Bar dataKey="Professional" stackId="a" fill="#00BCD4" />
-          <Bar dataKey="Direct" stackId="a" fill="#FF5722" />
+          <Bar dataKey="Direct" stackId="a" fill="#1d1d52" />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -30,7 +30,7 @@ export function ColumnChart({ data, title }: ColumnChartProps) {
           <Legend />
           <Bar dataKey="Digital" fill="#1976D2" />
           <Bar dataKey="Professional" fill="#00BCD4" />
-          <Bar dataKey="Direct" fill="#FF5722" />
+          <Bar dataKey="Direct" fill="#1d1d52" />
         </BarChart>
       </ResponsiveContainer>
     </div>

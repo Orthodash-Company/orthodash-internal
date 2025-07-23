@@ -9,7 +9,7 @@ interface PieChartProps {
   title?: string;
 }
 
-const COLORS = ['#1976D2', '#00BCD4', '#FF5722'];
+const COLORS = ['#1976D2', '#00BCD4', '#1d1d52'];
 
 export function PieChart({ data, title }: PieChartProps) {
   const chartData = data.map(item => ({

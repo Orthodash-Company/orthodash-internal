@@ -157,36 +157,36 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
       <div className="space-y-4">
         {/* Key Metrics - Compact View */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded-lg border">
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600">Net Production</p>
-                <p className="text-lg font-semibold">${safeData.avgNetProduction.toLocaleString()}</p>
+                <p className="text-xs text-gray-300">Net Production</p>
+                <p className="text-lg font-semibold text-white">${safeData.avgNetProduction.toLocaleString()}</p>
               </div>
-              <DollarSign className="h-8 w-8 text-blue-500" />
+              <DollarSign className="h-8 w-8 text-[#1d1d52]" />
             </div>
           </div>
           
-          <div className="bg-white p-4 rounded-lg border">
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600">No-Show Rate</p>
-                <p className="text-lg font-semibold">{safeData.noShowRate}%</p>
+                <p className="text-xs text-gray-300">No-Show Rate</p>
+                <p className="text-lg font-semibold text-white">{safeData.noShowRate}%</p>
               </div>
-              <CalendarX className="h-8 w-8 text-red-500" />
+              <CalendarX className="h-8 w-8 text-red-400" />
             </div>
           </div>
         </div>
 
         {/* Charts - Compact */}
         <div className="space-y-4">
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-2">Referral Sources</h4>
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+            <h4 className="text-sm font-medium mb-2 text-white">Referral Sources</h4>
             <PieChart data={pieData} />
           </div>
           
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-2">Conversion Rates</h4>
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+            <h4 className="text-sm font-medium mb-2 text-white">Conversion Rates</h4>
             <ColumnChart data={conversionData} />
           </div>
         </div>
@@ -268,33 +268,33 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
           <>
             {/* Key Metrics Grid */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-600">Avg Net Production</p>
-                    <p className="text-xl font-bold">${safeData.avgNetProduction.toLocaleString()}</p>
+                    <p className="text-xs text-gray-300">Avg Net Production</p>
+                    <p className="text-xl font-bold text-white">${safeData.avgNetProduction.toLocaleString()}</p>
                   </div>
-                  <DollarSign className="h-8 w-8 text-blue-500" />
+                  <DollarSign className="h-8 w-8 text-[#1d1d52]" />
                 </div>
               </div>
               
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-600">Acquisition Cost</p>
-                    <p className="text-xl font-bold">${safeData.avgAcquisitionCost}</p>
+                    <p className="text-xs text-gray-300">Acquisition Cost</p>
+                    <p className="text-xl font-bold text-white">${safeData.avgAcquisitionCost}</p>
                   </div>
-                  <CreditCard className="h-8 w-8 text-green-500" />
+                  <CreditCard className="h-8 w-8 text-green-400" />
                 </div>
               </div>
               
-              <div className="bg-gray-50 p-4 rounded-lg col-span-2">
+              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg col-span-2 border border-white/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-600">No-Show Rate</p>
-                    <p className="text-xl font-bold">{safeData.noShowRate}%</p>
+                    <p className="text-xs text-gray-300">No-Show Rate</p>
+                    <p className="text-xl font-bold text-white">{safeData.noShowRate}%</p>
                   </div>
-                  <CalendarX className="h-8 w-8 text-red-500" />
+                  <CalendarX className="h-8 w-8 text-red-400" />
                 </div>
               </div>
             </div>
@@ -302,18 +302,18 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
             {/* Charts */}
             <div className="space-y-6">
               <div>
-                <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
+                <h4 className="text-sm font-medium mb-3 text-white">Referral Sources</h4>
                 <PieChart data={pieData} />
               </div>
               
               <div>
-                <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
+                <h4 className="text-sm font-medium mb-3 text-white">Conversion Rates</h4>
                 <ColumnChart data={conversionData} />
               </div>
               
               {safeData.trends.weekly.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
+                  <h4 className="text-sm font-medium mb-3 text-white">Weekly Trends</h4>
                   <SplineChart data={trendsData} />
                 </div>
               )}

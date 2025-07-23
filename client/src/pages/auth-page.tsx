@@ -75,7 +75,7 @@ export default function AuthPage() {
             </div>
             
             <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm border">
-              <Activity className="h-8 w-8 text-orange-500" />
+              <Activity className="h-8 w-8 text-[#1d1d52]" />
               <div>
                 <h3 className="font-semibold text-gray-900">Real-time Data</h3>
                 <p className="text-sm text-gray-600">Greyfinch API integration for live updates</p>

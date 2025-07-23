@@ -45,9 +45,9 @@ export function SplineChart({ data, title }: SplineChartProps) {
           <Line 
             type="monotone" 
             dataKey="Direct" 
-            stroke="#FF5722" 
+            stroke="#1d1d52" 
             strokeWidth={3}
-            dot={{ fill: '#FF5722', strokeWidth: 2, r: 4 }}
+            dot={{ fill: '#1d1d52', strokeWidth: 2, r: 4 }}
           />
         </LineChart>
       </ResponsiveContainer>
