@@ -112,7 +112,12 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
     { x: 'Direct', digital: 0, professional: 0, direct: safeData.conversionRates.direct }
   ];
 
-  const trendsData = safeData.trends.weekly;
+  const trendsData = safeData.trends.weekly.map(week => ({
+    x: week.week,
+    digital: week.digital,
+    professional: week.professional,
+    direct: week.direct
+  }));
 
   if (error) {
     return (

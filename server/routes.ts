@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { greyfinchService } from "./services/greyfinch";
 import { insertAcquisitionCostSchema, insertLocationSchema } from "@shared/schema";
 import { setupAuth } from "./auth";
+import { registerReportRoutes } from "./routes/reports";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
@@ -182,6 +183,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
     }
   });
+
+  // Register report routes
+  registerReportRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

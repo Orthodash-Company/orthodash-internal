@@ -27,6 +27,7 @@ import {
   Filter
 } from "lucide-react";
 import { GreyfinchDataModal } from "./GreyfinchDataModal";
+import { PDFExporter } from "./PDFExporter";
 
 interface PeriodConfig {
   id: string;
@@ -201,14 +202,20 @@ export function MobileFriendlyControls({
                           <RefreshCw className="mr-2 h-4 w-4" />
                           Refresh All Data
                         </Button>
-                        <Button 
-                          onClick={() => { onExport(); setControlsOpen(false); }}
-                          variant="outline" 
-                          className="w-full justify-start"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          Export Report
-                        </Button>
+                        <PDFExporter
+                          reportData={onExport()}
+                          reportName="ORTHODASH Analytics Report"
+                          trigger={
+                            <Button 
+                              variant="outline" 
+                              className="w-full justify-start"
+                              onClick={() => setControlsOpen(false)}
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              Export Report
+                            </Button>
+                          }
+                        />
                         <Button 
                           onClick={() => { onShare(); setControlsOpen(false); }}
                           variant="outline" 
@@ -249,10 +256,10 @@ export function MobileFriendlyControls({
               </div>
 
               <div className="flex items-center gap-2">
-                <Button onClick={onExport} variant="outline" size="sm">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export
-                </Button>
+                <PDFExporter
+                  reportData={onExport()}
+                  reportName="ORTHODASH Analytics Report"
+                />
                 <Button onClick={onShare} variant="outline" size="sm">
                   <Share2 className="mr-2 h-4 w-4" />
                   Share

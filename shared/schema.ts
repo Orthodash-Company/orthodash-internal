@@ -34,6 +34,18 @@ export const analyticsCache = pgTable("analytics_cache", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const reports = pgTable("reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  periodConfigs: text("period_configs").notNull(), // JSON string
+  pdfUrl: text("pdf_url"),
+  thumbnail: text("thumbnail"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -53,6 +65,12 @@ export const insertAnalyticsCacheSchema = createInsertSchema(analyticsCache).omi
   createdAt: true,
 });
 
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Location = typeof locations.$inferSelect;
@@ -61,3 +79,5 @@ export type AcquisitionCost = typeof acquisitionCosts.$inferSelect;
 export type InsertAcquisitionCost = z.infer<typeof insertAcquisitionCostSchema>;
 export type AnalyticsCache = typeof analyticsCache.$inferSelect;
 export type InsertAnalyticsCache = z.infer<typeof insertAnalyticsCacheSchema>;
+export type Report = typeof reports.$inferSelect;
+export type InsertReport = z.infer<typeof insertReportSchema>;

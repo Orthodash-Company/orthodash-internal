@@ -89,7 +89,15 @@ export default function Dashboard() {
   };
 
   const handleExport = () => {
-    console.log('Export functionality to be implemented');
+    const reportData = {
+      periods,
+      periodQueries: periodQueries.map(q => q.data),
+      locations,
+      timestamp: new Date()
+    };
+    
+    // This will be handled by PDFExporter component in MobileFriendlyControls
+    return reportData;
   };
 
   const handleShare = () => {

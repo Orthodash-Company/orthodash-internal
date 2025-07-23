@@ -1,10 +1,23 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DataVisualizationModal } from "./DataVisualizationModal";
+import { VisualizationSection } from "./VisualizationSection";
 import { PeriodColumn } from "./PeriodColumn";
-import { Plus, X, Edit3, Calendar, MapPin } from "lucide-react";
+import { Plus, X, Edit3, Calendar, MapPin, Save } from "lucide-react";
 import { format } from "date-fns";
+
+interface VisualizationOption {
+  id: string;
+  type: 'doughnut' | 'column' | 'spline' | 'stacked' | 'stacked-column';
+  title: string;
+  description: string;
+  summary: string;
+  explanation: string;
+  icon: React.ComponentType<any>;
+  options: string[];
+}
 
 interface PeriodConfig {
   id: string;
@@ -12,6 +25,7 @@ interface PeriodConfig {
   locationId: string;
   startDate: Date;
   endDate: Date;
+  visualizations?: VisualizationOption[];
 }
 
 interface Location {
@@ -38,6 +52,7 @@ export function HorizontalPeriodLayout({
   onUpdatePeriod
 }: HorizontalPeriodLayoutProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [selectedPeriodForViz, setSelectedPeriodForViz] = useState<string | null>(null);
 
   // Auto-scroll to the right when new periods are added
   useEffect(() => {
@@ -211,6 +226,18 @@ export function HorizontalPeriodLayout({
                   </div>
                 </CardHeader>
 
+                {/* Add Visualization Button */}
+                <div className="px-6 pb-4">
+                  <DataVisualizationModal
+                    onSelectVisualization={(viz) => {
+                      const currentViz = period.visualizations || [];
+                      onUpdatePeriod(period.id, { 
+                        visualizations: [...currentViz, viz] 
+                      });
+                    }}
+                  />
+                </div>
+
                 {/* Period Content */}
                 <CardContent className="pt-0">
                   <PeriodColumn
@@ -220,6 +247,40 @@ export function HorizontalPeriodLayout({
                     onUpdatePeriod={onUpdatePeriod}
                     isCompact={true}
                   />
+                  
+                  {/* Visualizations Waterfall */}
+                  {period.visualizations?.map((viz, vizIndex) => (
+                    <VisualizationSection
+                      key={`${period.id}-${viz.id}-${vizIndex}`}
+                      visualization={viz}
+                      data={query?.data}
+                      onRemove={() => {
+                        const updatedViz = period.visualizations?.filter((_, i) => i !== vizIndex) || [];
+                        onUpdatePeriod(period.id, { visualizations: updatedViz });
+                      }}
+                    />
+                  ))}
+                  
+                  {/* Save as Template Button */}
+                  {(period.visualizations?.length || 0) > 0 && (
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                        onClick={() => {
+                          const templateName = prompt('Enter template name:', `${period.title} Template`);
+                          if (templateName && templateName.trim()) {
+                            // TODO: Implement template saving
+                            console.log('Saving template:', templateName, period);
+                          }
+                        }}
+                      >
+                        <Save className="h-4 w-4" />
+                        Save as Template
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

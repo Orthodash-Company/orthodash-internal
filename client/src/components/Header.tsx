@@ -1,6 +1,8 @@
 import { Bell, User, ChartLine, LogOut, Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { ReportsManager } from "./ReportsManager";
+import { PDFExporter } from "./PDFExporter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +29,7 @@ export function Header() {
             </div>
             <nav className="ml-10 flex space-x-8">
               <a href="#" className="text-primary font-medium">Dashboard</a>
-              <a href="#" className="text-gray-500 hover:text-gray-700">Reports</a>
+              <ReportsManager />
               <a href="#" className="text-gray-500 hover:text-gray-700">Settings</a>
             </nav>
           </div>

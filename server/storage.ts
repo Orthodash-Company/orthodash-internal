@@ -3,6 +3,7 @@ import {
   locations, 
   acquisitionCosts, 
   analyticsCache,
+  reports,
   type User, 
   type InsertUser,
   type Location,
@@ -10,7 +11,9 @@ import {
   type AcquisitionCost,
   type InsertAcquisitionCost,
   type AnalyticsCache,
-  type InsertAnalyticsCache
+  type InsertAnalyticsCache,
+  type Report,
+  type InsertReport
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -34,6 +37,11 @@ export interface IStorage {
   
   getAnalyticsCache(locationId: number | null, startDate: string, endDate: string, dataType: string): Promise<AnalyticsCache | undefined>;
   setAnalyticsCache(cache: InsertAnalyticsCache): Promise<AnalyticsCache>;
+
+  getReportsByUser(userId: number): Promise<Report[]>;
+  getReport(id: string, userId: number): Promise<Report | undefined>;
+  createReport(report: InsertReport): Promise<Report>;
+  deleteReport(id: string, userId: number): Promise<void>;
 
   sessionStore: session.Store;
 }
@@ -142,6 +150,32 @@ export class DatabaseStorage implements IStorage {
       .values(cache)
       .returning();
     return created;
+  }
+
+  async getReportsByUser(userId: number): Promise<Report[]> {
+    return await db.select().from(reports).where(eq(reports.userId, userId));
+  }
+
+  async getReport(id: string, userId: number): Promise<Report | undefined> {
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(and(eq(reports.id, parseInt(id)), eq(reports.userId, userId)));
+    return report || undefined;
+  }
+
+  async createReport(report: InsertReport): Promise<Report> {
+    const [created] = await db
+      .insert(reports)
+      .values(report)
+      .returning();
+    return created;
+  }
+
+  async deleteReport(id: string, userId: number): Promise<void> {
+    await db
+      .delete(reports)
+      .where(and(eq(reports.id, parseInt(id)), eq(reports.userId, userId)));
   }
 }
 
