@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Plus, Calendar, MapPin } from "lucide-react";
+import { Edit3, Calendar, MapPin, Save } from "lucide-react";
 
 interface Location {
   id: number;
@@ -21,67 +21,62 @@ interface PeriodConfig {
   endDate: Date;
 }
 
-interface AddColumnModalProps {
+interface EditPeriodModalProps {
+  period: PeriodConfig;
   locations: Location[];
-  onAddPeriod: (period: Omit<PeriodConfig, 'id'>) => void;
-  existingPeriodsCount: number;
-  children?: React.ReactNode;
+  onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
+  trigger?: React.ReactNode;
 }
 
-export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, children }: AddColumnModalProps) {
+export function EditPeriodModal({ period, locations, onUpdatePeriod, trigger }: EditPeriodModalProps) {
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState(`Period ${String.fromCharCode(65 + existingPeriodsCount)}`);
-  const [locationId, setLocationId] = useState('all');
-  const [startDate, setStartDate] = useState<Date>(new Date(2024, 0, 1));
-  const [endDate, setEndDate] = useState<Date>(new Date(2024, 2, 31));
+  const [title, setTitle] = useState(period.title);
+  const [locationId, setLocationId] = useState(period.locationId);
+  const [startDate, setStartDate] = useState<Date>(period.startDate);
+  const [endDate, setEndDate] = useState<Date>(period.endDate);
 
-  const handleAddPeriod = () => {
+  const handleSaveChanges = () => {
     if (!startDate || !endDate) return;
     
-    onAddPeriod({
+    onUpdatePeriod(period.id, {
       title,
       locationId,
       startDate,
       endDate,
     });
     
-    // Reset form and close modal
-    setTitle(`Period ${String.fromCharCode(65 + existingPeriodsCount + 1)}`);
-    setLocationId('all');
-    setStartDate(new Date(2024, 0, 1));
-    setEndDate(new Date(2024, 2, 31));
     setOpen(false);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      // Reset form to current period values when opening
+      setTitle(period.title);
+      setLocationId(period.locationId);
+      setStartDate(period.startDate);
+      setEndDate(period.endDate);
+    }
+    setOpen(newOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        {children || (
-          <div className="w-80 h-full min-h-[600px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-100/50 transition-colors cursor-pointer group">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-[#1d1d52] flex items-center justify-center mx-auto group-hover:bg-[#1d1d52]/80 transition-colors">
-                <Plus className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Analysis Period</h3>
-                <p className="text-sm text-gray-600 max-w-48">
-                  Compare data across different time periods and locations for comprehensive insights
-                </p>
-              </div>
-              <Button variant="outline" className="mt-4">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Column
-              </Button>
-            </div>
-          </div>
+        {trigger || (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
         )}
       </DialogTrigger>
-      
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5 text-[#1d1d52]" />
-            Add Analysis Period
+            <Edit3 className="w-4 h-4" />
+            Edit Period Configuration
           </DialogTitle>
         </DialogHeader>
         
@@ -140,16 +135,17 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
           </div>
         </div>
         
-        <div className="flex gap-2 pt-4">
-          <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button 
-            onClick={handleAddPeriod} 
-            className="flex-1 bg-[#1d1d52] hover:bg-[#1d1d52]/90"
-            disabled={!startDate || !endDate || !title.trim()}
+            onClick={handleSaveChanges}
+            disabled={!title || !startDate || !endDate}
+            className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
           >
-            Add Period
+            <Save className="w-4 h-4 mr-2" />
+            Save Changes
           </Button>
         </div>
       </DialogContent>

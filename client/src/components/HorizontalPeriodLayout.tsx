@@ -6,6 +6,7 @@ import { DataVisualizationModal } from "./DataVisualizationModal";
 import { VisualizationSection } from "./VisualizationSection";
 import { PeriodColumn } from "./PeriodColumn";
 import { AddColumnModal } from "./AddColumnModal";
+import { EditPeriodModal } from "./EditPeriodModal";
 import { Plus, X, Edit3, Calendar, MapPin, Save } from "lucide-react";
 import { format } from "date-fns";
 
@@ -186,19 +187,20 @@ export function HorizontalPeriodLayout({
                 <CardHeader className="pb-4 space-y-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => {
-                          const newTitle = prompt('Enter new period name:', period.title);
-                          if (newTitle && newTitle.trim()) {
-                            onUpdatePeriod(period.id, { title: newTitle.trim() });
-                          }
-                        }}
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
+                      <EditPeriodModal
+                        period={period}
+                        locations={locations}
+                        onUpdatePeriod={onUpdatePeriod}
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-[#1d1d52] hover:bg-gray-100"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
                       <CardTitle className="text-lg font-semibold">
                         {period.title}
                       </CardTitle>
