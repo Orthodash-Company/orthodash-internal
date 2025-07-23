@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataVisualizationModal } from "./DataVisualizationModal";
 import { VisualizationSection } from "./VisualizationSection";
 import { PeriodColumn } from "./PeriodColumn";
+import { AddColumnModal } from "./AddColumnModal";
 import { Plus, X, Edit3, Calendar, MapPin, Save } from "lucide-react";
 import { format } from "date-fns";
 
@@ -38,7 +39,7 @@ interface HorizontalPeriodLayoutProps {
   periods: PeriodConfig[];
   locations: Location[];
   periodQueries: any[];
-  onAddPeriod: () => void;
+  onAddPeriod: (period: Omit<PeriodConfig, 'id'>) => void;
   onRemovePeriod: (periodId: string) => void;
   onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
 }
@@ -112,13 +113,18 @@ export function HorizontalPeriodLayout({
               <CardTitle className="text-sm font-medium">
                 Analytics Periods ({periods.length})
               </CardTitle>
-              <Button
-                onClick={onAddPeriod}
-                size="sm"
-                className="h-8 px-3"
+              <AddColumnModal 
+                locations={locations}
+                onAddPeriod={onAddPeriod}
+                existingPeriodsCount={periods.length}
               >
-                <Plus className="h-4 w-4" />
-              </Button>
+                <Button
+                  size="sm"
+                  className="h-8 px-3"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </AddColumnModal>
             </div>
           </CardHeader>
           <CardContent>
@@ -287,7 +293,7 @@ export function HorizontalPeriodLayout({
           );
         })}
 
-        {/* Add Period Card */}
+        {/* Add Column Modal */}
         <div 
           className="flex-shrink-0 snap-center"
           style={{ 
@@ -295,18 +301,11 @@ export function HorizontalPeriodLayout({
             maxWidth: '420px'
           }}
         >
-          <Card 
-            className="h-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
-            onClick={onAddPeriod}
-          >
-            <CardContent className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 hover:text-blue-600 transition-colors">
-              <Plus className="h-12 w-12 mb-4" />
-              <h3 className="text-lg font-medium mb-2">Add New Period</h3>
-              <p className="text-sm text-center">
-                Compare data across different time ranges and locations
-              </p>
-            </CardContent>
-          </Card>
+          <AddColumnModal 
+            locations={locations}
+            onAddPeriod={onAddPeriod}
+            existingPeriodsCount={periods.length}
+          />
         </div>
       </div>
 

@@ -21,7 +21,7 @@ interface Location {
 }
 
 export default function Dashboard() {
-  // State for managing multiple periods
+  // State for managing multiple periods - start with just one
   const [periods, setPeriods] = useState<PeriodConfig[]>([
     {
       id: 'period-1',
@@ -29,13 +29,6 @@ export default function Dashboard() {
       locationId: 'all',
       startDate: new Date(2024, 0, 1), // Jan 1, 2024
       endDate: new Date(2024, 2, 31)  // Mar 31, 2024
-    },
-    {
-      id: 'period-2', 
-      title: 'Period B',
-      locationId: 'all',
-      startDate: new Date(2024, 3, 1), // Apr 1, 2024
-      endDate: new Date(2024, 5, 30)  // Jun 30, 2024
     }
   ]);
 
@@ -58,14 +51,11 @@ export default function Dashboard() {
     });
   });
 
-  // Handle adding a new period column
-  const handleAddPeriod = () => {
+  // Handle adding a new period column with modal data
+  const handleAddPeriod = (periodData: Omit<PeriodConfig, 'id'>) => {
     const newPeriod: PeriodConfig = {
+      ...periodData,
       id: `period-${Date.now()}`,
-      title: `Period ${String.fromCharCode(65 + periods.length)}`, // A, B, C, etc.
-      locationId: 'all',
-      startDate: new Date(2024, 0, 1),
-      endDate: new Date(2024, 2, 31)
     };
     setPeriods(prev => [...prev, newPeriod]);
   };
