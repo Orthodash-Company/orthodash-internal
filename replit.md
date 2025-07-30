@@ -12,6 +12,9 @@ ORTHODASH is a comprehensive analytics dashboard application for orthodontic pra
 - **Reports Management**: Complete template saving and PDF export functionality with backend storage
 - **Error Handling**: Production-grade error states and API connection validation
 - **TypeScript Compliance**: All compilation errors resolved, fully type-safe codebase
+- **Column Editing**: Added modal-based editing for published analytics periods
+- **Date Picker Fix**: Completely rebuilt date selection with proper event handling and clickability
+- **API Endpoint Update**: Updated Greyfinch API to correct endpoint (https://api.greyfinch.com/v1/graphql)
 
 ## User Preferences
 

@@ -67,7 +67,7 @@ export class GreyfinchService {
     this.config = {
       apiKey: (process.env.GREYFINCH_API_KEY || '').trim(),
       apiSecret: (process.env.GREYFINCH_API_SECRET || '').trim(),
-      baseUrl: 'https://api.greyfinch.com/graphql'
+      baseUrl: 'https://api.greyfinch.com/v1/graphql'
     };
   }
 
