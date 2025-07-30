@@ -404,13 +404,12 @@ export class GreyfinchService {
     try {
       console.log('Attempting to connect to Greyfinch API for locations...');
       
-      // First try to get organization structure which should include locations
+      // Use a simple patient query to test connectivity and get location info
       const query = `
-        query GetOrganizations {
-          organizations {
+        query TestConnection {
+          patients(limit: 1) {
             id
-            name
-            locations {
+            primaryLocation {
               id
               name
             }
@@ -421,14 +420,16 @@ export class GreyfinchService {
       const response = await this.makeGraphQLRequest(query);
       console.log('Successfully connected to Greyfinch API');
       
-      // Extract locations from organizations
-      const locations = [];
-      if (response.organizations) {
-        for (const org of response.organizations) {
-          if (org.locations) {
-            locations.push(...org.locations);
+      // Extract unique locations from patients
+      const locations: any[] = [];
+      if (response.patients) {
+        const locationMap = new Map();
+        response.patients.forEach((patient: any) => {
+          if (patient.primaryLocation) {
+            locationMap.set(patient.primaryLocation.id, patient.primaryLocation);
           }
-        }
+        });
+        locations.push(...Array.from(locationMap.values()));
       }
       
       return locations.length > 0 ? locations : this.getSampleLocations();
