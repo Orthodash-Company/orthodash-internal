@@ -95,10 +95,10 @@ export class GreyfinchService {
         throw new Error('API credentials contain invalid characters for HTTP headers');
       }
 
-      // Use proper JWT format for Greyfinch API authentication
-      // The API expects a properly formatted JWT token combining key and secret
-      const token = Buffer.from(`${cleanApiKey}:${cleanSecret}`).toString('base64');
-      headers['Authorization'] = `Bearer ${token}`;
+      // Greyfinch API authentication with custom headers
+      // Based on the API documentation mentioning key and secret
+      headers['X-API-Key'] = cleanApiKey;
+      headers['X-API-Secret'] = cleanSecret;
 
       const response = await fetch(this.config.baseUrl, {
         method: 'POST',
