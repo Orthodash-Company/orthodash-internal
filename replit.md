@@ -15,6 +15,8 @@ ORTHODASH is a comprehensive analytics dashboard application for orthodontic pra
 - **Column Editing**: Added modal-based editing for published analytics periods
 - **Date Picker Fix**: Completely rebuilt date selection with proper event handling and clickability
 - **API Endpoint Update**: Updated Greyfinch API to correct endpoint (https://api.greyfinch.com/v1/graphql)
+- **Schema Introspection**: Added GraphQL schema exploration endpoint (/api/greyfinch/schema) for interactive API development
+- **Query Structure Fix**: Corrected GraphQL queries to match actual Greyfinch schema (primaryLocation.id as UUID, removed non-existent fields)
 
 ## User Preferences
 

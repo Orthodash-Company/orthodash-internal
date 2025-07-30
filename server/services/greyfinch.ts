@@ -126,6 +126,35 @@ export class GreyfinchService {
     }
   }
 
+  // Public method to expose the GraphQL request for schema introspection
+  async introspectSchema(): Promise<any> {
+    const introspectionQuery = `
+      query IntrospectionQuery {
+        __schema {
+          queryType { name }
+          types {
+            kind
+            name
+            description
+            fields {
+              name
+              type {
+                name
+                kind
+                ofType {
+                  name
+                  kind
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    return this.makeGraphQLRequest(introspectionQuery);
+  }
+
   async getPatients(locationId?: string, startDate?: string, endDate?: string): Promise<GreyfinchPatient[]> {
     // First, let's use a simple query structure based on the Greyfinch documentation
     const query = `

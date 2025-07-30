@@ -233,6 +233,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GraphQL Schema introspection endpoint for exploring the Greyfinch API
+  app.get("/api/greyfinch/schema", async (req, res) => {
+    try {
+      const introspectionQuery = `
+        query IntrospectionQuery {
+          __schema {
+            queryType { name }
+            mutationType { name }
+            subscriptionType { name }
+            types {
+              ...FullType
+            }
+          }
+        }
+        
+        fragment FullType on __Type {
+          kind
+          name
+          description
+          fields(includeDeprecated: true) {
+            name
+            description
+            args {
+              ...InputValue
+            }
+            type {
+              ...TypeRef
+            }
+            isDeprecated
+            deprecationReason
+          }
+          inputFields {
+            ...InputValue
+          }
+          interfaces {
+            ...TypeRef
+          }
+          enumValues(includeDeprecated: true) {
+            name
+            description
+            isDeprecated
+            deprecationReason
+          }
+          possibleTypes {
+            ...TypeRef
+          }
+        }
+        
+        fragment InputValue on __InputValue {
+          name
+          description
+          type { ...TypeRef }
+          defaultValue
+        }
+        
+        fragment TypeRef on __Type {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                  ofType {
+                    kind
+                    name
+                    ofType {
+                      kind
+                      name
+                      ofType {
+                        kind
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+      
+      const schema = await greyfinchService.makeGraphQLRequest(introspectionQuery);
+      res.json(schema);
+    } catch (error) {
+      console.error('Schema introspection failed:', error);
+      res.status(500).json({ 
+        error: "Failed to introspect GraphQL schema",
+        message: error instanceof Error ? error.message : "Unknown error",
+        suggestion: "This endpoint requires valid Greyfinch API credentials to explore the schema"
+      });
+    }
+  });
+
   // Generate AI analytics summary
   app.post("/api/generate-summary", async (req, res) => {
     try {
