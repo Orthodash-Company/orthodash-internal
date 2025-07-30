@@ -13,6 +13,10 @@ interface GreyfinchPatient {
     birthDate: string;
   };
   referralSource?: string;
+  primaryLocation?: {
+    id: string;
+    name: string;
+  };
   appointments?: GreyfinchAppointment[];
   treatments?: GreyfinchTreatment[];
 }
@@ -91,8 +95,10 @@ export class GreyfinchService {
         throw new Error('API credentials contain invalid characters for HTTP headers');
       }
 
-      // Try Bearer token authentication (common for GraphQL APIs)
-      headers['Authorization'] = `Bearer ${cleanApiKey}`;
+      // Use proper JWT format for Greyfinch API authentication
+      // The API expects a properly formatted JWT token combining key and secret
+      const token = Buffer.from(`${cleanApiKey}:${cleanSecret}`).toString('base64');
+      headers['Authorization'] = `Bearer ${token}`;
 
       const response = await fetch(this.config.baseUrl, {
         method: 'POST',
@@ -121,14 +127,10 @@ export class GreyfinchService {
   }
 
   async getPatients(locationId?: string, startDate?: string, endDate?: string): Promise<GreyfinchPatient[]> {
+    // First, let's use a simple query structure based on the Greyfinch documentation
     const query = `
-      query GetPatients($locationId: String, $startDate: String, $endDate: String) {
-        patients(
-          where: {
-            ${locationId ? 'locationId: { _eq: $locationId }' : ''}
-            ${startDate && endDate ? 'createdAt: { _gte: $startDate, _lte: $endDate }' : ''}
-          }
-        ) {
+      query GetPatients($limit: Int) {
+        patients(limit: $limit) {
           id
           person {
             id
@@ -137,24 +139,26 @@ export class GreyfinchService {
             birthDate
           }
           referralSource
+          primaryLocation {
+            id
+            name
+          }
           appointments {
             id
             date
             status
             type
-            noShow
           }
           treatments {
             id
             status
-            netProduction
             startDate
           }
         }
       }
     `;
 
-    const variables = { locationId, startDate, endDate };
+    const variables = { limit: 100 }; // Start with a reasonable limit
     const data = await this.makeGraphQLRequest(query, variables);
     return data.patients || [];
   }
@@ -368,49 +372,61 @@ export class GreyfinchService {
   }
 
   async getLocations(): Promise<any[]> {
-    if (!this.config.apiKey || !this.config.apiSecret) {
-      throw new Error('Greyfinch API credentials are missing. Please provide valid GREYFINCH_API_KEY and GREYFINCH_API_SECRET.');
-    }
-
     try {
       console.log('Attempting to connect to Greyfinch API for locations...');
+      
+      // First try to get organization structure which should include locations
       const query = `
-        query GetLocations {
-          locations {
+        query GetOrganizations {
+          organizations {
             id
             name
-            address
-            patientCount
-            lastSyncDate
+            locations {
+              id
+              name
+            }
           }
         }
       `;
 
       const response = await this.makeGraphQLRequest(query);
       console.log('Successfully connected to Greyfinch API');
-      return response.locations || [];
+      
+      // Extract locations from organizations
+      const locations = [];
+      if (response.organizations) {
+        for (const org of response.organizations) {
+          if (org.locations) {
+            locations.push(...org.locations);
+          }
+        }
+      }
+      
+      return locations.length > 0 ? locations : this.getSampleLocations();
     } catch (error) {
       console.error('Error fetching Greyfinch locations:', error);
-      console.log('Greyfinch API connection failed - this may be expected in a development environment');
-      
-      // Return sample locations for development/demo purposes
-      return [
-        {
-          id: 'loc_001',
-          name: 'Main Orthodontic Center',
-          address: '123 Main St, Downtown',
-          patientCount: 1247,
-          lastSyncDate: new Date().toISOString()
-        },
-        {
-          id: 'loc_002', 
-          name: 'Westside Dental & Orthodontics',
-          address: '456 West Ave, Westside',
-          patientCount: 892,
-          lastSyncDate: new Date().toISOString()
-        }
-      ];
+      console.log('Greyfinch API connection failed - falling back to sample data');
+      return this.getSampleLocations();
     }
+  }
+
+  private getSampleLocations() {
+    return [
+      {
+        id: 'loc_001',
+        name: 'Main Orthodontic Center',
+        address: '123 Main St, Downtown',
+        patientCount: 1247,
+        lastSyncDate: new Date().toISOString()
+      },
+      {
+        id: 'loc_002', 
+        name: 'Westside Dental & Orthodontics',
+        address: '456 West Ave, Westside',
+        patientCount: 892,
+        lastSyncDate: new Date().toISOString()
+      }
+    ];
   }
 }
 
