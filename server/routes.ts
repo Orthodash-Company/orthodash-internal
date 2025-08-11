@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { setupPDFRoutes } from "./routes/pdf";
+import { setupOpenAIRoutes } from "./routes/openai";
 import { storage } from "./storage";
 import { greyfinchService } from "./services/greyfinch";
 import { generateAnalyticsSummary } from "./services/openai";
@@ -10,6 +12,10 @@ import { registerReportRoutes } from "./routes/reports";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
   setupAuth(app);
+  
+  // Setup additional route modules
+  setupPDFRoutes(app);
+  setupOpenAIRoutes(app);
   // Get locations - integrate with Greyfinch
   app.get("/api/locations", async (req, res) => {
     try {

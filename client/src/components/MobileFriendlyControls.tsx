@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +29,7 @@ import {
 } from "lucide-react";
 import { GreyfinchDataModal } from "./GreyfinchDataModal";
 import { PDFExporter } from "./PDFExporter";
+import { ShareModal } from "./ShareModal";
 import { PeriodConfig, Location } from "@shared/types";
 
 interface MobileFriendlyControlsProps {
@@ -51,6 +53,8 @@ export function MobileFriendlyControls({
 }: MobileFriendlyControlsProps) {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
 
   return (
     <>
@@ -74,13 +78,31 @@ export function MobileFriendlyControls({
             </Button>
             
             <Button
-              onClick={onUpdateAnalysis}
+              onClick={async () => {
+                setRefreshing(true);
+                try {
+                  await onUpdateAnalysis();
+                  toast({
+                    title: "Data Refreshed",
+                    description: "Analytics data has been updated successfully."
+                  });
+                } catch (error) {
+                  toast({
+                    title: "Refresh Failed",
+                    description: "Unable to refresh data. Please try again.",
+                    variant: "destructive"
+                  });
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
               variant="outline"
               size="sm"
               className="flex items-center gap-1 px-3"
+              disabled={refreshing}
             >
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Refresh</span>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
             </Button>
           </div>
 
@@ -94,14 +116,18 @@ export function MobileFriendlyControls({
               <Download className="h-4 w-4" />
             </Button>
             
-            <Button
-              onClick={onShare}
-              variant="outline"
-              size="sm"
-              className="px-3"
-            >
-              <Share2 className="h-4 w-4" />
-            </Button>
+            <ShareModal
+              reportData={{}}
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="px-3"
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              }
+            />
 
             <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
               <SheetTrigger asChild>

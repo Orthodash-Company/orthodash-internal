@@ -6,12 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock, Activity, BarChart3, Users, TrendingUp } from "lucide-react";
+import { Mail, Lock, Activity, BarChart3, Users, TrendingUp, Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [registerForm, setRegisterForm] = useState({ username: "", password: "" });
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   // Redirect if already logged in
   if (user) {
@@ -128,13 +130,26 @@ export default function AuthPage() {
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
                           id="login-password"
-                          type="password"
+                          type={showLoginPassword ? "text" : "password"}
                           placeholder="Enter your password"
                           value={loginForm.password}
                           onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                          className="pl-10"
+                          className="pl-10 pr-10"
                           required
                         />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1 top-1 h-8 w-8 p-0"
+                          onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        >
+                          {showLoginPassword ? (
+                            <EyeOff className="h-4 w-4 text-gray-400" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-gray-400" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                     
@@ -175,13 +190,26 @@ export default function AuthPage() {
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
                           id="register-password"
-                          type="password"
+                          type={showRegisterPassword ? "text" : "password"}
                           placeholder="Create a secure password"
                           value={registerForm.password}
                           onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                          className="pl-10"
+                          className="pl-10 pr-10"
                           required
                         />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1 top-1 h-8 w-8 p-0"
+                          onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                        >
+                          {showRegisterPassword ? (
+                            <EyeOff className="h-4 w-4 text-gray-400" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-gray-400" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                     

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
+import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
 import { Plus, Calendar, MapPin } from "lucide-react";
 import { PeriodConfig, Location } from "@shared/types";
 
@@ -23,9 +23,12 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
   const [endDate, setEndDate] = useState<Date>(new Date(2024, 2, 31));
 
   const handleAddPeriod = () => {
-    if (!startDate || !endDate) return;
+    if (!startDate || !endDate) {
+      console.error('Missing dates:', { startDate, endDate });
+      return;
+    }
     
-    onAddPeriod({
+    console.log('Adding period with data:', {
       name: title,
       title,
       locationId,
@@ -33,12 +36,24 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
       endDate,
     });
     
-    // Reset form and close modal
-    setTitle(`Period ${String.fromCharCode(65 + existingPeriodsCount + 1)}`);
-    setLocationId('all');
-    setStartDate(new Date(2024, 0, 1));
-    setEndDate(new Date(2024, 2, 31));
-    setOpen(false);
+    try {
+      onAddPeriod({
+        name: title,
+        title,
+        locationId,
+        startDate,
+        endDate,
+      });
+      
+      // Reset form and close modal
+      setTitle(`Period ${String.fromCharCode(65 + existingPeriodsCount + 1)}`);
+      setLocationId('all');
+      setStartDate(new Date(2024, 0, 1));
+      setEndDate(new Date(2024, 2, 31));
+      setOpen(false);
+    } catch (error) {
+      console.error('Error adding period:', error);
+    }
   };
 
   return (
@@ -110,18 +125,18 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
                 <Calendar className="w-4 h-4" />
                 Start Date
               </Label>
-              <DatePicker
+              <EnhancedDatePicker
                 date={startDate}
-                setDate={(date) => date && setStartDate(date)}
+                onDateChange={(date) => date && setStartDate(date)}
                 placeholder="Select start date"
               />
             </div>
             
             <div className="space-y-2">
               <Label>End Date</Label>
-              <DatePicker
+              <EnhancedDatePicker
                 date={endDate}
-                setDate={(date) => date && setEndDate(date)}
+                onDateChange={(date) => date && setEndDate(date)}
                 placeholder="Select end date"
               />
             </div>

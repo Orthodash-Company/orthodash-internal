@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
-import { HorizontalPeriodLayout } from "@/components/HorizontalPeriodLayout";
+import { HorizontalFixedColumnLayout } from "@/components/HorizontalFixedColumnLayout";
 import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
-import { CostManagement } from "@/components/CostManagement";
+import { CostManagementEnhanced } from "@/components/CostManagementEnhanced";
 import { AISummaryGenerator } from "@/components/AISummaryGenerator";
 import { format } from "date-fns";
 import { PeriodConfig, Location } from "@shared/types";
@@ -105,7 +105,7 @@ export default function Dashboard() {
         />
 
         {/* Horizontal Period Layout */}
-        <HorizontalPeriodLayout
+        <HorizontalFixedColumnLayout
           periods={periods}
           locations={locations}
           periodQueries={periodQueries}
@@ -129,7 +129,7 @@ export default function Dashboard() {
 
         {/* Cost Management Section - Desktop Only */}
         <div className="hidden lg:block mt-8">
-          <CostManagement 
+          <CostManagementEnhanced 
             locationId={null}
             period="2024-Q1"
           />
