@@ -6,20 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Plus, Calendar, MapPin } from "lucide-react";
-
-interface Location {
-  id: number;
-  name: string;
-  greyfinchId?: string;
-}
-
-interface PeriodConfig {
-  id: string;
-  title: string;
-  locationId: string;
-  startDate: Date;
-  endDate: Date;
-}
+import { PeriodConfig, Location } from "@shared/types";
 
 interface AddColumnModalProps {
   locations: Location[];
@@ -39,6 +26,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
     if (!startDate || !endDate) return;
     
     onAddPeriod({
+      name: title,
       title,
       locationId,
       startDate,

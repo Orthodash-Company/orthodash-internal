@@ -9,32 +9,7 @@ import { AddColumnModal } from "./AddColumnModal";
 import { EditPeriodModal } from "./EditPeriodModal";
 import { Plus, X, Edit3, Calendar, MapPin, Save } from "lucide-react";
 import { format } from "date-fns";
-
-interface VisualizationOption {
-  id: string;
-  type: 'doughnut' | 'column' | 'spline' | 'stacked' | 'stacked-column';
-  title: string;
-  description: string;
-  summary: string;
-  explanation: string;
-  icon: React.ComponentType<any>;
-  options: string[];
-}
-
-interface PeriodConfig {
-  id: string;
-  title: string;
-  locationId: string;
-  startDate: Date;
-  endDate: Date;
-  visualizations?: VisualizationOption[];
-}
-
-interface Location {
-  id: number;
-  name: string;
-  greyfinchId?: string;
-}
+import { PeriodConfig, Location, VisualizationOption } from "@shared/types";
 
 interface HorizontalPeriodLayoutProps {
   periods: PeriodConfig[];
@@ -314,7 +289,7 @@ export function HorizontalPeriodLayout({
       {/* Scroll Indicators - Mobile Only */}
       <div className="lg:hidden mt-4 flex justify-center">
         <div className="flex gap-2">
-          {periods.concat([{ id: 'add', title: 'Add', locationId: '', startDate: new Date(), endDate: new Date() }]).map((_, index) => (
+          {periods.concat([{ id: 'add', name: 'Add', title: 'Add', locationId: '', startDate: new Date(), endDate: new Date() }]).map((_, index) => (
             <div
               key={index}
               className="w-2 h-2 rounded-full bg-gray-300 transition-colors"

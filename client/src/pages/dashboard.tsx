@@ -6,21 +6,7 @@ import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
 import { CostManagement } from "@/components/CostManagement";
 import { AISummaryGenerator } from "@/components/AISummaryGenerator";
 import { format } from "date-fns";
-
-interface PeriodConfig {
-  id: string;
-  name: string;
-  title: string;
-  locationId: string;
-  startDate: Date;
-  endDate: Date;
-}
-
-interface Location {
-  id: number;
-  name: string;
-  greyfinchId?: string;
-}
+import { PeriodConfig, Location } from "@shared/types";
 
 export default function Dashboard() {
   // State for managing multiple periods - start with just one

@@ -28,25 +28,12 @@ import {
 } from "lucide-react";
 import { GreyfinchDataModal } from "./GreyfinchDataModal";
 import { PDFExporter } from "./PDFExporter";
-
-interface PeriodConfig {
-  id: string;
-  title: string;
-  locationId: string;
-  startDate: Date;
-  endDate: Date;
-}
-
-interface Location {
-  id: number;
-  name: string;
-  greyfinchId?: string;
-}
+import { PeriodConfig, Location } from "@shared/types";
 
 interface MobileFriendlyControlsProps {
   periods: PeriodConfig[];
   locations: Location[];
-  onAddPeriod: (periodData?: Partial<PeriodConfig>) => void;
+  onAddPeriod: (periodData: Omit<PeriodConfig, 'id'>) => void;
   onUpdateAnalysis: () => void;
   onExport: () => void;
   onShare: () => void;
@@ -72,7 +59,13 @@ export function MobileFriendlyControls({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1">
             <Button
-              onClick={() => onAddPeriod()}
+              onClick={() => onAddPeriod({ 
+                name: `Period ${periods.length + 1}`,
+                title: `Period ${periods.length + 1}`,
+                locationId: 'all',
+                startDate: new Date(),
+                endDate: new Date()
+              })}
               size="sm"
               className="flex items-center gap-1 px-3"
             >
@@ -187,7 +180,16 @@ export function MobileFriendlyControls({
                       <h3 className="text-sm font-medium mb-3">Quick Actions</h3>
                       <div className="space-y-2">
                         <Button 
-                          onClick={() => { onAddPeriod(); setControlsOpen(false); }}
+                          onClick={() => { 
+                            onAddPeriod({ 
+                              name: `Period ${periods.length + 1}`,
+                              title: `Period ${periods.length + 1}`,
+                              locationId: 'all',
+                              startDate: new Date(),
+                              endDate: new Date()
+                            }); 
+                            setControlsOpen(false); 
+                          }}
                           variant="outline" 
                           className="w-full justify-start"
                         >
@@ -244,7 +246,13 @@ export function MobileFriendlyControls({
                   onDataSelected={onGreyfinchDataSelected}
                 />
                 
-                <Button onClick={() => onAddPeriod()} variant="outline" size="sm">
+                <Button onClick={() => onAddPeriod({ 
+                  name: `Period ${periods.length + 1}`,
+                  title: `Period ${periods.length + 1}`,
+                  locationId: 'all',
+                  startDate: new Date(),
+                  endDate: new Date()
+                })} variant="outline" size="sm">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Period
                 </Button>

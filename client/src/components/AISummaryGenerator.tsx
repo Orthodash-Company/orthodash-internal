@@ -7,30 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-
-interface Period {
-  id: string;
-  name: string;
-  locationId: number | null;
-  startDate: string;
-  endDate: string;
-}
-
-interface AnalyticsData {
-  avgNetProduction: number;
-  avgAcquisitionCost: number;
-  noShowRate: number;
-  referralSources: {
-    digital: number;
-    professional: number;
-    direct: number;
-  };
-  conversionRates: {
-    digital: number;
-    professional: number;
-    direct: number;
-  };
-}
+import { PeriodConfig, AnalyticsData } from "@shared/types";
 
 interface AISummary {
   recommendations: string[];
@@ -51,7 +28,7 @@ interface AISummary {
 }
 
 interface AISummaryGeneratorProps {
-  periods: Period[];
+  periods: PeriodConfig[];
   periodData: { [key: string]: AnalyticsData };
 }
 
@@ -60,7 +37,7 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
   const { toast } = useToast();
 
   const generateSummaryMutation = useMutation({
-    mutationFn: async (data: { periods: Period[]; periodData: { [key: string]: AnalyticsData } }) => {
+    mutationFn: async (data: { periods: PeriodConfig[]; periodData: { [key: string]: AnalyticsData } }) => {
       const response = await apiRequest('POST', '/api/generate-summary', data);
       return await response.json();
     },
