@@ -146,7 +146,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               size="sm"
               variant="ghost"
               onClick={() => {
-                // Handle period editing/configuration
+                console.log('Period edit clicked for:', period.id);
               }}
             >
               <Edit3 className="h-4 w-4" />
@@ -163,12 +163,18 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="grid grid-cols-1 gap-2">
               <EnhancedDatePicker
                 date={period.startDate}
-                onDateChange={(date) => onUpdatePeriod(period.id, { startDate: date })}
+                onDateChange={(date) => {
+                  console.log('Start date changed:', date);
+                  onUpdatePeriod(period.id, { startDate: date });
+                }}
                 placeholder="Start date"
               />
               <EnhancedDatePicker
                 date={period.endDate}
-                onDateChange={(date) => onUpdatePeriod(period.id, { endDate: date })}
+                onDateChange={(date) => {
+                  console.log('End date changed:', date);
+                  onUpdatePeriod(period.id, { endDate: date });
+                }}
                 placeholder="End date"
               />
             </div>
@@ -208,13 +214,20 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <p className="text-xs text-gray-400 mb-3">Need to compare multiple periods?</p>
                 <Button
-                  onClick={() => onAddPeriod({
-                    name: `Period B`,
-                    title: `Period B`,
-                    locationId: 'all',
-                    startDate: undefined,
-                    endDate: undefined
-                  })}
+                  onClick={() => {
+                    console.log('Add period clicked');
+                    try {
+                      onAddPeriod({
+                        name: `Period B`,
+                        title: `Period B`,
+                        locationId: 'all',
+                        startDate: undefined,
+                        endDate: undefined
+                      });
+                    } catch (error) {
+                      console.error('Error in add period:', error);
+                    }
+                  }}
                   variant="outline"
                   size="sm"
                   className="text-blue-600 border-blue-200 hover:bg-blue-50"

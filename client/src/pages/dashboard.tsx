@@ -54,13 +54,19 @@ export default function Dashboard() {
       return;
     }
     
-    const newPeriod: PeriodConfig = {
-      ...periodData,
-      id: `period-${Date.now()}`,
-      startDate: periodData.startDate ? new Date(periodData.startDate) : undefined,
-      endDate: periodData.endDate ? new Date(periodData.endDate) : undefined,
-    };
-    setPeriods(prev => [...prev, newPeriod]);
+    try {
+      const newPeriod: PeriodConfig = {
+        ...periodData,
+        id: `period-${Date.now()}`,
+        startDate: periodData.startDate ? new Date(periodData.startDate) : undefined,
+        endDate: periodData.endDate ? new Date(periodData.endDate) : undefined,
+      };
+      
+      console.log('Adding new period:', newPeriod);
+      setPeriods(prev => [...prev, newPeriod]);
+    } catch (error) {
+      console.error('Error adding period:', error);
+    }
   };
 
   // Handle removing a period column
