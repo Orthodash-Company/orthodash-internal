@@ -2,18 +2,16 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock, Activity, BarChart3, Users, TrendingUp, Eye, EyeOff } from "lucide-react";
+import { Loader2, TrendingUp } from "lucide-react";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [registerForm, setRegisterForm] = useState({ username: "", password: "" });
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [loginData, setLoginData] = useState({ username: "", password: "" });
+  const [registerData, setRegisterData] = useState({ username: "", password: "" });
 
   // Redirect if already logged in
   if (user) {
@@ -22,209 +20,163 @@ export default function AuthPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate(loginForm);
+    loginMutation.mutate(loginData);
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    registerMutation.mutate(registerForm);
+    registerMutation.mutate(registerData);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
-      <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-8 items-center">
-        
-        {/* Hero Section */}
-        <div className="space-y-6 lg:pr-8">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-8 w-8 text-blue-600" />
-              <h1 className="text-3xl font-bold text-gray-900">ORTHODASH</h1>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Left side - Auth Forms */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-md space-y-8">
+          {/* Logo */}
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-4">
+              <TrendingUp className="h-8 w-8 text-blue-600 mr-2" />
+              <h1 className="text-2xl font-bold text-gray-900">ORTHODASH</h1>
             </div>
-            <h2 className="text-2xl text-gray-700">
-              Analytics Platform for Orthodontic Practices
-            </h2>
-            <p className="text-lg text-gray-600">
-              Transform your practice data into actionable insights with comprehensive 
-              analytics, patient acquisition tracking, and multi-period comparisons.
-            </p>
+            <p className="text-gray-600">Analytics dashboard for orthodontic practices</p>
           </div>
 
-          {/* Feature highlights */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm border">
-              <BarChart3 className="h-8 w-8 text-blue-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Multi-Period Analysis</h3>
-                <p className="text-sm text-gray-600">Compare performance across unlimited time ranges</p>
-              </div>
-            </div>
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="register">Register</TabsTrigger>
+            </TabsList>
             
-            <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm border">
-              <Users className="h-8 w-8 text-green-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Patient Insights</h3>
-                <p className="text-sm text-gray-600">Track acquisition costs and conversion rates</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm border">
-              <TrendingUp className="h-8 w-8 text-purple-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">ROI Tracking</h3>
-                <p className="text-sm text-gray-600">Monitor referral source performance</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm border">
-              <Activity className="h-8 w-8 text-[#1d1d52]" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Real-time Data</h3>
-                <p className="text-sm text-gray-600">Greyfinch API integration for live updates</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-800">
-              <strong>Team Orthodontics Access:</strong> This platform is restricted to 
-              @teamorthodontics.com email addresses for secure practice management.
-            </p>
-          </div>
-        </div>
-
-        {/* Authentication Form */}
-        <div className="w-full max-w-md mx-auto lg:mx-0">
-          <Card className="shadow-lg">
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl text-center">Access ORTHODASH</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="login" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="login">Login</TabsTrigger>
-                  <TabsTrigger value="register">Register</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="login">
+            <TabsContent value="login">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Login</CardTitle>
+                  <CardDescription>
+                    Enter your credentials to access your dashboard
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="login-email">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="login-email"
-                          type="email"
-                          placeholder="orthodash@teamorthodontics.com"
-                          value={loginForm.username}
-                          onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
+                      <Label htmlFor="login-email">Email</Label>
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="orthodash@teamorthodontics.com"
+                        value={loginData.username}
+                        onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
+                        required
+                      />
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="login-password">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="login-password"
-                          type={showLoginPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          value={loginForm.password}
-                          onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                          className="pl-10 pr-10"
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-1 top-1 h-8 w-8 p-0"
-                          onClick={() => setShowLoginPassword(!showLoginPassword)}
-                        >
-                          {showLoginPassword ? (
-                            <EyeOff className="h-4 w-4 text-gray-400" />
-                          ) : (
-                            <Eye className="h-4 w-4 text-gray-400" />
-                          )}
-                        </Button>
-                      </div>
+                      <Input
+                        id="login-password"
+                        type="password"
+                        placeholder="OrthoDash2025!"
+                        value={loginData.password}
+                        onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                        required
+                      />
                     </div>
                     
                     <Button 
                       type="submit" 
-                      className="w-full"
+                      className="w-full" 
                       disabled={loginMutation.isPending}
                     >
-                      {loginMutation.isPending ? "Signing In..." : "Sign In"}
+                      {loginMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Logging in...
+                        </>
+                      ) : (
+                        "Login"
+                      )}
                     </Button>
                   </form>
-                </TabsContent>
-                
-                <TabsContent value="register">
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="register">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Register</CardTitle>
+                  <CardDescription>
+                    Create a new account for your practice
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <form onSubmit={handleRegister} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="register-email">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="register-email"
-                          type="email"
-                          placeholder="your.name@teamorthodontics.com"
-                          value={registerForm.username}
-                          onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                      <p className="text-xs text-gray-600">
-                        Must be a @teamorthodontics.com email address
-                      </p>
+                      <Label htmlFor="register-email">Email</Label>
+                      <Input
+                        id="register-email"
+                        type="email"
+                        placeholder="your-name@teamorthodontics.com"
+                        value={registerData.username}
+                        onChange={(e) => setRegisterData(prev => ({ ...prev, username: e.target.value }))}
+                        required
+                      />
+                      <p className="text-xs text-gray-500">Only @teamorthodontics.com emails are allowed</p>
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="register-password">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="register-password"
-                          type={showRegisterPassword ? "text" : "password"}
-                          placeholder="Create a secure password"
-                          value={registerForm.password}
-                          onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                          className="pl-10 pr-10"
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-1 top-1 h-8 w-8 p-0"
-                          onClick={() => setShowRegisterPassword(!showRegisterPassword)}
-                        >
-                          {showRegisterPassword ? (
-                            <EyeOff className="h-4 w-4 text-gray-400" />
-                          ) : (
-                            <Eye className="h-4 w-4 text-gray-400" />
-                          )}
-                        </Button>
-                      </div>
+                      <Input
+                        id="register-password"
+                        type="password"
+                        value={registerData.password}
+                        onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
+                        required
+                      />
                     </div>
                     
                     <Button 
                       type="submit" 
-                      className="w-full"
+                      className="w-full" 
                       disabled={registerMutation.isPending}
                     >
-                      {registerMutation.isPending ? "Creating Account..." : "Create Account"}
+                      {registerMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Registering...
+                        </>
+                      ) : (
+                        "Register"
+                      )}
                     </Button>
                   </form>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Right side - Hero */}
+      <div className="hidden lg:flex lg:flex-1 bg-blue-600 text-white p-8 items-center justify-center">
+        <div className="max-w-lg text-center space-y-6">
+          <TrendingUp className="h-16 w-16 mx-auto opacity-90" />
+          <div className="space-y-4">
+            <h2 className="text-3xl font-bold">Orthodontic Analytics Made Simple</h2>
+            <p className="text-blue-100 text-lg">
+              Track patient acquisition costs, analyze referral sources, and optimize your practice performance with comprehensive data insights.
+            </p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="bg-blue-700 rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Cost Analysis</h3>
+                <p className="text-blue-200">Monitor acquisition costs across all referral channels</p>
+              </div>
+              <div className="bg-blue-700 rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Performance Metrics</h3>
+                <p className="text-blue-200">Compare periods and track conversion rates</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
