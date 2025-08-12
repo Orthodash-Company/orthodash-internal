@@ -194,23 +194,7 @@ export function MobileFriendlyControls({
                     <CardContent className="pt-4">
                       <h3 className="text-sm font-medium mb-3">Quick Actions</h3>
                       <div className="space-y-2">
-                        <Button 
-                          onClick={() => { 
-                            onAddPeriod({ 
-                              name: `Period ${periods.length + 1}`,
-                              title: `Period ${periods.length + 1}`,
-                              locationId: 'all',
-                              startDate: new Date(),
-                              endDate: new Date()
-                            }); 
-                            setControlsOpen(false); 
-                          }}
-                          variant="outline" 
-                          className="w-full justify-start"
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add New Period
-                        </Button>
+
                         <Button 
                           onClick={() => { onUpdateAnalysis(); setControlsOpen(false); }}
                           variant="outline" 

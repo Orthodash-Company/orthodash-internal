@@ -187,23 +187,15 @@ export function HorizontalFixedColumnLayout({
 
                 {/* Period Content */}
                 <CardContent className="pt-0 space-y-4">
-                  {period.startDate && period.endDate ? (
-                    <PeriodColumn
-                      period={period as any} // Type assertion for compatibility
-                      query={query}
-                      locations={locations}
-                      onUpdatePeriod={onUpdatePeriod}
-                      isCompact={true}
-                    />
-                  ) : (
-                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                      <div className="text-gray-500">
-                        <Calendar className="h-8 w-8 mx-auto mb-3 text-gray-400" />
-                        <p className="font-medium">Select Date Range</p>
-                        <p className="text-sm">Choose start and end dates to begin analysis</p>
-                      </div>
-                    </div>
-                  )}
+                  <PeriodColumn
+                    period={period as any} // Type assertion for compatibility
+                    query={query}
+                    locations={locations}
+                    onUpdatePeriod={onUpdatePeriod}
+                    onAddPeriod={onAddPeriod}
+                    isFirstPeriod={index === 0}
+                    isCompact={true}
+                  />
                   
                   {/* Visualizations Waterfall */}
                   {period.visualizations?.map((viz, vizIndex) => (

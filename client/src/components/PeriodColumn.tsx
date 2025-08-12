@@ -15,23 +15,11 @@ import {
   TrendingDown, 
   Edit3,
   Calendar,
-  MapPin
+  MapPin,
+  Plus
 } from "lucide-react";
 import { format } from "date-fns";
-
-interface PeriodConfig {
-  id: string;
-  title: string;
-  locationId: string;
-  startDate: Date;
-  endDate: Date;
-}
-
-interface Location {
-  id: number;
-  name: string;
-  greyfinchId?: string;
-}
+import { PeriodConfig, Location } from "@shared/types";
 
 interface PeriodData {
   avgNetProduction: number;
@@ -65,7 +53,12 @@ interface PeriodColumnProps {
   isCompact?: boolean;
 }
 
-export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompact = false }: PeriodColumnProps) {
+interface PeriodColumnPropsExtended extends PeriodColumnProps {
+  onAddPeriod?: (period: Omit<PeriodConfig, 'id'>) => void;
+  isFirstPeriod?: boolean;
+}
+
+export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false }: PeriodColumnPropsExtended) {
   const data = query?.data;
   const isLoading = query?.isLoading;
   const error = query?.error;
@@ -205,10 +198,32 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
             </Select>
           </div>
 
-          {/* Empty State Message */}
+          {/* Empty State Message - Enhanced for Period A */}
           <div className="text-center py-8 text-gray-500">
             <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Select a date range to view analytics data</p>
+            <p className="text-sm mb-4">Select a date range to view analytics data</p>
+            
+            {/* Add Period CTA for Period A only when it's the first period */}
+            {isFirstPeriod && onAddPeriod && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-xs text-gray-400 mb-3">Need to compare multiple periods?</p>
+                <Button
+                  onClick={() => onAddPeriod({
+                    name: `Period B`,
+                    title: `Period B`,
+                    locationId: 'all',
+                    startDate: undefined,
+                    endDate: undefined
+                  })}
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Comparison Period
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
