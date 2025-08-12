@@ -1,4 +1,4 @@
-import { ChartLine, User, LogOut } from "lucide-react";
+import { ChartLine, User, LogOut, History } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ReportsManager } from "./ReportsManager";
 
 export function SimpleHeader() {
   const { user, logoutMutation } = useAuth();
@@ -32,6 +33,19 @@ export function SimpleHeader() {
             <div className="text-sm text-gray-600">
               Analytics Dashboard
             </div>
+            
+            {user && (
+              <>
+                <ReportsManager 
+                  trigger={
+                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-[#1d1d52] hover:bg-gray-100">
+                      <History className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-2">Report History</span>
+                    </Button>
+                  } 
+                />
+              </>
+            )}
             
             {user && (
               <DropdownMenu>
