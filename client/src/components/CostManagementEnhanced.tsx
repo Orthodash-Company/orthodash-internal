@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DollarSign, TrendingUp, Settings, Key, Plus, Save, RefreshCw } from "lucide-react";
+import { CostEntryForm } from "./CostEntryForm";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,9 +25,7 @@ interface ApiConfiguration {
 }
 
 interface CostData {
-  digital: number;
-  professional: number;
-  direct: number;
+  manual_total: number;
   meta_ads?: number;
   google_ads?: number;
   other?: number;
@@ -39,9 +38,7 @@ interface CostManagementEnhancedProps {
 
 export function CostManagementEnhanced({ locationId, period }: CostManagementEnhancedProps) {
   const [costs, setCosts] = useState<CostData>({
-    digital: 0,
-    professional: 0,
-    direct: 0,
+    manual_total: 0,
     meta_ads: 0,
     google_ads: 0,
     other: 0,
@@ -290,39 +287,10 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
           </TabsList>
           
           <TabsContent value="manual" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(costs).map(([key, value]) => (
-                <div key={key} className="space-y-2">
-                  <Label className="text-sm font-medium capitalize">
-                    {key.replace('_', ' ')} Costs
-                  </Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      type="number"
-                      value={value || ''}
-                      onChange={(e) => handleCostChange(key as keyof CostData, e.target.value)}
-                      className="pl-10"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <Separator />
-            
-            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <span className="font-medium">Total Acquisition Costs</span>
-              </div>
-              <div className="text-2xl font-bold text-green-700">
-                ${totalCosts.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-            </div>
+            <CostEntryForm 
+              onCostChange={(total) => setCosts(prev => ({ ...prev, manual_total: total }))}
+              initialCosts={[]}
+            />
           </TabsContent>
           
           <TabsContent value="automated" className="space-y-6">

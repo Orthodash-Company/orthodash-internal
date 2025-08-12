@@ -9,15 +9,15 @@ import { format } from "date-fns";
 import { PeriodConfig, Location } from "@shared/types";
 
 export default function Dashboard() {
-  // State for managing multiple periods - start with just one
+  // State for managing multiple periods - start with one in empty state
   const [periods, setPeriods] = useState<PeriodConfig[]>([
     {
       id: 'period-1',
       name: 'Period A',
       title: 'Period A',
       locationId: 'all',
-      startDate: new Date(2024, 0, 1), // Jan 1, 2024
-      endDate: new Date(2024, 2, 31)  // Mar 31, 2024
+      startDate: undefined, // Empty state until user selects
+      endDate: undefined    // Empty state until user selects
     }
   ]);
 
@@ -26,17 +26,24 @@ export default function Dashboard() {
     queryKey: ['/api/locations'],
   });
 
-  // Create queries for all periods dynamically
+  // Create queries for all periods dynamically - only if dates are selected
   const periodQueries = periods.map((period) => {
     const locationParam = period.locationId === 'all' ? '' : `&locationId=${period.locationId}`;
     
     return useQuery({
-      queryKey: ['/api/analytics', period.id, period.locationId, format(period.startDate, 'yyyy-MM-dd'), format(period.endDate, 'yyyy-MM-dd')],
+      queryKey: ['/api/analytics', period.id, period.locationId, 
+        period.startDate ? format(period.startDate, 'yyyy-MM-dd') : 'no-start', 
+        period.endDate ? format(period.endDate, 'yyyy-MM-dd') : 'no-end'
+      ],
       queryFn: async () => {
+        if (!period.startDate || !period.endDate) {
+          return null; // Return null for empty state
+        }
         const response = await fetch(`/api/analytics?startDate=${format(period.startDate, 'yyyy-MM-dd')}&endDate=${format(period.endDate, 'yyyy-MM-dd')}${locationParam}`);
         if (!response.ok) throw new Error('Failed to fetch analytics');
         return response.json();
       },
+      enabled: !!(period.startDate && period.endDate), // Only enabled when dates are set
     });
   });
 

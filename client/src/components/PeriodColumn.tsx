@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
+import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
 import { Label } from "@/components/ui/label";
 import { PieChart } from "./charts/PieChart";
 import { ColumnChart } from "./charts/ColumnChart";
@@ -142,11 +142,74 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
     direct: week.direct
   }));
 
-  if (error) {
+  // Check for empty state (no dates selected)
+  if (!period.startDate || !period.endDate) {
     return (
-      <Card className="h-full">
-        <CardContent className="flex items-center justify-center h-32">
-          <p className="text-red-500">Error loading data</p>
+      <Card className="w-full min-w-[350px] overflow-hidden">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{period.title}</CardTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                // Handle period editing/configuration
+              }}
+            >
+              <Edit3 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Date Range Selection */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Select Date Range
+            </Label>
+            <div className="grid grid-cols-1 gap-2">
+              <EnhancedDatePicker
+                date={period.startDate}
+                onDateChange={(date) => onUpdatePeriod(period.id, { startDate: date })}
+                placeholder="Start date"
+              />
+              <EnhancedDatePicker
+                date={period.endDate}
+                onDateChange={(date) => onUpdatePeriod(period.id, { endDate: date })}
+                placeholder="End date"
+              />
+            </div>
+          </div>
+
+          {/* Location Selection */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Location
+            </Label>
+            <Select
+              value={period.locationId}
+              onValueChange={(value) => onUpdatePeriod(period.id, { locationId: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id.toString()}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Empty State Message */}
+          <div className="text-center py-8 text-gray-500">
+            <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm">Select a date range to view analytics data</p>
+          </div>
         </CardContent>
       </Card>
     );
@@ -240,18 +303,20 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, isCompa
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs text-gray-600">Start Date</Label>
-                <DatePicker
+                <EnhancedDatePicker
                   date={period.startDate}
-                  setDate={(date) => date && onUpdatePeriod(period.id, { startDate: date })}
+                  onDateChange={(date) => onUpdatePeriod(period.id, { startDate: date })}
                   className="h-8"
+                  placeholder="Select start"
                 />
               </div>
               <div>
                 <Label className="text-xs text-gray-600">End Date</Label>
-                <DatePicker
+                <EnhancedDatePicker
                   date={period.endDate}
-                  setDate={(date) => date && onUpdatePeriod(period.id, { endDate: date })}
+                  onDateChange={(date) => onUpdatePeriod(period.id, { endDate: date })}
                   className="h-8"
+                  placeholder="Select end"
                 />
               </div>
             </div>

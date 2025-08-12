@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, BarChart3, PieChart, LineChart, TrendingUp, BarChart2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface VisualizationOption {
   id: string;
@@ -77,102 +78,113 @@ const visualizationOptions: VisualizationOption[] = [
 
 export function DataVisualizationModal({ onSelectVisualization, isLoading = false }: DataVisualizationModalProps) {
   const [selectedOption, setSelectedOption] = useState<VisualizationOption | null>(null);
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleSelectVisualization = (option: VisualizationOption) => {
     setSelectedOption(option);
     onSelectVisualization(option);
+    setOpen(false);
+    
+    // Show success message
+    toast({
+      title: "Visualization Added",
+      description: `${option.title} has been added to your dashboard.`,
+    });
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Add Visualization</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Data Visualization</DialogTitle>
-        </DialogHeader>
-        
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-full" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-20 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            {visualizationOptions.map((option) => {
-              const IconComponent = option.icon;
-              return (
-                <Card 
-                  key={option.id} 
-                  className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
-                  onClick={() => handleSelectVisualization(option)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-50 rounded-lg">
-                        <IconComponent className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <CardTitle className="text-sm font-semibold">{option.title}</CardTitle>
-                        <CardDescription className="text-xs">{option.description}</CardDescription>
-                      </div>
-                    </div>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <div className="overflow-y-auto max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Add Data Visualization</DialogTitle>
+          </DialogHeader>
+          
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="text-xs font-medium text-gray-700 mb-1">Summary</h4>
-                        <p className="text-xs text-gray-600">{option.summary}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-xs font-medium text-gray-700 mb-1">Analysis</h4>
-                        <p className="text-xs text-gray-600">{option.explanation}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-xs font-medium text-gray-700 mb-2">Options</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {option.options.map((opt, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {opt}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                  <CardContent>
+                    <Skeleton className="h-20 w-full" />
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
-        )}
-        
-        {/* Empty State */}
-        {!isLoading && visualizationOptions.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="rounded-full bg-gray-100 p-3 mb-4">
-              <BarChart3 className="h-8 w-8 text-gray-400" />
+              ))}
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Visualizations Available</h3>
-            <p className="text-gray-500 max-w-sm">
-              There are no data visualizations available at the moment. Check back later for new options.
-            </p>
-          </div>
-        )}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {visualizationOptions.map((option) => {
+                const IconComponent = option.icon;
+                return (
+                  <Card 
+                    key={option.id} 
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
+                    onClick={() => handleSelectVisualization(option)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-50 rounded-lg">
+                          <IconComponent className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-sm font-semibold">{option.title}</CardTitle>
+                          <CardDescription className="text-xs">{option.description}</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Summary</h4>
+                          <p className="text-xs text-gray-600">{option.summary}</p>
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Analysis</h4>
+                          <p className="text-xs text-gray-600">{option.explanation}</p>
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-2">Options</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {option.options.map((opt, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {opt}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+          
+          {/* Empty State */}
+          {!isLoading && visualizationOptions.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="rounded-full bg-gray-100 p-3 mb-4">
+                <BarChart3 className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Visualizations Available</h3>
+              <p className="text-gray-500 max-w-sm">
+                There are no data visualizations available at the moment. Check back later for new options.
+              </p>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
