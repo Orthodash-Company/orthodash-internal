@@ -24,9 +24,14 @@ export function CostEntryForm({ onCostChange, initialCosts = [] }: CostEntryForm
 
   const totalCost = costEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
-  // Update parent when total changes
+  // Update parent when total changes - using useCallback to prevent infinite loops
+  const totalCostRef = React.useRef(totalCost);
+  
   React.useEffect(() => {
-    onCostChange(totalCost);
+    if (totalCostRef.current !== totalCost) {
+      totalCostRef.current = totalCost;
+      onCostChange(totalCost);
+    }
   }, [totalCost, onCostChange]);
 
   const addCostEntry = () => {

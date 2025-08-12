@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -171,6 +171,11 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
   };
 
   const totalCosts = Object.values(costs).reduce((sum, cost) => sum + cost, 0);
+  
+  // Use useCallback to prevent infinite re-renders in CostEntryForm
+  const handleManualCostChange = useCallback((total: number) => {
+    setCosts(prev => ({ ...prev, manual_total: total }));
+  }, []);
 
   return (
     <Card className="w-full">
@@ -288,7 +293,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
           
           <TabsContent value="manual" className="space-y-6">
             <CostEntryForm 
-              onCostChange={(total) => setCosts(prev => ({ ...prev, manual_total: total }))}
+              onCostChange={handleManualCostChange}
               initialCosts={[]}
             />
           </TabsContent>
