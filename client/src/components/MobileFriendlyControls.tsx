@@ -245,17 +245,6 @@ export function MobileFriendlyControls({
                   onDataSelected={onGreyfinchDataSelected}
                 />
                 
-                <Button onClick={() => onAddPeriod({ 
-                  name: `Period ${periods.length + 1}`,
-                  title: `Period ${periods.length + 1}`,
-                  locationId: 'all',
-                  startDate: new Date(),
-                  endDate: new Date()
-                })} variant="outline" size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Period
-                </Button>
-                
                 <Button onClick={onUpdateAnalysis} variant="outline" size="sm">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Refresh
