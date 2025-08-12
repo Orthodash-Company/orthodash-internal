@@ -103,7 +103,7 @@ export function MobileFriendlyControls({
             </Button>
             
             <ShareModal
-              reportData={{}}
+              reportData={onShare()}
               trigger={
                 <Button
                   variant="outline"

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Share2, Copy, Mail, Link, Users, Calendar, CheckCircle } from "lucide-react";
+import { Share2, Copy, Mail, Link, Users, Calendar, CheckCircle, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ShareModalProps {
@@ -22,12 +22,68 @@ export function ShareModal({ reportData, trigger }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  // Generate shareable link (in production, this would be a real API call)
+  // Generate PDF and shareable link
+  const [generating, setGenerating] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  
   const shareableLink = `${window.location.origin}/shared/${btoa(JSON.stringify({
     title: shareTitle,
     timestamp: Date.now(),
-    periods: reportData?.periods?.length || 0
+    periods: reportData?.periods?.length || 0,
+    id: reportData?.timestamp || Date.now()
   }))}`;
+
+  const generatePDF = async () => {
+    if (!reportData || !reportData.periods?.length) {
+      toast({
+        title: "No Data Available",
+        description: "Please configure at least one period with data before sharing.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const response = await fetch('/api/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reportData,
+          options: {
+            title: shareTitle,
+            description: shareMessage,
+            includeCharts: true,
+            includeData: true,
+            includeSummary: true,
+            pageFormat: 'A4',
+            orientation: 'portrait'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('PDF generation failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setPdfUrl(url);
+      
+      toast({
+        title: "PDF Generated",
+        description: "Report PDF is ready for sharing."
+      });
+    } catch (error) {
+      toast({
+        title: "PDF Generation Failed",
+        description: "Unable to generate PDF. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -44,6 +100,17 @@ export function ShareModal({ reportData, trigger }: ShareModalProps) {
         description: "Unable to copy link. Please try again.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    if (pdfUrl) {
+      const a = document.createElement('a');
+      a.href = pdfUrl;
+      a.download = `${shareTitle.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
 
@@ -86,18 +153,69 @@ export function ShareModal({ reportData, trigger }: ShareModalProps) {
               <Calendar className="h-4 w-4 text-gray-600" />
               <span className="text-sm font-medium">Report Summary</span>
             </div>
-            <div className="space-y-1">
-              <p className="text-sm text-gray-700">{shareTitle}</p>
-              <div className="flex gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {reportData?.periods?.length || 0} Periods
-                </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  Generated {new Date().toLocaleDateString()}
-                </Badge>
-              </div>
+            <div className="space-y-1 text-xs text-gray-600">
+              <div>Title: {reportData?.title || 'ORTHODASH Analytics Report'}</div>
+              <div>Periods: {reportData?.periods?.length || 0}</div>
+              <div>Generated: {new Date().toLocaleDateString()}</div>
+              {reportData?.summary?.dateRange && (
+                <div>Date Range: {reportData.summary.dateRange}</div>
+              )}
             </div>
           </div>
+
+          {/* PDF Generation Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-medium">Generate PDF Report</h3>
+            </div>
+            
+            <Button 
+              onClick={generatePDF}
+              disabled={generating || !reportData?.periods?.length}
+              className="w-full"
+              variant="outline"
+            >
+              {generating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Generate Shareable PDF
+                </>
+              )}
+            </Button>
+            
+            {pdfUrl && (
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleDownloadPDF}
+                  variant="outline" 
+                  size="sm"
+                  className="flex-1"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button 
+                  onClick={() => {
+                    const pdfLink = `${shareableLink}&pdf=${encodeURIComponent(pdfUrl)}`;
+                    handleCopyLink();
+                  }}
+                  variant="outline" 
+                  size="sm"
+                  className="flex-1"
+                >
+                  {copied ? <CheckCircle className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                  Copy PDF Link
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <Separator />
 
           {/* Share Method Selection */}
           <div>

@@ -100,7 +100,26 @@ export default function Dashboard() {
   };
 
   const handleShare = () => {
-    console.log('Share functionality to be implemented');
+    const reportData = {
+      periods,
+      periodData: Object.fromEntries(
+        periodQueries.map((query, index) => [
+          periods[index].id,
+          query.data || {}
+        ]).filter(([_, data]) => Object.keys(data as any).length > 0)
+      ),
+      locations,
+      timestamp: new Date().toISOString(),
+      title: `ORTHODASH Analytics Report - ${new Date().toLocaleDateString()}`,
+      summary: {
+        totalPeriods: periods.length,
+        hasData: periodQueries.some(q => q.data && Object.keys(q.data).length > 0),
+        dateRange: periods.length > 0 ? 
+          `${periods[0].startDate || 'No start'} - ${periods[0].endDate || 'No end'}` : 'No periods'
+      }
+    };
+    
+    return reportData;
   };
 
   const handleGreyfinchDataSelected = (selection: any) => {
