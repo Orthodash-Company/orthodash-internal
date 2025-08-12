@@ -28,6 +28,12 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
       return;
     }
     
+    // Validate that we don't exceed 10 periods
+    if (existingPeriodsCount >= 10) {
+      console.error('Maximum 10 periods allowed');
+      return;
+    }
+    
     console.log('Adding period with data:', {
       name: title,
       title,
@@ -41,8 +47,8 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
         name: title,
         title,
         locationId,
-        startDate,
-        endDate,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
       });
       
       // Reset form and close modal

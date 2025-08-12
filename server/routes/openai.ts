@@ -18,6 +18,12 @@ export function setupOpenAIRoutes(app: Express) {
 
       const { periods, periodData } = req.body;
 
+      if (!periods || !periodData || typeof periods !== 'object' || typeof periodData !== 'object') {
+        return res.status(400).json({ 
+          error: "Invalid request data. Please provide periods and periodData objects." 
+        });
+      }
+
       // Construct prompt with actual data
       const dataString = JSON.stringify({ periods, periodData }, null, 2);
       
@@ -85,7 +91,8 @@ export function setupOpenAIRoutes(app: Express) {
         });
       } else {
         res.status(500).json({ 
-          error: "Failed to generate AI summary. Please try again later." 
+          error: "Failed to generate AI summary. Please try again later.",
+          details: error instanceof Error ? error.message : "Unknown error"
         });
       }
     }

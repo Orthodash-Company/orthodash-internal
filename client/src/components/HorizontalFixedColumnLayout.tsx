@@ -159,7 +159,10 @@ export function HorizontalFixedColumnLayout({
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="h-4 w-4" />
                       <span>
-                        {format(period.startDate, 'MMM d')} - {format(period.endDate, 'MMM d, yyyy')}
+                        {period.startDate && period.endDate ? 
+                          `${format(new Date(period.startDate), 'MMM d')} - ${format(new Date(period.endDate), 'MMM d, yyyy')}` : 
+                          'Select date range'
+                        }
                       </span>
                     </div>
                     
@@ -184,13 +187,23 @@ export function HorizontalFixedColumnLayout({
 
                 {/* Period Content */}
                 <CardContent className="pt-0 space-y-4">
-                  <PeriodColumn
-                    period={period}
-                    query={query}
-                    locations={locations}
-                    onUpdatePeriod={onUpdatePeriod}
-                    isCompact={true}
-                  />
+                  {period.startDate && period.endDate ? (
+                    <PeriodColumn
+                      period={period as any} // Type assertion for compatibility
+                      query={query}
+                      locations={locations}
+                      onUpdatePeriod={onUpdatePeriod}
+                      isCompact={true}
+                    />
+                  ) : (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      <div className="text-gray-500">
+                        <Calendar className="h-8 w-8 mx-auto mb-3 text-gray-400" />
+                        <p className="font-medium">Select Date Range</p>
+                        <p className="text-sm">Choose start and end dates to begin analysis</p>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Visualizations Waterfall */}
                   {period.visualizations?.map((viz, vizIndex) => (
@@ -259,7 +272,7 @@ export function HorizontalFixedColumnLayout({
       {/* Scroll Indicators - Mobile Only */}
       <div className="lg:hidden mt-4 flex justify-center">
         <div className="flex gap-2">
-          {periods.concat([{ id: 'add', name: 'Add', title: 'Add', locationId: '', startDate: new Date(), endDate: new Date() }]).map((_, index) => (
+          {Array.from({ length: periods.length + 1 }).map((_, index) => (
             <div
               key={index}
               className="w-2 h-2 rounded-full bg-gray-300 transition-colors"

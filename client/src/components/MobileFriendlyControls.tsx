@@ -18,14 +18,14 @@ import {
 } from "@/components/ui/collapsible";
 import { 
   Settings, 
-  Plus, 
   RefreshCw, 
   Download, 
   Share2, 
   ChevronDown,
   Calendar,
   MapPin,
-  Filter
+  Filter,
+  Plus
 } from "lucide-react";
 import { GreyfinchDataModal } from "./GreyfinchDataModal";
 import { PDFExporter } from "./PDFExporter";
@@ -62,21 +62,7 @@ export function MobileFriendlyControls({
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1">
-            <Button
-              onClick={() => onAddPeriod({ 
-                name: `Period ${periods.length + 1}`,
-                title: `Period ${periods.length + 1}`,
-                locationId: 'all',
-                startDate: new Date(),
-                endDate: new Date()
-              })}
-              size="sm"
-              className="flex items-center gap-1 px-3"
-            >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add</span>
-            </Button>
-            
+            {/* Removed Add Period button - use AddColumnModal in layout instead */}
             <Button
               onClick={async () => {
                 setRefreshing(true);
@@ -190,7 +176,10 @@ export function MobileFriendlyControls({
                                   </Badge>
                                 </div>
                                 <p className="text-xs text-gray-600">
-                                  {period.startDate.toLocaleDateString()} - {period.endDate.toLocaleDateString()}
+                                  {period.startDate && period.endDate ? 
+                                    `${new Date(period.startDate).toLocaleDateString()} - ${new Date(period.endDate).toLocaleDateString()}` : 
+                                    'Select dates'
+                                  }
                                 </p>
                               </div>
                             );

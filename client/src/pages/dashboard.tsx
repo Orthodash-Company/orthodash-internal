@@ -49,9 +49,16 @@ export default function Dashboard() {
 
   // Handle adding a new period column with modal data
   const handleAddPeriod = (periodData: Omit<PeriodConfig, 'id'>) => {
+    if (periods.length >= 10) {
+      console.error('Maximum 10 periods allowed');
+      return;
+    }
+    
     const newPeriod: PeriodConfig = {
       ...periodData,
       id: `period-${Date.now()}`,
+      startDate: periodData.startDate ? new Date(periodData.startDate) : undefined,
+      endDate: periodData.endDate ? new Date(periodData.endDate) : undefined,
     };
     setPeriods(prev => [...prev, newPeriod]);
   };
