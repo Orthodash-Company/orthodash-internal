@@ -36,7 +36,7 @@ interface MobileFriendlyControlsProps {
   periods: PeriodConfig[];
   locations: Location[];
   onAddPeriod: (periodData: Omit<PeriodConfig, 'id'>) => void;
-  onUpdateAnalysis: () => void;
+  onClearData: () => void;
   onExport: () => void;
   onShare: () => void;
   onGreyfinchDataSelected: (selection: any) => void;
@@ -46,14 +46,14 @@ export function MobileFriendlyControls({
   periods,
   locations,
   onAddPeriod,
-  onUpdateAnalysis,
+  onClearData,
   onExport,
   onShare,
   onGreyfinchDataSelected
 }: MobileFriendlyControlsProps) {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const { toast } = useToast();
 
   return (
@@ -65,30 +65,32 @@ export function MobileFriendlyControls({
             {/* Removed Add Period button - use AddColumnModal in layout instead */}
             <Button
               onClick={async () => {
-                setRefreshing(true);
-                try {
-                  await onUpdateAnalysis();
-                  toast({
-                    title: "Data Refreshed",
-                    description: "Analytics data has been updated successfully."
-                  });
-                } catch (error) {
-                  toast({
-                    title: "Refresh Failed",
-                    description: "Unable to refresh data. Please try again.",
-                    variant: "destructive"
-                  });
-                } finally {
-                  setRefreshing(false);
+                if (window.confirm('This will clear all periods and reset the dashboard. Continue?')) {
+                  setClearing(true);
+                  try {
+                    await onClearData();
+                    toast({
+                      title: "Data Cleared",
+                      description: "Dashboard has been reset to default state."
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "Clear Failed",
+                      description: "Unable to clear data. Please try again.",
+                      variant: "destructive"
+                    });
+                  } finally {
+                    setClearing(false);
+                  }
                 }
               }}
               variant="outline"
               size="sm"
               className="flex items-center gap-1 px-3"
-              disabled={refreshing}
+              disabled={clearing}
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+              <RefreshCw className={`h-4 w-4 ${clearing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{clearing ? 'Clearing...' : 'Clear Data'}</span>
             </Button>
           </div>
 
@@ -196,12 +198,17 @@ export function MobileFriendlyControls({
                       <div className="space-y-2">
 
                         <Button 
-                          onClick={() => { onUpdateAnalysis(); setControlsOpen(false); }}
+                          onClick={async () => { 
+                            if (window.confirm('This will clear all periods and reset the dashboard. Continue?')) {
+                              await onClearData(); 
+                              setControlsOpen(false); 
+                            }
+                          }}
                           variant="outline" 
                           className="w-full justify-start"
                         >
                           <RefreshCw className="mr-2 h-4 w-4" />
-                          Refresh All Data
+                          Clear All Data
                         </Button>
                         <PDFExporter
                           reportData={onExport()}
@@ -245,9 +252,17 @@ export function MobileFriendlyControls({
                   onDataSelected={onGreyfinchDataSelected}
                 />
                 
-                <Button onClick={onUpdateAnalysis} variant="outline" size="sm">
+                <Button 
+                  onClick={async () => {
+                    if (window.confirm('This will clear all periods and reset the dashboard. Continue?')) {
+                      await onClearData();
+                    }
+                  }} 
+                  variant="outline" 
+                  size="sm"
+                >
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh
+                  Clear Data
                 </Button>
               </div>
 

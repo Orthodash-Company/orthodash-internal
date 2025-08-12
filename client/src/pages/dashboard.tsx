@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SimpleHeader } from "@/components/SimpleHeader";
 import { HorizontalFixedColumnLayout } from "@/components/HorizontalFixedColumnLayout";
@@ -9,17 +9,45 @@ import { format } from "date-fns";
 import { PeriodConfig, Location } from "@shared/types";
 
 export default function Dashboard() {
-  // State for managing multiple periods - start with one in empty state
-  const [periods, setPeriods] = useState<PeriodConfig[]>([
-    {
-      id: 'period-1',
-      name: 'Period A',
-      title: 'Period A',
-      locationId: 'all',
-      startDate: undefined, // Empty state until user selects
-      endDate: undefined    // Empty state until user selects
+  // State for managing multiple periods with persistence
+  const [periods, setPeriods] = useState<PeriodConfig[]>(() => {
+    // Try to load from localStorage on initialization
+    try {
+      const saved = localStorage.getItem('orthodash-periods');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Convert date strings back to Date objects
+        return parsed.map((p: any) => ({
+          ...p,
+          startDate: p.startDate ? new Date(p.startDate) : undefined,
+          endDate: p.endDate ? new Date(p.endDate) : undefined
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading saved periods:', error);
     }
-  ]);
+    
+    // Default to empty state if no saved data
+    return [
+      {
+        id: 'period-1',
+        name: 'Period A',
+        title: 'Period A',
+        locationId: 'all',
+        startDate: undefined,
+        endDate: undefined
+      }
+    ];
+  });
+
+  // Save periods to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('orthodash-periods', JSON.stringify(periods));
+    } catch (error) {
+      console.error('Error saving periods:', error);
+    }
+  }, [periods]);
 
   // Query for locations
   const { data: locations = [] } = useQuery<Location[]>({
@@ -83,8 +111,24 @@ export default function Dashboard() {
     ));
   };
 
-  const handleUpdateAnalysis = () => {
-    periodQueries.forEach(query => query.refetch());
+  const handleClearData = () => {
+    // Reset to initial empty state with Period A
+    const initialPeriod: PeriodConfig = {
+      id: 'period-1',
+      name: 'Period A',
+      title: 'Period A',
+      locationId: 'all',
+      startDate: undefined,
+      endDate: undefined
+    };
+    
+    setPeriods([initialPeriod]);
+    
+    // Clear localStorage cache
+    localStorage.removeItem('orthodash-periods');
+    localStorage.removeItem('orthodash-dashboard-state');
+    
+    return Promise.resolve();
   };
 
   const handleExport = () => {
@@ -137,7 +181,7 @@ export default function Dashboard() {
           periods={periods}
           locations={locations}
           onAddPeriod={handleAddPeriod}
-          onUpdateAnalysis={handleUpdateAnalysis}
+          onClearData={handleClearData}
           onExport={handleExport}
           onShare={handleShare}
           onGreyfinchDataSelected={handleGreyfinchDataSelected}
