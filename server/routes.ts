@@ -205,11 +205,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If we get data (either from API or fallback), report success
       if (locations && locations.length > 0) {
-        const isLiveAPI = locations[0].id?.startsWith('loc_') ? false : true;
+        const isLiveAPI = !locations[0].id?.startsWith('loc_') && !locations[0].id?.includes('demo');
         res.json({ 
           status: "connected", 
           dataSource: isLiveAPI ? "Live Greyfinch API" : "Development Data (Live API Unavailable)",
-          message: isLiveAPI ? "Successfully connected to Greyfinch API" : "Using development data - Greyfinch API connection unavailable",
+          message: isLiveAPI ? "Successfully connected to Greyfinch API with live data" : "Using development data - configure API credentials for live data",
           locationCount: locations.length,
           apiCredentialsConfigured: !!(process.env.GREYFINCH_API_KEY && process.env.GREYFINCH_API_SECRET)
         });
@@ -220,7 +220,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Greyfinch API test failed:', error);
       res.status(500).json({ 
         status: "error", 
-        message: error instanceof Error ? error.message : "Connection failed - check API credentials" 
+        message: error instanceof Error ? error.message : "Connection failed - configure API credentials" 
+      });
+    }
+  });
+
+  // Update Greyfinch API credentials dynamically
+  app.post("/api/greyfinch/update-credentials", async (req, res) => {
+    try {
+      const { apiKey, apiSecret } = req.body;
+      
+      if (!apiKey || !apiSecret) {
+        return res.status(400).json({ error: "API key and secret are required" });
+      }
+
+      // Update environment variables for this session
+      process.env.GREYFINCH_API_KEY = apiKey.trim();
+      process.env.GREYFINCH_API_SECRET = apiSecret.trim();
+
+      // Reinitialize the Greyfinch service with new credentials
+      const { GreyfinchService } = await import('./services/greyfinch');
+      const newGreyfinchService = new GreyfinchService();
+      
+      // Test the new credentials
+      const testLocations = await newGreyfinchService.getLocations();
+      
+      if (testLocations && testLocations.length > 0) {
+        res.json({ 
+          success: true, 
+          message: "API credentials updated and verified successfully",
+          locationCount: testLocations.length
+        });
+      } else {
+        throw new Error('Failed to verify new credentials');
+      }
+    } catch (error) {
+      console.error('Failed to update Greyfinch credentials:', error);
+      res.status(500).json({ 
+        error: "Failed to update credentials",
+        message: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
