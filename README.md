@@ -70,10 +70,6 @@ A comprehensive orthodontic practice analytics dashboard providing detailed insi
 
 ## 🚀 Deployment
 
-### Replit Deployment (Recommended)
-1. Import the repository into Replit
-2. Configure environment variables in the Secrets tab
-3. Run the application using the "Start application" workflow
 
 ### Manual Deployment
 1. Build the application:
