@@ -12,10 +12,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function Header() {
-  const { user, logoutMutation } = useAuth();
+  // Authentication temporarily disabled for testing
 
   const handleLogout = () => {
-    logoutMutation.mutate();
+    console.log('Logout functionality disabled');
   };
 
   return (
@@ -42,7 +42,7 @@ export function Header() {
             />
 
             {/* Desktop User Menu */}
-            {user && (
+            {true && ( {/* Show user menu always for testing */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="flex items-center space-x-2 hover:bg-gray-100">
@@ -79,7 +79,7 @@ export function Header() {
           {/* Mobile Menu */}
           <div className="lg:hidden flex items-center space-x-2">
             {/* Mobile User Avatar */}
-            {user && (
+            {true && ( {/* Show user menu always for testing */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="p-2">

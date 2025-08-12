@@ -3,13 +3,12 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SimpleTest } from "@/components/SimpleTest";
+import Dashboard from "@/pages/dashboard";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={SimpleTest} />
-      <Route component={SimpleTest} />
+      <Route path="/" component={Dashboard} />
     </Switch>
   );
 }

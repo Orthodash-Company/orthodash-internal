@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/Header";
+import { SimpleHeader } from "@/components/SimpleHeader";
 import { HorizontalFixedColumnLayout } from "@/components/HorizontalFixedColumnLayout";
 import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
 import { CostManagementEnhanced } from "@/components/CostManagementEnhanced";
@@ -104,7 +104,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 lg:pb-8">
-      <Header />
+      <SimpleHeader />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8">
         {/* Mobile-Friendly Controls */}
