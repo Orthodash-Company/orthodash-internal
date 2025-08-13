@@ -63,6 +63,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   const data = query?.data;
   const isLoading = query?.isLoading;
   const error = query?.error;
+  
+  // Debug logging
+  console.log(`PeriodColumn ${period.id} - isLoading: ${isLoading}, hasData: ${!!data}, error: ${!!error}`);
+  console.log(`Period dates: start=${period.startDate}, end=${period.endDate}`);
 
   // Handle loading and error states for live data
   if (isLoading) {

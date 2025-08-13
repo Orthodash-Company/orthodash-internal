@@ -65,13 +65,31 @@ export default function Dashboard() {
       ],
       queryFn: async () => {
         if (!period.startDate || !period.endDate) {
+          console.log(`Period ${period.id} missing dates:`, { startDate: period.startDate, endDate: period.endDate });
           return null; // Return null for empty state
         }
-        const response = await fetch(`/api/analytics?startDate=${format(period.startDate, 'yyyy-MM-dd')}&endDate=${format(period.endDate, 'yyyy-MM-dd')}${locationParam}`);
-        if (!response.ok) throw new Error('Failed to fetch analytics');
-        return response.json();
+        
+        const startDateStr = format(period.startDate, 'yyyy-MM-dd');
+        const endDateStr = format(period.endDate, 'yyyy-MM-dd');
+        const url = `/api/analytics?startDate=${startDateStr}&endDate=${endDateStr}${locationParam}`;
+        
+        console.log(`Fetching analytics for period ${period.id}:`, url);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Analytics fetch failed for ${period.id}:`, response.status, errorText);
+          throw new Error(`Failed to fetch analytics: ${response.status} ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Analytics data received for ${period.id}:`, data);
+        return data;
       },
       enabled: !!(period.startDate && period.endDate), // Only enabled when dates are set
+      retry: 2,
+      refetchOnMount: true,
+      refetchOnWindowFocus: false
     });
   });
 
@@ -83,14 +101,28 @@ export default function Dashboard() {
     }
     
     try {
+      // Ensure dates are proper Date objects
+      let startDate = periodData.startDate;
+      let endDate = periodData.endDate;
+      
+      if (startDate && !(startDate instanceof Date)) {
+        startDate = new Date(startDate);
+      }
+      if (endDate && !(endDate instanceof Date)) {
+        endDate = new Date(endDate);
+      }
+      
       const newPeriod: PeriodConfig = {
         ...periodData,
         id: `period-${Date.now()}`,
-        startDate: periodData.startDate ? new Date(periodData.startDate) : undefined,
-        endDate: periodData.endDate ? new Date(periodData.endDate) : undefined,
+        startDate,
+        endDate,
       };
       
       console.log('Adding new period:', newPeriod);
+      console.log('Start date type:', typeof newPeriod.startDate, newPeriod.startDate);
+      console.log('End date type:', typeof newPeriod.endDate, newPeriod.endDate);
+      
       setPeriods(prev => [...prev, newPeriod]);
     } catch (error) {
       console.error('Error adding period:', error);
