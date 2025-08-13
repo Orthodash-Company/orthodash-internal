@@ -218,28 +218,15 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             {isFirstPeriod && onAddPeriod && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <p className="text-xs text-gray-400 mb-3">Need to compare multiple periods?</p>
-                <Button
-                  onClick={() => {
-                    console.log('Add period clicked');
-                    try {
-                      onAddPeriod({
-                        name: `Period B`,
-                        title: `Period B`,
-                        locationId: 'all',
-                        startDate: undefined,
-                        endDate: undefined
-                      });
-                    } catch (error) {
-                      console.error('Error in add period:', error);
-                    }
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Comparison Period
-                </Button>
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">Use the "Add Column" button at the top to add comparison periods</p>
+                  <div className="text-center">
+                    <div className="inline-flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                      <Plus className="h-3 w-3" />
+                      <span>Look for the + button above</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
