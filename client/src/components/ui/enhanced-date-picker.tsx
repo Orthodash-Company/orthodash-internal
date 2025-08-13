@@ -123,9 +123,9 @@ export function EnhancedDatePicker({
             fromYear={2020}
             toYear={2030}
             className="rounded-md border-0 calendar"
-            onDayClick={(e) => {
+            onDayClick={(day, modifiers, e) => {
               // Prevent event bubbling to modal
-              e.stopPropagation?.();
+              e?.stopPropagation?.();
             }}
           />
         </div>

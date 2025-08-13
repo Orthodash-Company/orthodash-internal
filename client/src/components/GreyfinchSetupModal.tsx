@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Settings, CheckCircle, AlertCircle, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 interface GreyfinchSetupModalProps {
   trigger?: React.ReactNode;
+  onDataRefresh?: () => void;
 }
 
-export function GreyfinchSetupModal({ trigger }: GreyfinchSetupModalProps) {
+export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupModalProps) {
   const [open, setOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
@@ -41,10 +43,17 @@ export function GreyfinchSetupModal({ trigger }: GreyfinchSetupModalProps) {
 
       if (response.ok) {
         setConnectionStatus('connected');
+        
+        // Invalidate all cached data to force refresh with new credentials
+        await queryClient.invalidateQueries();
+        
         toast({
           title: "Connection Successful",
           description: "Greyfinch API connected successfully. Live data is now available."
         });
+        
+        // Trigger data refresh callback if provided
+        onDataRefresh?.();
       } else {
         throw new Error('Connection failed');
       }
@@ -68,10 +77,22 @@ export function GreyfinchSetupModal({ trigger }: GreyfinchSetupModalProps) {
       });
 
       if (response.ok) {
+        // Invalidate all data and refresh to get live data
+        await queryClient.invalidateQueries();
+        
         toast({
           title: "Live Data Activated",
           description: "All API calls will now use live Greyfinch data instead of development fallback."
         });
+        
+        // Trigger data refresh callback if provided
+        onDataRefresh?.();
+        
+        // Force a page refresh to ensure all components get fresh data
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+        
         setOpen(false);
       } else {
         throw new Error('Failed to activate live data mode');

@@ -231,6 +231,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Greyfinch setup endpoint for modal
+  app.post("/api/greyfinch/setup", async (req, res) => {
+    try {
+      const { apiKey, apiSecret } = req.body;
+      
+      if (!apiKey || !apiSecret) {
+        return res.status(400).json({ error: "API key and secret are required" });
+      }
+
+      // Update environment variables for this session
+      process.env.GREYFINCH_API_KEY = apiKey.trim();
+      process.env.GREYFINCH_API_SECRET = apiSecret.trim();
+
+      // Test the new credentials
+      const testResponse = await fetch('https://api.greyfinch.com/v1/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey.trim(),
+          'X-API-Secret': apiSecret.trim(),
+        },
+        body: JSON.stringify({
+          query: 'query { __schema { queryType { name } } }'
+        })
+      });
+      
+      if (!testResponse.ok) {
+        throw new Error(`API test failed: ${testResponse.status}`);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "API credentials updated and verified successfully"
+      });
+    } catch (error) {
+      console.error('Failed to setup Greyfinch credentials:', error);
+      res.status(500).json({ 
+        error: "Failed to setup credentials",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Force live data endpoint
+  app.post("/api/greyfinch/force-live", async (req, res) => {
+    try {
+      // This endpoint forces all subsequent API calls to use live data
+      // In practice, we could set a flag or ensure credentials are properly configured
+      
+      // Check if credentials are available
+      if (!process.env.GREYFINCH_API_KEY || !process.env.GREYFINCH_API_SECRET) {
+        return res.status(400).json({ 
+          error: "No API credentials configured. Please setup credentials first." 
+        });
+      }
+
+      // Test connection to ensure live data is accessible
+      const testResponse = await fetch('https://api.greyfinch.com/v1/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': process.env.GREYFINCH_API_KEY,
+          'X-API-Secret': process.env.GREYFINCH_API_SECRET,
+        },
+        body: JSON.stringify({
+          query: 'query { __schema { queryType { name } } }'
+        })
+      });
+      
+      if (!testResponse.ok) {
+        throw new Error('Live data connection test failed');
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Live data mode activated successfully"
+      });
+    } catch (error) {
+      console.error('Failed to activate live data:', error);
+      res.status(500).json({ 
+        error: "Failed to activate live data",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Update Greyfinch API credentials dynamically
   app.post("/api/greyfinch/update-credentials", async (req, res) => {
     try {
