@@ -8,22 +8,47 @@
   
   /* Prevent calendar from being cut off on mobile */
   .rdp {
-    max-width: 90vw;
+    max-width: 95vw;
     overflow: visible;
+    font-size: 16px; /* Prevents zoom on iOS */
   }
   
   /* Fix calendar navigation buttons on mobile */
   .rdp-nav button {
     pointer-events: auto !important;
     touch-action: manipulation;
+    min-height: 44px;
+    min-width: 44px;
+    -webkit-tap-highlight-color: transparent;
   }
   
   /* Ensure date cells are properly clickable on mobile */
   .rdp-day {
-    min-height: 40px;
-    min-width: 40px;
+    min-height: 44px !important;
+    min-width: 44px !important;
     touch-action: manipulation;
     pointer-events: auto !important;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+  }
+  
+  /* Enhanced touch targets for date buttons */
+  .rdp-day button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    border-radius: 6px;
+    transition: background-color 0.1s ease;
+  }
+  
+  .rdp-day button:hover,
+  .rdp-day button:focus,
+  .rdp-day button:active {
+    background-color: hsl(233, 85%, 18%) !important;
+    color: white !important;
   }
   
   /* Fix dropdown button positioning in calendar */
@@ -33,6 +58,10 @@
   
   .rdp-dropdown {
     min-width: 80px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    -webkit-appearance: none;
+    appearance: none;
+    touch-action: manipulation;
   }
   
   /* Prevent popover from closing on mobile scroll */
@@ -41,5 +70,38 @@
     will-change: transform;
     backface-visibility: hidden;
     transform: translateZ(0);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Enhanced mobile popover positioning */
+  [data-radix-popover-content][data-side="bottom"] {
+    transform-origin: top center;
+    animation: mobile-popover-in 0.2s ease-out;
+  }
+  
+  @keyframes mobile-popover-in {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  /* Prevent iOS Safari bounce scrolling interference */
+  [data-radix-popover-content] * {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Enhanced date picker trigger for mobile */
+  [data-date-picker-trigger] {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 }

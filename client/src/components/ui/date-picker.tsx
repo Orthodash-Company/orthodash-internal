@@ -30,7 +30,10 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setOpen(!open);
+            setTimeout(() => setOpen(!open), 50);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
           }}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
@@ -49,16 +52,28 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
               target.closest('.rdp') || 
               target.closest('[role="button"]') ||
               target.closest('.rdp-nav') ||
-              target.closest('.rdp-button')) {
+              target.closest('.rdp-button') ||
+              target.closest('.rdp-day') ||
+              target.closest('.rdp-dropdown')) {
             e.preventDefault();
             return;
           }
-          setOpen(false);
+          setTimeout(() => setOpen(false), 10);
         }}
         onEscapeKeyDown={() => setOpen(false)}
         avoidCollisions={false}
         sticky="always"
         onPointerDownOutside={(e) => {
+          const target = e.target as Element;
+          if (target.closest('[data-date-picker-trigger]') || 
+              target.closest('.rdp') ||
+              target.closest('.rdp-day') ||
+              target.closest('.rdp-nav') ||
+              target.closest('.rdp-dropdown')) {
+            e.preventDefault();
+          }
+        }}
+        onFocusOutside={(e) => {
           const target = e.target as Element;
           if (target.closest('[data-date-picker-trigger]') || target.closest('.rdp')) {
             e.preventDefault();
@@ -73,8 +88,10 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
               console.log('Date picker - date selected:', selectedDate);
               if (selectedDate) {
                 setDate(selectedDate);
-                // Immediate close for better mobile experience
-                requestAnimationFrame(() => setOpen(false));
+                // Delayed close for better mobile experience
+                setTimeout(() => {
+                  setOpen(false);
+                }, 200);
               }
             }}
             className="rounded-md border-0"

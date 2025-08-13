@@ -44,7 +44,11 @@ export function EnhancedDatePicker({
             e.preventDefault();
             e.stopPropagation();
             console.log('Enhanced date picker trigger clicked, current open state:', open);
-            setOpen(!open);
+            // Add small delay to ensure proper mobile touch handling
+            setTimeout(() => setOpen(!open), 50);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
           }}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
@@ -63,17 +67,29 @@ export function EnhancedDatePicker({
               target.closest('.rdp') || 
               target.closest('[role="button"]') ||
               target.closest('.rdp-nav') ||
-              target.closest('.rdp-button')) {
+              target.closest('.rdp-button') ||
+              target.closest('.rdp-day') ||
+              target.closest('.rdp-dropdown')) {
             e.preventDefault();
             return;
           }
-          // Close on outside clicks
-          setOpen(false);
+          // Close on outside clicks with delay to prevent race conditions
+          setTimeout(() => setOpen(false), 10);
         }}
         onEscapeKeyDown={() => setOpen(false)}
         avoidCollisions={false}
         sticky="always"
         onPointerDownOutside={(e) => {
+          const target = e.target as Element;
+          if (target.closest('[data-date-picker-trigger]') || 
+              target.closest('.rdp') ||
+              target.closest('.rdp-day') ||
+              target.closest('.rdp-nav') ||
+              target.closest('.rdp-dropdown')) {
+            e.preventDefault();
+          }
+        }}
+        onFocusOutside={(e) => {
           const target = e.target as Element;
           if (target.closest('[data-date-picker-trigger]') || target.closest('.rdp')) {
             e.preventDefault();
@@ -88,8 +104,10 @@ export function EnhancedDatePicker({
               console.log('Enhanced date picker - date selected:', selectedDate);
               if (selectedDate) {
                 onDateChange(selectedDate);
-                // Immediate close for better mobile experience
-                requestAnimationFrame(() => setOpen(false));
+                // Delayed close for better mobile experience
+                setTimeout(() => {
+                  setOpen(false);
+                }, 200);
               }
             }}
             disabled={false}
