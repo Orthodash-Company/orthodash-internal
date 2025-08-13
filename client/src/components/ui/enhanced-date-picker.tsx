@@ -28,33 +28,44 @@ export function EnhancedDatePicker({
   const [open, setOpen] = useState(false);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground",
-            className
-          )}
-          disabled={disabled}
-          data-date-picker-trigger
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Enhanced date picker trigger clicked, current open state:', open);
-            // Add small delay to ensure proper mobile touch handling
-            setTimeout(() => setOpen(!open), 50);
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-          }}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP") : <span>{placeholder}</span>}
-        </Button>
-      </PopoverTrigger>
+    <div className="relative">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal relative z-10",
+              !date && "text-muted-foreground",
+              className
+            )}
+            disabled={disabled}
+            data-date-picker-trigger
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Enhanced date picker trigger clicked, current open state:', open, 'in element:', e.currentTarget);
+              setOpen(true);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Enhanced date picker mousedown');
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              console.log('Enhanced date picker touchstart');
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Enhanced date picker touchend');
+            }}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date ? format(date, "PPP") : <span>{placeholder}</span>}
+          </Button>
+        </PopoverTrigger>
       <PopoverContent 
         className="w-auto p-0 z-[99999] bg-white shadow-lg border" 
         align="start"
