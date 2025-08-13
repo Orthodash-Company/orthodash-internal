@@ -38,19 +38,31 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-auto p-0 z-[9999]" 
+        className="w-auto p-0 z-50" 
         align="start"
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        side="bottom"
+        sideOffset={5}
+        onInteractOutside={(e) => {
+          // Don't close if clicking on trigger or calendar elements
+          const target = e.target as Element;
+          if (target.closest('[data-date-picker-trigger]') || target.closest('.rdp')) {
+            e.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={() => setOpen(false)}
+        avoidCollisions={true}
       >
         <Calendar
           mode="single"
           selected={date}
           onSelect={(selectedDate) => {
-            console.log('Date selected:', selectedDate);
-            setDate(selectedDate);
-            setOpen(false); // Close popover after selection
+            console.log('Date picker - date selected:', selectedDate);
+            if (selectedDate) {
+              setDate(selectedDate);
+              // Add small delay to ensure the selection is processed
+              setTimeout(() => setOpen(false), 150);
+            }
           }}
-          initialFocus
           className="rounded-md border-0"
           disabled={false}
           captionLayout="dropdown-buttons"

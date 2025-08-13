@@ -38,32 +38,50 @@ export function EnhancedDatePicker({
             className
           )}
           disabled={disabled}
+          data-date-picker-trigger
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Enhanced date picker trigger clicked, current open state:', open);
+            setOpen(!open);
+          }}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
           {date ? format(date, "PPP") : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-auto p-0" 
+        className="w-auto p-0 z-50" 
         align="start"
-        onOpenAutoFocus={(e) => e.preventDefault()}
         side="bottom"
         sideOffset={5}
+        onInteractOutside={(e) => {
+          // Don't close if clicking on trigger or other calendar elements
+          const target = e.target as Element;
+          if (target.closest('[role="button"]') || target.closest('.rdp')) {
+            e.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={() => setOpen(false)}
+        avoidCollisions={true}
       >
         <Calendar
           mode="single"
           selected={date}
           onSelect={(selectedDate) => {
+            console.log('Enhanced date picker - date selected:', selectedDate);
             if (selectedDate) {
               onDateChange(selectedDate);
-              setOpen(false);
+              // Add small delay to ensure the selection is processed
+              setTimeout(() => setOpen(false), 150);
             }
           }}
-          initialFocus
           disabled={false}
           captionLayout="dropdown-buttons"
           fromYear={2020}
           toYear={2030}
+          className="rounded-md border-0"
         />
       </PopoverContent>
     </Popover>
