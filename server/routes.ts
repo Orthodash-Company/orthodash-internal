@@ -244,6 +244,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       process.env.GREYFINCH_API_KEY = apiKey.trim();
       process.env.GREYFINCH_API_SECRET = apiSecret.trim();
 
+      // Update the Greyfinch service with new credentials
+      greyfinchService.updateCredentials(apiKey.trim(), apiSecret.trim());
+
       // Test the new credentials
       const testResponse = await fetch('https://api.greyfinch.com/v1/graphql', {
         method: 'POST',

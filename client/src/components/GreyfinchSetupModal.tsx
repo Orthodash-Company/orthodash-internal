@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,13 @@ interface GreyfinchSetupModalProps {
   onDataRefresh?: () => void;
 }
 
+// Storage keys for localStorage
+const STORAGE_KEYS = {
+  API_KEY: 'greyfinch_api_key',
+  API_SECRET: 'greyfinch_api_secret',
+  CONNECTION_STATUS: 'greyfinch_connection_status'
+} as const;
+
 export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupModalProps) {
   const [open, setOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -20,6 +27,37 @@ export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupMo
   const [testing, setTesting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'connected' | 'failed'>('idle');
   const { toast } = useToast();
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
+    const savedApiSecret = localStorage.getItem(STORAGE_KEYS.API_SECRET);
+    const savedStatus = localStorage.getItem(STORAGE_KEYS.CONNECTION_STATUS) as typeof connectionStatus;
+    
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    }
+    if (savedApiSecret) {
+      setApiSecret(savedApiSecret);
+    }
+    if (savedStatus && ['idle', 'connected', 'failed'].includes(savedStatus)) {
+      setConnectionStatus(savedStatus);
+    }
+    
+    console.log('Loaded Greyfinch credentials from localStorage:', { 
+      hasApiKey: !!savedApiKey, 
+      hasApiSecret: !!savedApiSecret, 
+      status: savedStatus 
+    });
+  }, []);
+
+  // Save credentials to localStorage when they change
+  const saveCredentials = (newApiKey: string, newApiSecret: string, status: typeof connectionStatus) => {
+    localStorage.setItem(STORAGE_KEYS.API_KEY, newApiKey);
+    localStorage.setItem(STORAGE_KEYS.API_SECRET, newApiSecret);
+    localStorage.setItem(STORAGE_KEYS.CONNECTION_STATUS, status);
+    console.log('Saved Greyfinch credentials to localStorage');
+  };
 
   const testConnection = async () => {
     if (!apiKey || !apiSecret) {
@@ -44,12 +82,15 @@ export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupMo
       if (response.ok) {
         setConnectionStatus('connected');
         
+        // Save credentials to localStorage
+        saveCredentials(apiKey, apiSecret, 'connected');
+        
         // Invalidate all cached data to force refresh with new credentials
         await queryClient.invalidateQueries();
         
         toast({
           title: "Connection Successful",
-          description: "Greyfinch API connected successfully. Live data is now available."
+          description: "Greyfinch API connected and saved successfully. Live data is now available."
         });
         
         // Trigger data refresh callback if provided
@@ -59,6 +100,10 @@ export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupMo
       }
     } catch (error) {
       setConnectionStatus('failed');
+      
+      // Save failed status but keep credentials for retry
+      saveCredentials(apiKey, apiSecret, 'failed');
+      
       toast({
         title: "Connection Failed",
         description: "Please check your credentials and try again.",
@@ -132,7 +177,13 @@ export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupMo
               id="api-key"
               type="password"
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                // Reset connection status when credentials change
+                if (connectionStatus !== 'idle') {
+                  setConnectionStatus('idle');
+                }
+              }}
               placeholder="Enter your Greyfinch API key"
             />
           </div>
@@ -143,7 +194,13 @@ export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupMo
               id="api-secret"
               type="password"
               value={apiSecret}
-              onChange={(e) => setApiSecret(e.target.value)}
+              onChange={(e) => {
+                setApiSecret(e.target.value);
+                // Reset connection status when credentials change
+                if (connectionStatus !== 'idle') {
+                  setConnectionStatus('idle');
+                }
+              }}
               placeholder="Enter your Greyfinch API secret"
             />
           </div>

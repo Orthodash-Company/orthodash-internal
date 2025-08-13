@@ -73,11 +73,27 @@ export class GreyfinchService {
       apiSecret: (process.env.GREYFINCH_API_SECRET || '').trim(),
       baseUrl: 'https://api.greyfinch.com/v1/graphql'
     };
+    
+    console.log('GreyfinchService initialized with credentials:', {
+      hasApiKey: !!this.config.apiKey,
+      hasApiSecret: !!this.config.apiSecret,
+      baseUrl: this.config.baseUrl
+    });
+  }
+
+  // Method to update credentials dynamically
+  updateCredentials(apiKey: string, apiSecret: string) {
+    this.config.apiKey = apiKey.trim();
+    this.config.apiSecret = apiSecret.trim();
+    console.log('GreyfinchService credentials updated:', {
+      hasApiKey: !!this.config.apiKey,
+      hasApiSecret: !!this.config.apiSecret
+    });
   }
 
   private async makeGraphQLRequest(query: string, variables: any = {}) {
     // Try different authentication methods based on Greyfinch documentation
-    const authHeaders = [
+    const authHeaders: HeadersInit[] = [
       // Method 1: X-API headers (from documentation)
       {
         'Content-Type': 'application/json',
