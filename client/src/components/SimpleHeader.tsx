@@ -30,10 +30,6 @@ export function SimpleHeader() {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
-              Analytics Dashboard
-            </div>
-            
             {user && (
               <>
                 <ReportsManager 

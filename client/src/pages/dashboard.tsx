@@ -172,7 +172,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 lg:pb-8">
+    <div className="min-h-screen bg-gray-50 pb-24 lg:pb-8">
       <SimpleHeader />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8">

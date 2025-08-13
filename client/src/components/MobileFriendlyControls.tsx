@@ -60,7 +60,7 @@ export function MobileFriendlyControls({
   return (
     <>
       {/* Mobile Controls Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-50 shadow-lg">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1">
             {/* Removed Add Period button - use AddColumnModal in layout instead */}
@@ -125,7 +125,7 @@ export function MobileFriendlyControls({
                 </Button>
               </SheetTrigger>
               
-              <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
+              <SheetContent side="bottom" className="h-[75vh] overflow-y-auto max-h-[600px]">
                 <SheetHeader>
                   <SheetTitle>Dashboard Settings</SheetTitle>
                   <SheetDescription>
