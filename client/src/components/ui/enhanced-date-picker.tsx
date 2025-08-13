@@ -56,12 +56,12 @@ export function EnhancedDatePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-auto p-0 z-[9999] bg-white shadow-lg border" 
+        className="w-auto p-0 z-[99999] bg-white shadow-lg border" 
         align="start"
         side="bottom"
         sideOffset={8}
         onInteractOutside={(e) => {
-          // Don't close if clicking on trigger, calendar elements, or navigation
+          // More aggressive prevention for modal compatibility
           const target = e.target as Element;
           if (target.closest('[data-date-picker-trigger]') || 
               target.closest('.rdp') || 
@@ -69,15 +69,18 @@ export function EnhancedDatePicker({
               target.closest('.rdp-nav') ||
               target.closest('.rdp-button') ||
               target.closest('.rdp-day') ||
-              target.closest('.rdp-dropdown')) {
+              target.closest('.rdp-dropdown') ||
+              target.closest('[role="dialog"]') ||
+              target.closest('.dialog-content')) {
             e.preventDefault();
+            e.stopPropagation();
             return;
           }
-          // Close on outside clicks with delay to prevent race conditions
+          // Only close if genuinely outside
           setTimeout(() => setOpen(false), 10);
         }}
         onEscapeKeyDown={() => setOpen(false)}
-        avoidCollisions={false}
+        avoidCollisions={true}
         sticky="always"
         onPointerDownOutside={(e) => {
           const target = e.target as Element;
@@ -85,18 +88,23 @@ export function EnhancedDatePicker({
               target.closest('.rdp') ||
               target.closest('.rdp-day') ||
               target.closest('.rdp-nav') ||
-              target.closest('.rdp-dropdown')) {
+              target.closest('.rdp-dropdown') ||
+              target.closest('[role="dialog"]')) {
             e.preventDefault();
+            e.stopPropagation();
           }
         }}
         onFocusOutside={(e) => {
           const target = e.target as Element;
-          if (target.closest('[data-date-picker-trigger]') || target.closest('.rdp')) {
+          if (target.closest('[data-date-picker-trigger]') || 
+              target.closest('.rdp') ||
+              target.closest('[role="dialog"]')) {
             e.preventDefault();
+            e.stopPropagation();
           }
         }}
       >
-        <div className="p-3">
+        <div className="p-3" onClick={(e) => e.stopPropagation()}>
           <Calendar
             mode="single"
             selected={date}
@@ -114,8 +122,11 @@ export function EnhancedDatePicker({
             captionLayout="dropdown-buttons"
             fromYear={2020}
             toYear={2030}
-            className="rounded-md border-0"
-
+            className="rounded-md border-0 calendar"
+            onDayClick={(e) => {
+              // Prevent event bubbling to modal
+              e.stopPropagation?.();
+            }}
           />
         </div>
       </PopoverContent>

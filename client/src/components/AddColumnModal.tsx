@@ -98,7 +98,35 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
         )}
       </DialogTrigger>
       
-      <DialogContent className="sm:max-w-md">
+      <DialogContent 
+        className="sm:max-w-md"
+        onInteractOutside={(e) => {
+          // Don't close if clicking on date picker elements
+          const target = e.target as Element;
+          if (target.closest('[data-date-picker-trigger]') || 
+              target.closest('.rdp') || 
+              target.closest('.rdp-day') ||
+              target.closest('.rdp-nav') ||
+              target.closest('.rdp-dropdown') ||
+              target.closest('[role="dialog"]') ||
+              target.closest('.calendar')) {
+            e.preventDefault();
+            return;
+          }
+        }}
+        onPointerDownOutside={(e) => {
+          // Prevent closing on date picker interactions
+          const target = e.target as Element;
+          if (target.closest('[data-date-picker-trigger]') || 
+              target.closest('.rdp') ||
+              target.closest('.rdp-day') ||
+              target.closest('.rdp-nav') ||
+              target.closest('.rdp-dropdown') ||
+              target.closest('.calendar')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-[#1d1d52]" />
