@@ -38,21 +38,32 @@ export function EnhancedDatePicker({
             className
           )}
           disabled={disabled}
-          onClick={() => setOpen(true)}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
           {date ? format(date, "PPP") : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent 
+        className="w-auto p-0" 
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        side="bottom"
+        sideOffset={5}
+      >
         <Calendar
           mode="single"
           selected={date}
           onSelect={(selectedDate) => {
-            onDateChange(selectedDate);
-            setOpen(false);
+            if (selectedDate) {
+              onDateChange(selectedDate);
+              setOpen(false);
+            }
           }}
           initialFocus
+          disabled={false}
+          captionLayout="dropdown-buttons"
+          fromYear={2020}
+          toYear={2030}
         />
       </PopoverContent>
     </Popover>

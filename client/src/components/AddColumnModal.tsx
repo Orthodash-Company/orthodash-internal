@@ -19,8 +19,13 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(`Period ${String.fromCharCode(65 + existingPeriodsCount)}`);
   const [locationId, setLocationId] = useState('all');
-  const [startDate, setStartDate] = useState<Date | undefined>(new Date(2024, 0, 1));
-  const [endDate, setEndDate] = useState<Date | undefined>(new Date(2024, 2, 31));
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(() => {
+    const today = new Date();
+    const nextMonth = new Date(today);
+    nextMonth.setMonth(today.getMonth() + 1);
+    return nextMonth;
+  });
 
   const handleAddPeriod = () => {
     if (!startDate || !endDate) {
@@ -54,8 +59,10 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
       // Reset form and close modal
       setTitle(`Period ${String.fromCharCode(65 + existingPeriodsCount + 1)}`);
       setLocationId('all');
-      setStartDate(new Date(2024, 0, 1));
-      setEndDate(new Date(2024, 2, 31));
+      setStartDate(new Date());
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      setEndDate(nextMonth);
       setOpen(false);
     } catch (error) {
       console.error('Error adding period:', error);
