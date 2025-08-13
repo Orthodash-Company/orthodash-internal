@@ -52,37 +52,54 @@ export function EnhancedDatePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-auto p-0 z-50" 
+        className="w-auto p-0 z-[9999] bg-white shadow-lg border" 
         align="start"
         side="bottom"
-        sideOffset={5}
+        sideOffset={8}
         onInteractOutside={(e) => {
-          // Don't close if clicking on trigger or other calendar elements
+          // Don't close if clicking on trigger, calendar elements, or navigation
           const target = e.target as Element;
-          if (target.closest('[role="button"]') || target.closest('.rdp')) {
+          if (target.closest('[data-date-picker-trigger]') || 
+              target.closest('.rdp') || 
+              target.closest('[role="button"]') ||
+              target.closest('.rdp-nav') ||
+              target.closest('.rdp-button')) {
+            e.preventDefault();
+            return;
+          }
+          // Close on outside clicks
+          setOpen(false);
+        }}
+        onEscapeKeyDown={() => setOpen(false)}
+        avoidCollisions={false}
+        sticky="always"
+        onPointerDownOutside={(e) => {
+          const target = e.target as Element;
+          if (target.closest('[data-date-picker-trigger]') || target.closest('.rdp')) {
             e.preventDefault();
           }
         }}
-        onEscapeKeyDown={() => setOpen(false)}
-        avoidCollisions={true}
       >
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={(selectedDate) => {
-            console.log('Enhanced date picker - date selected:', selectedDate);
-            if (selectedDate) {
-              onDateChange(selectedDate);
-              // Add small delay to ensure the selection is processed
-              setTimeout(() => setOpen(false), 150);
-            }
-          }}
-          disabled={false}
-          captionLayout="dropdown-buttons"
-          fromYear={2020}
-          toYear={2030}
-          className="rounded-md border-0"
-        />
+        <div className="p-3">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={(selectedDate) => {
+              console.log('Enhanced date picker - date selected:', selectedDate);
+              if (selectedDate) {
+                onDateChange(selectedDate);
+                // Immediate close for better mobile experience
+                requestAnimationFrame(() => setOpen(false));
+              }
+            }}
+            disabled={false}
+            captionLayout="dropdown-buttons"
+            fromYear={2020}
+            toYear={2030}
+            className="rounded-md border-0"
+
+          />
+        </div>
       </PopoverContent>
     </Popover>
   );

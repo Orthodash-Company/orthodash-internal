@@ -1,0 +1,45 @@
+/* Mobile-specific date picker fixes */
+@media (max-width: 768px) {
+  /* Ensure date picker popovers are properly stacked and visible */
+  [data-radix-popper-content-wrapper] {
+    z-index: 9999 !important;
+    position: fixed !important;
+  }
+  
+  /* Prevent calendar from being cut off on mobile */
+  .rdp {
+    max-width: 90vw;
+    overflow: visible;
+  }
+  
+  /* Fix calendar navigation buttons on mobile */
+  .rdp-nav button {
+    pointer-events: auto !important;
+    touch-action: manipulation;
+  }
+  
+  /* Ensure date cells are properly clickable on mobile */
+  .rdp-day {
+    min-height: 40px;
+    min-width: 40px;
+    touch-action: manipulation;
+    pointer-events: auto !important;
+  }
+  
+  /* Fix dropdown button positioning in calendar */
+  .rdp-caption_dropdowns {
+    gap: 0.5rem;
+  }
+  
+  .rdp-dropdown {
+    min-width: 80px;
+  }
+  
+  /* Prevent popover from closing on mobile scroll */
+  [data-radix-popover-content] {
+    position: fixed !important;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+}

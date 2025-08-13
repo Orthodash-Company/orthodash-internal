@@ -38,37 +38,53 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-auto p-0 z-50" 
+        className="w-auto p-0 z-[9999] bg-white shadow-lg border" 
         align="start"
         side="bottom"
-        sideOffset={5}
+        sideOffset={8}
         onInteractOutside={(e) => {
-          // Don't close if clicking on trigger or calendar elements
+          // Don't close if clicking on calendar elements or navigation
+          const target = e.target as Element;
+          if (target.closest('[data-date-picker-trigger]') || 
+              target.closest('.rdp') || 
+              target.closest('[role="button"]') ||
+              target.closest('.rdp-nav') ||
+              target.closest('.rdp-button')) {
+            e.preventDefault();
+            return;
+          }
+          setOpen(false);
+        }}
+        onEscapeKeyDown={() => setOpen(false)}
+        avoidCollisions={false}
+        sticky="always"
+        onPointerDownOutside={(e) => {
           const target = e.target as Element;
           if (target.closest('[data-date-picker-trigger]') || target.closest('.rdp')) {
             e.preventDefault();
           }
         }}
-        onEscapeKeyDown={() => setOpen(false)}
-        avoidCollisions={true}
       >
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={(selectedDate) => {
-            console.log('Date picker - date selected:', selectedDate);
-            if (selectedDate) {
-              setDate(selectedDate);
-              // Add small delay to ensure the selection is processed
-              setTimeout(() => setOpen(false), 150);
-            }
-          }}
-          className="rounded-md border-0"
-          disabled={false}
-          captionLayout="dropdown-buttons"
-          fromYear={2020}
-          toYear={2030}
-        />
+        <div className="p-3">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={(selectedDate) => {
+              console.log('Date picker - date selected:', selectedDate);
+              if (selectedDate) {
+                setDate(selectedDate);
+                // Immediate close for better mobile experience
+                requestAnimationFrame(() => setOpen(false));
+              }
+            }}
+            className="rounded-md border-0"
+            disabled={false}
+            captionLayout="dropdown-buttons"
+            fromYear={2020}
+            toYear={2030}
+
+          />
+        </div>
       </PopoverContent>
     </Popover>
   );
