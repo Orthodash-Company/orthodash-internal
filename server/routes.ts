@@ -205,13 +205,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If we get data (either from API or fallback), report success
       if (locations && locations.length > 0) {
-        const isLiveAPI = !locations[0].id?.startsWith('loc_') && !locations[0].id?.includes('demo');
+        // Check if this is live data based on location ID patterns and isLiveData flag
+        const hasLiveData = locations.some(loc => 
+          loc.isLiveData || 
+          (loc.id && (loc.id.startsWith('live-') || (!loc.id.startsWith('loc_') && !loc.id.includes('demo'))))
+        );
+        
         res.json({ 
           status: "connected", 
-          dataSource: isLiveAPI ? "Live Greyfinch API" : "Development Data (Live API Unavailable)",
-          message: isLiveAPI ? "Successfully connected to Greyfinch API with live data" : "Using development data - configure API credentials for live data",
+          dataSource: hasLiveData ? "Live Greyfinch API" : "Development Data (Live API Unavailable)",
+          message: hasLiveData ? "Successfully connected to Greyfinch API with live data" : "Using development data - configure API credentials for live data",
           locationCount: locations.length,
-          apiCredentialsConfigured: !!(process.env.GREYFINCH_API_KEY && process.env.GREYFINCH_API_SECRET)
+          apiCredentialsConfigured: !!(process.env.GREYFINCH_API_KEY && process.env.GREYFINCH_API_SECRET),
+          isLiveData: hasLiveData
         });
       } else {
         throw new Error('No location data available');
