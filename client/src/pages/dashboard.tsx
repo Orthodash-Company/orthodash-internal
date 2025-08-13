@@ -95,21 +95,45 @@ export default function Dashboard() {
 
   // Handle adding a new period column with modal data
   const handleAddPeriod = (periodData: Omit<PeriodConfig, 'id'>) => {
+    console.log('Dashboard handleAddPeriod called with:', periodData);
+    console.log('Current periods count:', periods.length);
+    
     if (periods.length >= 10) {
       console.error('Maximum 10 periods allowed');
+      alert('Maximum 10 periods allowed');
       return;
     }
     
     try {
+      // Validate required fields
+      if (!periodData.title) {
+        throw new Error('Period title is required');
+      }
+      
       // Ensure dates are proper Date objects
       let startDate = periodData.startDate;
       let endDate = periodData.endDate;
       
       if (startDate && !(startDate instanceof Date)) {
+        console.log('Converting startDate to Date object:', startDate);
         startDate = new Date(startDate);
       }
       if (endDate && !(endDate instanceof Date)) {
+        console.log('Converting endDate to Date object:', endDate);
         endDate = new Date(endDate);
+      }
+      
+      // Validate dates
+      if (!startDate || !endDate) {
+        throw new Error('Start and end dates are required');
+      }
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error('Invalid date values provided');
+      }
+      
+      if (startDate >= endDate) {
+        throw new Error('Start date must be before end date');
       }
       
       const newPeriod: PeriodConfig = {
@@ -119,13 +143,21 @@ export default function Dashboard() {
         endDate,
       };
       
-      console.log('Adding new period:', newPeriod);
+      console.log('Creating new period:', newPeriod);
       console.log('Start date type:', typeof newPeriod.startDate, newPeriod.startDate);
       console.log('End date type:', typeof newPeriod.endDate, newPeriod.endDate);
       
-      setPeriods(prev => [...prev, newPeriod]);
+      setPeriods(prev => {
+        const newPeriods = [...prev, newPeriod];
+        console.log('Updated periods array:', newPeriods);
+        return newPeriods;
+      });
+      
+      console.log('Period added successfully');
     } catch (error) {
       console.error('Error adding period:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Error adding period: ${errorMessage}`);
     }
   };
 

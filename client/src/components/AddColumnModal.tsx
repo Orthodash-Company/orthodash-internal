@@ -28,36 +28,39 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
   });
 
   const handleAddPeriod = () => {
+    console.log('handleAddPeriod called with:', { startDate, endDate, title, locationId });
+    
     if (!startDate || !endDate) {
       console.error('Missing dates:', { startDate, endDate });
+      alert('Please select both start and end dates');
       return;
     }
     
     // Validate that we don't exceed 10 periods
     if (existingPeriodsCount >= 10) {
       console.error('Maximum 10 periods allowed');
+      alert('Maximum 10 periods allowed');
       return;
     }
     
-    console.log('Adding period with data:', {
+    const periodData = {
       name: title,
       title,
       locationId,
-      startDate,
-      endDate,
-    });
+      startDate: startDate,
+      endDate: endDate,
+    };
+    
+    console.log('Adding period with data:', periodData);
     
     try {
-      onAddPeriod({
-        name: title,
-        title,
-        locationId,
-        startDate: startDate,
-        endDate: endDate,
-      });
+      onAddPeriod(periodData);
+      
+      console.log('Period added successfully');
       
       // Reset form and close modal
-      setTitle(`Period ${String.fromCharCode(65 + existingPeriodsCount + 1)}`);
+      const nextPeriodLetter = String.fromCharCode(65 + existingPeriodsCount + 1);
+      setTitle(`Period ${nextPeriodLetter}`);
       setLocationId('all');
       setStartDate(new Date());
       const nextMonth = new Date();
@@ -66,6 +69,8 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
       setOpen(false);
     } catch (error) {
       console.error('Error adding period:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Error adding period: ${errorMessage}`);
     }
   };
 
