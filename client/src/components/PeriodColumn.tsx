@@ -7,6 +7,7 @@ import { PieChart } from "./charts/PieChart";
 import { ColumnChart } from "./charts/ColumnChart";
 import { SplineChart } from "./charts/SplineChart";
 import { StackedColumnChart } from "./charts/StackedColumnChart";
+import { DataSummaryChart } from "./charts/DataSummaryChart";
 import { 
   DollarSign, 
   CreditCard, 
@@ -391,6 +392,12 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 </div>
               </div>
             </div>
+
+            {/* Data Summary Chart */}
+            <DataSummaryChart 
+              periodData={safeData}
+              periodTitle={period.title}
+            />
 
             {/* Charts */}
             <div className="space-y-6">

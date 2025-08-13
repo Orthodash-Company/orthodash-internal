@@ -28,6 +28,7 @@ import {
   Plus
 } from "lucide-react";
 import { GreyfinchDataModal } from "./GreyfinchDataModal";
+import { GreyfinchSetupModal } from "./GreyfinchSetupModal";
 import { PDFExporter } from "./PDFExporter";
 import { ShareModal } from "./ShareModal";
 import { PeriodConfig, Location } from "@shared/types";
@@ -251,6 +252,7 @@ export function MobileFriendlyControls({
                 <GreyfinchDataModal 
                   onDataSelected={onGreyfinchDataSelected}
                 />
+                <GreyfinchSetupModal />
                 
                 <Button 
                   onClick={async () => {

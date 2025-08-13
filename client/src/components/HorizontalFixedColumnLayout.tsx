@@ -27,6 +27,7 @@ export function HorizontalFixedColumnLayout({
   onUpdatePeriod
 }: HorizontalFixedColumnLayoutProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
 
   // Auto-scroll to the right when new periods are added
   useEffect(() => {
@@ -112,7 +113,7 @@ export function HorizontalFixedColumnLayout({
             <div 
               key={period.id} 
               id={`period-${period.id}`}
-              className="flex-shrink-0 snap-center overflow-y-auto"
+              className="flex-shrink-0 snap-center overflow-hidden"
               style={{ 
                 width: 'calc(100vw - 2rem)',
                 maxWidth: '420px',
@@ -127,12 +128,15 @@ export function HorizontalFixedColumnLayout({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 text-gray-500 hover:text-[#1d1d52] hover:bg-gray-100"
+                        className={`h-8 w-8 p-0 ${editingPeriods.has(period.id) ? 'text-orange-600 bg-orange-50' : 'text-gray-500 hover:text-[#1d1d52] hover:bg-gray-100'}`}
                         onClick={() => {
-                          const newTitle = prompt('Edit period name:', period.title);
-                          if (newTitle && newTitle.trim()) {
-                            onUpdatePeriod(period.id, { title: newTitle.trim() });
+                          const newEditingPeriods = new Set(editingPeriods);
+                          if (editingPeriods.has(period.id)) {
+                            newEditingPeriods.delete(period.id);
+                          } else {
+                            newEditingPeriods.add(period.id);
                           }
+                          setEditingPeriods(newEditingPeriods);
                         }}
                       >
                         <Edit3 className="h-4 w-4" />
@@ -142,16 +146,36 @@ export function HorizontalFixedColumnLayout({
                       </CardTitle>
                     </div>
                     
-                    {periods.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => onRemovePeriod(period.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {/* Add Visualization button moved to top right */}
+                      <DataVisualizationModal
+                        onSelectVisualization={(viz) => {
+                          const currentViz = period.visualizations || [];
+                          onUpdatePeriod(period.id, { 
+                            visualizations: [...currentViz, viz] 
+                          });
+                        }}
+                        trigger={
+                          <Button
+                            size="sm"
+                            className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 rounded-lg"
+                          >
+                            <Plus className="h-4 w-4 text-white" />
+                          </Button>
+                        }
+                      />
+                      
+                      {periods.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => onRemovePeriod(period.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Period Info */}
@@ -173,20 +197,10 @@ export function HorizontalFixedColumnLayout({
                   </div>
                 </CardHeader>
 
-                {/* Add Visualization Button */}
-                <div className="px-6 pb-4">
-                  <DataVisualizationModal
-                    onSelectVisualization={(viz) => {
-                      const currentViz = period.visualizations || [];
-                      onUpdatePeriod(period.id, { 
-                        visualizations: [...currentViz, viz] 
-                      });
-                    }}
-                  />
-                </div>
+
 
                 {/* Period Content */}
-                <CardContent className="pt-0 space-y-4">
+                <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
                   <PeriodColumn
                     period={period as any} // Type assertion for compatibility
                     query={query}
@@ -202,19 +216,31 @@ export function HorizontalFixedColumnLayout({
                     <div key={`${period.id}-${viz.id}-${vizIndex}`} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium">{viz.title}</h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                          onClick={() => {
-                            const updatedViz = period.visualizations?.filter((_, i) => i !== vizIndex) || [];
-                            onUpdatePeriod(period.id, { visualizations: updatedViz });
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        {editingPeriods.has(period.id) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                            onClick={() => {
+                              const updatedViz = period.visualizations?.filter((_, i) => i !== vizIndex) || [];
+                              onUpdatePeriod(period.id, { visualizations: updatedViz });
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600">{viz.description}</p>
+                      {editingPeriods.has(period.id) ? (
+                        <p className="text-sm text-gray-600">{viz.description}</p>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-600">{viz.description}</p>
+                          {/* Chart Placeholder - Replace with actual chart component */}
+                          <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center text-sm text-gray-500">
+                            {viz.title} Chart Loading...
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   
@@ -224,14 +250,29 @@ export function HorizontalFixedColumnLayout({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center gap-2"
                         onClick={() => {
                           const templateName = prompt('Enter template name:', `${period.title} Template`);
                           if (templateName && templateName.trim()) {
-                            // TODO: Implement template saving
-                            console.log('Saving template:', templateName, period);
+                            // Save template to localStorage
+                            const templates = JSON.parse(localStorage.getItem('orthodash-templates') || '[]');
+                            const newTemplate = {
+                              id: Date.now(),
+                              name: templateName.trim(),
+                              period: {
+                                title: period.title,
+                                locationId: period.locationId,
+                                visualizations: period.visualizations
+                              },
+                              createdAt: new Date().toISOString()
+                            };
+                            templates.push(newTemplate);
+                            localStorage.setItem('orthodash-templates', JSON.stringify(templates));
+                            
+                            // Show success message
+                            alert(`Template "${templateName}" saved successfully!`);
                           }
                         }}
+                        className="flex items-center gap-2"
                       >
                         <Save className="h-4 w-4" />
                         Save as Template

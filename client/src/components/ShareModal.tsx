@@ -36,9 +36,20 @@ export function ShareModal({ reportData, trigger }: ShareModalProps) {
   const generatePDF = async () => {
     if (!reportData || !reportData.periods?.length) {
       toast({
-        title: "No Data Available",
-        description: "Please configure at least one period with data before sharing.",
-        variant: "destructive"
+        title: "Need More Data",
+        description: "Please add another period or generate a summary before creating a PDF report.",
+        variant: "default"
+      });
+      return;
+    }
+
+    // Check if we have meaningful data to export
+    const hasValidData = reportData.periods.some((p: any) => p.startDate && p.endDate);
+    if (!hasValidData) {
+      toast({
+        title: "Add Date Ranges",
+        description: "Please configure date ranges for your periods to generate a comprehensive report.",
+        variant: "default"
       });
       return;
     }
@@ -76,9 +87,9 @@ export function ShareModal({ reportData, trigger }: ShareModalProps) {
       });
     } catch (error) {
       toast({
-        title: "PDF Generation Failed",
-        description: "Unable to generate PDF. Please try again.",
-        variant: "destructive"
+        title: "Export Unavailable",
+        description: "Please add more data or configure comparative analysis to enable PDF export.",
+        variant: "default"
       });
     } finally {
       setGenerating(false);

@@ -19,8 +19,8 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(`Period ${String.fromCharCode(65 + existingPeriodsCount)}`);
   const [locationId, setLocationId] = useState('all');
-  const [startDate, setStartDate] = useState<Date>(new Date(2024, 0, 1));
-  const [endDate, setEndDate] = useState<Date>(new Date(2024, 2, 31));
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date(2024, 0, 1));
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date(2024, 2, 31));
 
   const handleAddPeriod = () => {
     if (!startDate || !endDate) {
@@ -47,8 +47,8 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
         name: title,
         title,
         locationId,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: startDate,
+        endDate: endDate,
       });
       
       // Reset form and close modal
@@ -133,7 +133,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
               </Label>
               <EnhancedDatePicker
                 date={startDate}
-                onDateChange={(date) => date && setStartDate(date)}
+                onDateChange={setStartDate}
                 placeholder="Select start date"
               />
             </div>
@@ -142,7 +142,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
               <Label>End Date</Label>
               <EnhancedDatePicker
                 date={endDate}
-                onDateChange={(date) => date && setEndDate(date)}
+                onDateChange={setEndDate}
                 placeholder="Select end date"
               />
             </div>

@@ -21,6 +21,7 @@ interface VisualizationOption {
 interface DataVisualizationModalProps {
   onSelectVisualization: (visualization: VisualizationOption) => void;
   isLoading?: boolean;
+  trigger?: React.ReactNode;
 }
 
 const visualizationOptions: VisualizationOption[] = [
@@ -76,7 +77,7 @@ const visualizationOptions: VisualizationOption[] = [
   }
 ];
 
-export function DataVisualizationModal({ onSelectVisualization, isLoading = false }: DataVisualizationModalProps) {
+export function DataVisualizationModal({ onSelectVisualization, isLoading = false, trigger }: DataVisualizationModalProps) {
   const [selectedOption, setSelectedOption] = useState<VisualizationOption | null>(null);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
@@ -96,10 +97,12 @@ export function DataVisualizationModal({ onSelectVisualization, isLoading = fals
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Add Visualization</span>
-        </Button>
+        {trigger || (
+          <Button size="sm" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Add Visualization</span>
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <div className="overflow-y-auto max-h-[80vh]">
