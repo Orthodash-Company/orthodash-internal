@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart } from '@tremor/react';
 
 interface StackedColumnChartProps {
   data: Array<{
@@ -21,18 +21,18 @@ export function StackedColumnChart({ data, title }: StackedColumnChartProps) {
   return (
     <div className="w-full h-80">
       {title && <h3 className="text-center text-lg font-semibold mb-4">{title}</h3>}
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip formatter={(value) => [`${value}%`, '']} />
-          <Legend />
-          <Bar dataKey="Digital" stackId="a" fill="#1976D2" />
-          <Bar dataKey="Professional" stackId="a" fill="#00BCD4" />
-          <Bar dataKey="Direct" stackId="a" fill="#1d1d52" />
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChart
+        data={chartData}
+        index="name"
+        categories={["Digital", "Professional", "Direct"]}
+        colors={["blue", "cyan", "indigo"]}
+        yAxisWidth={48}
+        showLegend={true}
+        showGridLines={true}
+        showAnimation={true}
+        stack={true}
+        className="h-full"
+      />
     </div>
   );
 }

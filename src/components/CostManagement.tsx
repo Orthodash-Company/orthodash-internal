@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+// import { useMutation, useQueryClient } from "@tanstack/react-query";
+// import { apiRequest } from "@/lib/queryClient";
 import { Save } from "lucide-react";
 
 interface CostManagementProps {
@@ -26,38 +26,41 @@ export function CostManagement({ locationId, period, initialCosts }: CostManagem
   });
 
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isSaving, setIsSaving] = useState(false);
 
-  const saveCostsMutation = useMutation({
-    mutationFn: async (costData: typeof costs) => {
-      const promises = Object.entries(costData).map(([referralType, cost]) =>
-        apiRequest('POST', '/api/acquisition-costs', {
-          locationId,
-          referralType,
-          cost,
-          period
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const promises = Object.entries(costs).map(([referralType, cost]) =>
+        fetch('/api/acquisition-costs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            locationId,
+            referralType,
+            cost,
+            period
+          }),
         })
       );
-      return Promise.all(promises);
-    },
-    onSuccess: () => {
+      
+      await Promise.all(promises);
+      
       toast({
         title: "Success",
         description: "Acquisition costs saved successfully"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/analytics'] });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save costs",
         variant: "destructive"
       });
+    } finally {
+      setIsSaving(false);
     }
-  });
-
-  const handleSave = () => {
-    saveCostsMutation.mutate(costs);
   };
 
   const handleCostChange = (type: keyof typeof costs, value: number) => {
@@ -105,11 +108,11 @@ export function CostManagement({ locationId, period, initialCosts }: CostManagem
         <div className="mt-6 flex justify-end">
           <Button 
             onClick={handleSave} 
-            disabled={saveCostsMutation.isPending}
+            disabled={isSaving}
             className="bg-[#1d1d52] hover:bg-[#1d1d52]/90 text-white"
           >
             <Save className="mr-2 h-4 w-4" />
-            {saveCostsMutation.isPending ? 'Saving...' : 'Save Cost Data'}
+            {isSaving ? 'Saving...' : 'Save Cost Data'}
           </Button>
         </div>
       </CardContent>

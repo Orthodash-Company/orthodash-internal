@@ -96,7 +96,7 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
             }}
             className="rounded-md border-0"
             disabled={false}
-            captionLayout="dropdown-buttons"
+            captionLayout="dropdown"
             fromYear={2020}
             toYear={2030}
 

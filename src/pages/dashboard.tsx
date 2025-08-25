@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { SimpleHeader } from "@/components/SimpleHeader";
 import { HorizontalFixedColumnLayout } from "@/components/HorizontalFixedColumnLayout";
 import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
@@ -49,32 +48,50 @@ export default function Dashboard() {
     }
   }, [periods]);
 
-  // Query for locations
-  const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ['/api/locations'],
-  });
+  // State for locations and period data
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
+  const [periodData, setPeriodData] = useState<Record<string, any>>({});
+  const [periodLoading, setPeriodLoading] = useState<Record<string, boolean>>({});
 
-  // Create queries for all periods dynamically - only if dates are selected
-  const periodQueries = periods.map((period) => {
-    const locationParam = period.locationId === 'all' ? '' : `&locationId=${period.locationId}`;
-    
-    return useQuery({
-      queryKey: ['/api/analytics', period.id, period.locationId, 
-        period.startDate ? format(period.startDate, 'yyyy-MM-dd') : 'no-start', 
-        period.endDate ? format(period.endDate, 'yyyy-MM-dd') : 'no-end'
-      ],
-      queryFn: async () => {
-        if (!period.startDate || !period.endDate) {
-          console.log(`Period ${period.id} missing dates:`, { startDate: period.startDate, endDate: period.endDate });
-          return null; // Return null for empty state
+  // Fetch locations
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        setLocationsLoading(true);
+        const response = await fetch('/api/locations');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch locations: ${response.status}`);
         }
-        
-        const startDateStr = format(period.startDate, 'yyyy-MM-dd');
-        const endDateStr = format(period.endDate, 'yyyy-MM-dd');
-        const url = `/api/analytics?startDate=${startDateStr}&endDate=${endDateStr}${locationParam}`;
-        
-        console.log(`Fetching analytics for period ${period.id}:`, url);
-        
+        const data = await response.json();
+        setLocations(data);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      } finally {
+        setLocationsLoading(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  // Fetch data for each period when dates change
+  useEffect(() => {
+    const fetchPeriodData = async (period: PeriodConfig) => {
+      if (!period.startDate || !period.endDate) {
+        return;
+      }
+
+      const locationParam = period.locationId === 'all' ? '' : `&locationId=${period.locationId}`;
+      const startDateStr = format(period.startDate, 'yyyy-MM-dd');
+      const endDateStr = format(period.endDate, 'yyyy-MM-dd');
+      const url = `/api/analytics?startDate=${startDateStr}&endDate=${endDateStr}${locationParam}`;
+      
+      console.log(`Fetching analytics for period ${period.id}:`, url);
+      
+      setPeriodLoading(prev => ({ ...prev, [period.id]: true }));
+      
+      try {
         const response = await fetch(url);
         if (!response.ok) {
           const errorText = await response.text();
@@ -84,14 +101,29 @@ export default function Dashboard() {
         
         const data = await response.json();
         console.log(`Analytics data received for ${period.id}:`, data);
-        return data;
-      },
-      enabled: !!(period.startDate && period.endDate), // Only enabled when dates are set
-      retry: 2,
-      refetchOnMount: true,
-      refetchOnWindowFocus: false
+        setPeriodData(prev => ({ ...prev, [period.id]: data }));
+      } catch (error) {
+        console.error(`Error fetching data for period ${period.id}:`, error);
+        setPeriodData(prev => ({ ...prev, [period.id]: null }));
+      } finally {
+        setPeriodLoading(prev => ({ ...prev, [period.id]: false }));
+      }
+    };
+
+    // Fetch data for all periods with dates
+    periods.forEach(period => {
+      if (period.startDate && period.endDate) {
+        fetchPeriodData(period);
+      }
     });
-  });
+  }, [periods]);
+
+  // Create periodQueries-like structure for compatibility
+  const periodQueries = periods.map((period) => ({
+    data: periodData[period.id] || null,
+    isLoading: periodLoading[period.id] || false,
+    error: null
+  }));
 
   // Handle adding a new period column with modal data
   const handleAddPeriod = (periodData: Omit<PeriodConfig, 'id'>) => {

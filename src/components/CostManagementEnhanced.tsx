@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+// import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DollarSign, TrendingUp, Settings, Key, Plus, Save, RefreshCw } from "lucide-react";
 import { CostEntryForm } from "./CostEntryForm";
-import { apiRequest } from "@/lib/queryClient";
+// import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface ApiConfiguration {
@@ -55,76 +55,97 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Query for existing cost data
-  const { data: existingCosts } = useQuery({
-    queryKey: ['/api/acquisition-costs', locationId, period],
-    queryFn: async () => {
-      const response = await fetch(`/api/acquisition-costs?locationId=${locationId}&period=${period}`);
-      if (!response.ok) throw new Error('Failed to fetch costs');
-      return response.json();
-    },
-  });
-
-  // Load existing costs when data is available
+  // Load existing cost data
   useEffect(() => {
-    if (existingCosts) {
-      setCosts(existingCosts);
-    }
-  }, [existingCosts]);
+    const fetchCosts = async () => {
+      try {
+        const response = await fetch(`/api/acquisition-costs?locationId=${locationId}&period=${period}`);
+        if (!response.ok) throw new Error('Failed to fetch costs');
+        const data = await response.json();
+        setCosts(data);
+      } catch (error) {
+        console.error('Error fetching costs:', error);
+      }
+    };
 
-  // Save costs mutation
-  const saveCostsMutation = useMutation({
-    mutationFn: async (costData: CostData) => {
-      const response = await apiRequest('POST', '/api/acquisition-costs', {
-        locationId,
-        period,
-        costs: costData
+    fetchCosts();
+  }, [locationId, period]);
+
+  // Save costs function
+  const saveCosts = async (costData: CostData) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/acquisition-costs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          locationId,
+          period,
+          costs: costData
+        }),
       });
-      return response.json();
-    },
-    onSuccess: () => {
+      
+      if (!response.ok) {
+        throw new Error(`Failed to save costs: ${response.status}`);
+      }
+      
+      await response.json();
       toast({
         title: "Costs Saved",
         description: "Acquisition costs have been saved successfully."
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/acquisition-costs'] });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Save Failed",
         description: error instanceof Error ? error.message : "Failed to save costs",
         variant: "destructive"
       });
-    },
-  });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-  // API Integration mutation
-  const syncApiDataMutation = useMutation({
-    mutationFn: async (configId: string) => {
-      const response = await apiRequest('POST', '/api/sync-external-costs', {
-        configId,
-        locationId,
-        period
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const syncApiData = async (configId: string) => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch('/api/sync-external-costs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          configId,
+          locationId,
+          period
+        }),
       });
-      return response.json();
-    },
-    onSuccess: (data) => {
+      
+      if (!response.ok) {
+        throw new Error(`Failed to sync data: ${response.status}`);
+      }
+      
+      const data = await response.json();
       setCosts(prev => ({ ...prev, ...data.costs }));
       toast({
         title: "Data Synced",
         description: "External advertising costs have been imported successfully."
       });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Sync Failed",
         description: error instanceof Error ? error.message : "Failed to sync external data",
         variant: "destructive"
       });
-    },
-  });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleCostChange = (field: keyof CostData, value: string) => {
     const numericValue = parseFloat(value) || 0;
@@ -135,7 +156,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
   };
 
   const handleSaveCosts = () => {
-    saveCostsMutation.mutate(costs);
+    saveCosts(costs);
   };
 
   const handleAddApiConfig = () => {
@@ -270,10 +291,10 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
             
             <Button 
               onClick={handleSaveCosts} 
-              disabled={saveCostsMutation.isPending}
+              disabled={isSaving}
               className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
             >
-              {saveCostsMutation.isPending ? (
+              {isSaving ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Save className="h-4 w-4 mr-2" />
@@ -326,10 +347,10 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => syncApiDataMutation.mutate(config.id)}
-                          disabled={syncApiDataMutation.isPending}
+                          onClick={() => syncApiData(config.id)}
+                          disabled={isSyncing}
                         >
-                          {syncApiDataMutation.isPending ? (
+                          {isSyncing ? (
                             <RefreshCw className="h-4 w-4 animate-spin" />
                           ) : (
                             <RefreshCw className="h-4 w-4" />

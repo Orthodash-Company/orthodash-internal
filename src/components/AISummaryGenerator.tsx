@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+// import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles, TrendingUp, Target, ExternalLink } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+// import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -36,29 +36,38 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
   const [summary, setSummary] = useState<AISummary | null>(null);
   const { toast } = useToast();
 
-  const generateSummaryMutation = useMutation({
-    mutationFn: async (data: { periods: PeriodConfig[]; periodData: { [key: string]: AnalyticsData } }) => {
-      const response = await apiRequest('POST', '/api/generate-summary', data);
-      return await response.json();
-    },
-    onSuccess: (data: AISummary) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateSummary = async () => {
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/generate-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ periods, periodData }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate summary: ${response.status}`);
+      }
+      
+      const data = await response.json();
       setSummary(data);
       toast({
         title: "AI Summary Generated",
         description: "Your analytics summary has been generated successfully."
       });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Generation Failed",
         description: error instanceof Error ? error.message : "Failed to generate summary",
         variant: "destructive"
       });
+    } finally {
+      setIsGenerating(false);
     }
-  });
-
-  const handleGenerateSummary = () => {
-    generateSummaryMutation.mutate({ periods, periodData });
   };
 
   return (
@@ -71,10 +80,10 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
           </CardTitle>
           <Button 
             onClick={handleGenerateSummary}
-            disabled={generateSummaryMutation.isPending || Object.keys(periodData).length === 0}
+            disabled={isGenerating || Object.keys(periodData).length === 0}
             className="bg-[#1d1d52] hover:bg-[#1d1d52]/90 text-white"
           >
-            {generateSummaryMutation.isPending ? (
+            {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Generating...
@@ -178,7 +187,7 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
         </CardContent>
       )}
       
-      {!summary && !generateSummaryMutation.isPending && (
+      {!summary && !isGenerating && (
         <CardContent>
           <div className="text-center py-8">
             <Sparkles className="h-8 w-8 text-gray-400 mx-auto mb-3" />

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+// import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, Download, Eye, Trash2, Calendar } from "lucide-react";
 import { format } from "date-fns";
-import { apiRequest } from "@/lib/queryClient";
+// import { apiRequest } from "@/lib/queryClient";
 
 interface SavedReport {
   id: string;
@@ -26,30 +26,68 @@ interface ReportsManagerProps {
 }
 
 export function ReportsManager({ trigger }: ReportsManagerProps) {
-  const queryClient = useQueryClient();
-  
-  // Query for saved reports
-  const { data: reports = [], isLoading, error } = useQuery<SavedReport[]>({
-    queryKey: ['/api/reports'],
-  });
+  const [reports, setReports] = useState<SavedReport[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
 
-  // Delete report mutation
-  const deleteReportMutation = useMutation({
-    mutationFn: async (reportId: string) => {
-      await apiRequest('DELETE', `/api/reports/${reportId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
-    },
-  });
+  // Load reports
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/reports');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch reports: ${response.status}`);
+        }
+        const data = await response.json();
+        setReports(data);
+      } catch (error) {
+        setError(error instanceof Error ? error : new Error('Unknown error'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Generate PDF mutation
-  const generatePdfMutation = useMutation({
-    mutationFn: async (reportId: string) => {
-      const response = await apiRequest('POST', `/api/reports/${reportId}/pdf`);
-      return response.blob();
-    },
-    onSuccess: (blob, reportId) => {
+    fetchReports();
+  }, []);
+
+  const handleDeleteReport = async (reportId: string) => {
+    if (window.confirm('Are you sure you want to delete this report?')) {
+      setIsDeleting(reportId);
+      try {
+        const response = await fetch(`/api/reports/${reportId}`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete report: ${response.status}`);
+        }
+        
+        // Remove from local state
+        setReports(prev => prev.filter(report => report.id !== reportId));
+      } catch (error) {
+        console.error('Error deleting report:', error);
+      } finally {
+        setIsDeleting(null);
+      }
+    }
+  };
+
+  const handleDownloadPdf = async (reportId: string) => {
+    setIsGeneratingPdf(reportId);
+    try {
+      const response = await fetch(`/api/reports/${reportId}/pdf`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -59,17 +97,11 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    },
-  });
-
-  const handleDeleteReport = async (reportId: string) => {
-    if (window.confirm('Are you sure you want to delete this report?')) {
-      deleteReportMutation.mutate(reportId);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsGeneratingPdf(null);
     }
-  };
-
-  const handleDownloadPdf = (reportId: string) => {
-    generatePdfMutation.mutate(reportId);
   };
 
   const defaultTrigger = (
@@ -141,7 +173,7 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDownloadPdf(report.id)}
-                          disabled={generatePdfMutation.isPending}
+                          disabled={isGeneratingPdf === report.id}
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -149,7 +181,7 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteReport(report.id)}
-                          disabled={deleteReportMutation.isPending}
+                          disabled={isDeleting === report.id}
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>

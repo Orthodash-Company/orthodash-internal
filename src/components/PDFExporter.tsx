@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Download, FileText, Loader2 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+// import { useMutation } from "@tanstack/react-query";
+// import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface PDFExportOptions {
@@ -40,15 +40,28 @@ export function PDFExporter({ reportData, reportName = "ORTHODASH Report", trigg
 
   const { toast } = useToast();
 
-  const generatePdfMutation = useMutation({
-    mutationFn: async (exportOptions: PDFExportOptions) => {
-      const response = await apiRequest('POST', '/api/export/pdf', {
-        reportData,
-        options: exportOptions
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleExport = async () => {
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/export/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportData,
+          options
+        }),
       });
-      return response.blob();
-    },
-    onSuccess: (blob) => {
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -63,18 +76,15 @@ export function PDFExporter({ reportData, reportName = "ORTHODASH Report", trigg
         title: "PDF Generated",
         description: "Your report has been downloaded successfully."
       });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Export Failed",
         description: error instanceof Error ? error.message : "Failed to generate PDF",
         variant: "destructive"
       });
-    },
-  });
-
-  const handleExport = () => {
-    generatePdfMutation.mutate(options);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const defaultTrigger = (
@@ -230,10 +240,10 @@ export function PDFExporter({ reportData, reportName = "ORTHODASH Report", trigg
           {/* Export Button */}
           <Button
             onClick={handleExport}
-            disabled={generatePdfMutation.isPending || !options.title.trim()}
+            disabled={isGenerating || !options.title.trim()}
             className="w-full"
           >
-            {generatePdfMutation.isPending ? (
+            {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Generating PDF...

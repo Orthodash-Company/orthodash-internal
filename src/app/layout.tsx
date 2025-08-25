@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient } from '@/lib/queryClient'
+// import { QueryClientProvider } from '@tanstack/react-query'
+// import { queryClient } from '@/lib/queryClient'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/hooks/use-auth'
@@ -24,14 +24,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ErrorBoundary>
-          <QueryClientProvider client={queryClient}>
             <TooltipProvider>
               <AuthProvider>
                 <Toaster />
                 {children}
               </AuthProvider>
             </TooltipProvider>
-          </QueryClientProvider>
         </ErrorBoundary>
       </body>
     </html>

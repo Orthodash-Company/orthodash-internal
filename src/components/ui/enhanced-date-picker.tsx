@@ -69,7 +69,7 @@ export function EnhancedDatePicker({
               }
             }}
             disabled={false}
-            captionLayout="dropdown-buttons"
+            captionLayout="dropdown"
             fromYear={2020}
             toYear={2030}
             className="rounded-md border-0"
