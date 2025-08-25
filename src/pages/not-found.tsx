@@ -1,4 +1,6 @@
-import { Link } from "wouter";
+'use client'
+
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TrendingUp } from "lucide-react";
 

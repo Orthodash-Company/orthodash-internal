@@ -1,6 +1,8 @@
-import { useState } from "react";
+'use client'
+
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,12 +12,19 @@ import { Loader2, TrendingUp } from "lucide-react";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
+  const router = useRouter();
   const [loginData, setLoginData] = useState({ username: "", password: "" });
   const [registerData, setRegisterData] = useState({ username: "", password: "" });
 
   // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push("/");
+    }
+  }, [user, router]);
+
   if (user) {
-    return <Redirect to="/" />;
+    return null;
   }
 
   const handleLogin = (e: React.FormEvent) => {
@@ -106,7 +115,7 @@ export default function AuthPage() {
                 <CardHeader>
                   <CardTitle>Register</CardTitle>
                   <CardDescription>
-                    Create a new account for your practice
+                    Create a new account (teamorthodontics.com emails only)
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -116,12 +125,11 @@ export default function AuthPage() {
                       <Input
                         id="register-email"
                         type="email"
-                        placeholder="your-name@teamorthodontics.com"
+                        placeholder="yourname@teamorthodontics.com"
                         value={registerData.username}
                         onChange={(e) => setRegisterData(prev => ({ ...prev, username: e.target.value }))}
                         required
                       />
-                      <p className="text-xs text-gray-500">Only @teamorthodontics.com emails are allowed</p>
                     </div>
                     
                     <div className="space-y-2">
@@ -129,6 +137,7 @@ export default function AuthPage() {
                       <Input
                         id="register-password"
                         type="password"
+                        placeholder="Create a strong password"
                         value={registerData.password}
                         onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
                         required
@@ -143,7 +152,7 @@ export default function AuthPage() {
                       {registerMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Registering...
+                          Creating account...
                         </>
                       ) : (
                         "Register"
@@ -156,27 +165,16 @@ export default function AuthPage() {
           </Tabs>
         </div>
       </div>
-
-      {/* Right side - Hero */}
-      <div className="hidden lg:flex lg:flex-1 bg-blue-600 text-white p-8 items-center justify-center">
-        <div className="max-w-lg text-center space-y-6">
-          <TrendingUp className="h-16 w-16 mx-auto opacity-90" />
-          <div className="space-y-4">
-            <h2 className="text-3xl font-bold">Orthodontic Analytics Made Simple</h2>
-            <p className="text-blue-100 text-lg">
-              Track patient acquisition costs, analyze referral sources, and optimize your practice performance with comprehensive data insights.
-            </p>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="bg-blue-700 rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Cost Analysis</h3>
-                <p className="text-blue-200">Monitor acquisition costs across all referral channels</p>
-              </div>
-              <div className="bg-blue-700 rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Performance Metrics</h3>
-                <p className="text-blue-200">Compare periods and track conversion rates</p>
-              </div>
-            </div>
-          </div>
+      
+      {/* Right side - Background */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 items-center justify-center">
+        <div className="text-white text-center space-y-6">
+          <TrendingUp className="h-24 w-24 mx-auto" />
+          <h2 className="text-4xl font-bold">Welcome to ORTHODASH</h2>
+          <p className="text-xl text-blue-100 max-w-md">
+            Comprehensive analytics dashboard for orthodontic practices. 
+            Track performance, analyze trends, and optimize your practice.
+          </p>
         </div>
       </div>
     </div>
