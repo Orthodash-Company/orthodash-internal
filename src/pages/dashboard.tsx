@@ -6,7 +6,7 @@ import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
 import { CostManagementEnhanced } from "@/components/CostManagementEnhanced";
 import { AISummaryGenerator } from "@/components/AISummaryGenerator";
 import { format } from "date-fns";
-import { PeriodConfig, Location } from "@shared/types";
+import { PeriodConfig, Location } from "@/shared/types";
 
 export default function Dashboard() {
   // State for managing multiple periods with persistence

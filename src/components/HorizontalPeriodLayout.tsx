@@ -9,7 +9,7 @@ import { AddColumnModal } from "./AddColumnModal";
 import { EditPeriodModal } from "./EditPeriodModal";
 import { Plus, X, Edit3, Calendar, MapPin, Save } from "lucide-react";
 import { format } from "date-fns";
-import { PeriodConfig, Location, VisualizationOption } from "@shared/types";
+import { PeriodConfig, Location, VisualizationOption } from "@/shared/types";
 
 interface HorizontalPeriodLayoutProps {
   periods: PeriodConfig[];

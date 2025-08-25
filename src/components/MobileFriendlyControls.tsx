@@ -31,7 +31,7 @@ import { GreyfinchDataModal } from "./GreyfinchDataModal";
 import { GreyfinchSetupModal } from "./GreyfinchSetupModal";
 import { PDFExporter } from "./PDFExporter";
 import { ShareModal } from "./ShareModal";
-import { PeriodConfig, Location } from "@shared/types";
+import { PeriodConfig, Location } from "@/shared/types";
 
 interface MobileFriendlyControlsProps {
   periods: PeriodConfig[];

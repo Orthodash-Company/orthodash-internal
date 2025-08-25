@@ -7,7 +7,7 @@ import { PeriodColumn } from "./PeriodColumn";
 import { AddColumnModal } from "./AddColumnModal";
 import { Plus, X, Edit3, Calendar, MapPin, Save } from "lucide-react";
 import { format } from "date-fns";
-import { PeriodConfig, Location, VisualizationOption } from "@shared/types";
+import { PeriodConfig, Location, VisualizationOption } from "@/shared/types";
 
 interface HorizontalFixedColumnLayoutProps {
   periods: PeriodConfig[];

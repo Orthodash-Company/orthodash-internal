@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
 import { Plus, Calendar, MapPin } from "lucide-react";
-import { PeriodConfig, Location } from "@shared/types";
+import { PeriodConfig, Location } from "@/shared/types";
 
 interface AddColumnModalProps {
   locations: Location[];

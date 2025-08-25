@@ -20,7 +20,7 @@ import {
   Plus
 } from "lucide-react";
 import { format } from "date-fns";
-import { PeriodConfig, Location } from "@shared/types";
+import { PeriodConfig, Location } from "@/shared/types";
 
 interface PeriodData {
   avgNetProduction: number;

@@ -7,7 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { PeriodConfig, AnalyticsData } from "@shared/types";
+import { PeriodConfig, AnalyticsData } from "@/shared/types";
 
 interface AISummary {
   recommendations: string[];
