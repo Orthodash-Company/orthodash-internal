@@ -4,8 +4,8 @@ export interface PeriodConfig {
   name: string;
   title: string;
   locationId: string;
-  startDate: Date | undefined;
-  endDate: Date | undefined;
+  startDate: Date;
+  endDate: Date;
   visualizations?: VisualizationOption[];
 }
 
