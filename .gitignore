@@ -74,3 +74,6 @@ coverage/
 temp/
 .vercel
 .next
+
+# TypeScript build info
+tsconfig.tsbuildinfo
