@@ -53,13 +53,23 @@ export async function GET(request: NextRequest) {
 
     // Get acquisition costs
     const period = new Date(startDate).toISOString().slice(0, 7) // YYYY-MM format
-    const costs = await db.select().from(analyticsCache).where(
-      and(
-        eq(analyticsCache.locationId, parsedLocationId || null),
-        eq(analyticsCache.dataType, 'acquisition_costs'),
-        eq(analyticsCache.startDate, period)
-      )
-    )
+    let costs;
+    if (parsedLocationId !== undefined) {
+      costs = await db.select().from(analyticsCache).where(
+        and(
+          eq(analyticsCache.locationId, parsedLocationId),
+          eq(analyticsCache.dataType, 'acquisition_costs'),
+          eq(analyticsCache.startDate, period)
+        )
+      );
+    } else {
+      costs = await db.select().from(analyticsCache).where(
+        and(
+          eq(analyticsCache.dataType, 'acquisition_costs'),
+          eq(analyticsCache.startDate, period)
+        )
+      );
+    }
     
     // Calculate average acquisition cost
     const totalCost = costs.reduce((sum, cost) => sum + (cost.cost || 0), 0)

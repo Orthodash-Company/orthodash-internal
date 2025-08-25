@@ -14,12 +14,19 @@ export async function GET(request: NextRequest) {
     }
 
     const parsedLocationId = locationId ? parseInt(locationId) : null
-    const costs = await db.select().from(acquisitionCosts).where(
-      and(
-        eq(acquisitionCosts.locationId, parsedLocationId),
+    let costs;
+    if (parsedLocationId !== null) {
+      costs = await db.select().from(acquisitionCosts).where(
+        and(
+          eq(acquisitionCosts.locationId, parsedLocationId),
+          eq(acquisitionCosts.period, period)
+        )
+      );
+    } else {
+      costs = await db.select().from(acquisitionCosts).where(
         eq(acquisitionCosts.period, period)
-      )
-    )
+      );
+    }
     
     return NextResponse.json(costs)
   } catch (error) {
