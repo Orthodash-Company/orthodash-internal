@@ -1,93 +1,84 @@
-'use client'
-
-import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingUp } from "lucide-react";
-
 export default function LoginPage() {
-  const { user, loginMutation } = useAuth();
-  const router = useRouter();
-  const [loginData, setLoginData] = useState({ username: "", password: "" });
-
-  // Redirect if already logged in
-  if (user) {
-    router.push("/");
-    return null;
-  }
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    loginMutation.mutate(loginData);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo */}
-        <div className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            <TrendingUp className="h-8 w-8 text-blue-600 mr-2" />
-            <h1 className="text-2xl font-bold text-gray-900">ORTHODASH</h1>
-          </div>
-          <p className="text-gray-600">Analytics dashboard for orthodontic practices</p>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#f9fafb',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
+    }}>
+      <div style={{ width: '100%', maxWidth: '28rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827' }}>ORTHODASH</h1>
+          <p style={{ color: '#6b7280' }}>Analytics dashboard for orthodontic practices</p>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Login</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your dashboard
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="orthodash@teamorthodontics.com"
-                  value={loginData.username}
-                  onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="OrthoDash2025!"
-                  value={loginData.password}
-                  onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
-                  required
-                />
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={loginMutation.isPending}
-              >
-                {loginMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Logging in...
-                  </>
-                ) : (
-                  "Login"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '0.5rem',
+          padding: '1.5rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+        }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Login</h2>
+          <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>Enter your credentials to access your dashboard</p>
+          
+          <form style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Email</label>
+              <input
+                type="email"
+                placeholder="orthodash@teamorthodontics.com"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem'
+                }}
+                required
+              />
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Password</label>
+              <input
+                type="password"
+                placeholder="OrthoDash2025!"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem'
+                }}
+                required
+              />
+            </div>
+            
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                padding: '0.5rem',
+                borderRadius: '0.375rem',
+                border: 'none',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Login
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
 }
+
+// Force dynamic rendering to avoid SSR issues
+export const dynamic = 'force-dynamic';

@@ -1,3 +1,15 @@
 {
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/acquisition-costs/route": "app/api/acquisition-costs/route.js",
+  "/api/analytics/route": "app/api/analytics/route.js",
+  "/api/auth/logout/route": "app/api/auth/logout/route.js",
+  "/api/generate-summary/route": "app/api/generate-summary/route.js",
+  "/api/auth/user/route": "app/api/auth/user/route.js",
+  "/api/locations/route": "app/api/locations/route.js",
+  "/api/greyfinch/test/route": "app/api/greyfinch/test/route.js",
+  "/api/greyfinch/setup/route": "app/api/greyfinch/setup/route.js",
+  "/auth/page": "app/auth/page.js",
+  "/login/page": "app/login/page.js",
   "/page": "app/page.js"
 }

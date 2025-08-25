@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['canvas'],
-  },
+  serverExternalPackages: ['canvas'],
   images: {
     domains: ['localhost'],
   },
-  // Disable static generation
+  // Use standalone mode for API routes
   output: 'standalone',
 }
 
