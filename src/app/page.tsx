@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/use-auth'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Dashboard from '@/pages/dashboard'
-import AuthPage from '@/pages/auth-page'
 
 export default function HomePage() {
   const { user, loading } = useAuth()
@@ -12,7 +11,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth')
+      router.push('/login')
     }
   }, [user, loading, router])
 
@@ -25,8 +24,17 @@ export default function HomePage() {
   }
 
   if (!user) {
-    return <AuthPage />
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+        </div>
+      </div>
+    )
   }
 
   return <Dashboard />
 }
+
+// Force dynamic rendering to avoid SSR issues
+export const dynamic = 'force-dynamic';

@@ -1,253 +1,171 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Settings, CheckCircle, AlertCircle, Zap } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+'use client'
 
-interface GreyfinchSetupModalProps {
-  trigger?: React.ReactNode;
-  onDataRefresh?: () => void;
-}
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useToast } from '@/hooks/use-toast'
+import { Settings, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
 
-// Storage keys for localStorage
-const STORAGE_KEYS = {
-  API_KEY: 'greyfinch_api_key',
-  API_SECRET: 'greyfinch_api_secret',
-  CONNECTION_STATUS: 'greyfinch_connection_status'
-} as const;
+export function GreyfinchSetupModal() {
+  const [apiKey, setApiKey] = useState('')
+  const [apiSecret, setApiSecret] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
+  const { toast } = useToast()
 
-export function GreyfinchSetupModal({ trigger, onDataRefresh }: GreyfinchSetupModalProps) {
-  const [open, setOpen] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [apiSecret, setApiSecret] = useState("");
-  const [testing, setTesting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'connected' | 'failed'>('idle');
-  const { toast } = useToast();
-
-  // Load saved credentials on component mount
-  useEffect(() => {
-    const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
-    const savedApiSecret = localStorage.getItem(STORAGE_KEYS.API_SECRET);
-    const savedStatus = localStorage.getItem(STORAGE_KEYS.CONNECTION_STATUS) as typeof connectionStatus;
-    
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-    }
-    if (savedApiSecret) {
-      setApiSecret(savedApiSecret);
-    }
-    if (savedStatus && ['idle', 'connected', 'failed'].includes(savedStatus)) {
-      setConnectionStatus(savedStatus);
-    }
-    
-    console.log('Loaded Greyfinch credentials from localStorage:', { 
-      hasApiKey: !!savedApiKey, 
-      hasApiSecret: !!savedApiSecret, 
-      status: savedStatus 
-    });
-  }, []);
-
-  // Save credentials to localStorage when they change
-  const saveCredentials = (newApiKey: string, newApiSecret: string, status: typeof connectionStatus) => {
-    localStorage.setItem(STORAGE_KEYS.API_KEY, newApiKey);
-    localStorage.setItem(STORAGE_KEYS.API_SECRET, newApiSecret);
-    localStorage.setItem(STORAGE_KEYS.CONNECTION_STATUS, status);
-    console.log('Saved Greyfinch credentials to localStorage');
-  };
-
-  const testConnection = async () => {
+  const handleSetup = async () => {
     if (!apiKey || !apiSecret) {
       toast({
         title: "Missing Credentials",
-        description: "Please enter both API key and secret",
+        description: "Please enter both API key and secret.",
         variant: "destructive"
-      });
-      return;
+      })
+      return
     }
 
-    setTesting(true);
-    setConnectionStatus('testing');
-
+    setIsLoading(true)
     try {
       const response = await fetch('/api/greyfinch/setup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, apiSecret })
-      });
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey, apiSecret }),
+      })
 
-      if (response.ok) {
-        setConnectionStatus('connected');
-        
-        // Save credentials to localStorage
-        saveCredentials(apiKey, apiSecret, 'connected');
-        
-        // Invalidate all cached data to force refresh with new credentials
-        await queryClient.invalidateQueries();
-        
+      const data = await response.json()
+
+      if (data.success) {
+        setIsConnected(true)
         toast({
-          title: "Connection Successful",
-          description: "Greyfinch API connected and saved successfully. Live data is now available."
-        });
-        
-        // Trigger data refresh callback if provided
-        onDataRefresh?.();
+          title: "Success",
+          description: "Greyfinch API connected successfully!",
+        })
       } else {
-        throw new Error('Connection failed');
+        toast({
+          title: "Connection Failed",
+          description: data.message || "Failed to connect to Greyfinch API",
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      setConnectionStatus('failed');
-      
-      // Save failed status but keep credentials for retry
-      saveCredentials(apiKey, apiSecret, 'failed');
-      
       toast({
-        title: "Connection Failed",
-        description: "Please check your credentials and try again.",
+        title: "Error",
+        description: "Failed to setup Greyfinch API connection",
         variant: "destructive"
-      });
+      })
     } finally {
-      setTesting(false);
+      setIsLoading(false)
     }
-  };
+  }
 
-  const forceLiveData = async () => {
+  const testConnection = async () => {
+    setIsLoading(true)
     try {
-      const response = await fetch('/api/greyfinch/force-live', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const response = await fetch('/api/greyfinch/test')
+      const data = await response.json()
 
-      if (response.ok) {
-        // Invalidate all data and refresh to get live data
-        await queryClient.invalidateQueries();
-        
+      if (data.success) {
+        setIsConnected(true)
         toast({
-          title: "Live Data Activated",
-          description: "All API calls will now use live Greyfinch data instead of development fallback."
-        });
-        
-        // Trigger data refresh callback if provided
-        onDataRefresh?.();
-        
-        // Force a page refresh to ensure all components get fresh data
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-        
-        setOpen(false);
+          title: "Connection Test",
+          description: "Greyfinch API connection is working!",
+        })
       } else {
-        throw new Error('Failed to activate live data mode');
+        setIsConnected(false)
+        toast({
+          title: "Connection Test Failed",
+          description: data.message || "Failed to connect to Greyfinch API",
+          variant: "destructive"
+        })
       }
     } catch (error) {
+      setIsConnected(false)
       toast({
-        title: "Live Data Activation Failed",
-        description: "Unable to switch to live data mode. Please try again.",
+        title: "Connection Test Failed",
+        description: "Failed to test Greyfinch API connection",
         variant: "destructive"
-      });
+      })
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="outline" size="sm">
-            <Settings className="h-4 w-4 mr-2" />
-            Greyfinch Setup
-          </Button>
-        )}
-      </DialogTrigger>
-      
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-blue-600" />
-            Greyfinch API Configuration
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="api-key">API Key</Label>
-            <Input
-              id="api-key"
-              type="password"
-              value={apiKey}
-              onChange={(e) => {
-                setApiKey(e.target.value);
-                // Reset connection status when credentials change
-                if (connectionStatus !== 'idle') {
-                  setConnectionStatus('idle');
-                }
-              }}
-              placeholder="Enter your Greyfinch API key"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="api-secret">API Secret</Label>
-            <Input
-              id="api-secret"
-              type="password"
-              value={apiSecret}
-              onChange={(e) => {
-                setApiSecret(e.target.value);
-                // Reset connection status when credentials change
-                if (connectionStatus !== 'idle') {
-                  setConnectionStatus('idle');
-                }
-              }}
-              placeholder="Enter your Greyfinch API secret"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={testConnection} 
-              disabled={testing || !apiKey || !apiSecret}
-              size="sm"
-            >
-              {testing ? "Testing..." : "Test Connection"}
-            </Button>
-            
-            {connectionStatus === 'connected' && (
-              <Badge variant="default" className="bg-green-100 text-green-800">
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Connected
-              </Badge>
-            )}
-            
-            {connectionStatus === 'failed' && (
-              <Badge variant="destructive">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Failed
-              </Badge>
-            )}
-          </div>
-
-          <div className="border-t pt-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Force Live Data Mode</Label>
-              <p className="text-xs text-gray-600">
-                Switch from development fallback data to live Greyfinch API data
-              </p>
-              <Button 
-                onClick={forceLiveData}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                Activate Live Data
-              </Button>
-            </div>
-          </div>
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Greyfinch API Setup
+        </CardTitle>
+        <CardDescription>
+          Configure your Greyfinch API credentials to enable live data integration
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="api-key">API Key</Label>
+          <Input
+            id="api-key"
+            type="password"
+            placeholder="Enter your Greyfinch API key"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
         </div>
-      </DialogContent>
-    </Dialog>
-  );
+        
+        <div className="space-y-2">
+          <Label htmlFor="api-secret">API Secret</Label>
+          <Input
+            id="api-secret"
+            type="password"
+            placeholder="Enter your Greyfinch API secret"
+            value={apiSecret}
+            onChange={(e) => setApiSecret(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleSetup} 
+            disabled={isLoading}
+            className="flex-1"
+          >
+            {isLoading ? 'Setting up...' : 'Setup API'}
+          </Button>
+          
+          <Button 
+            onClick={testConnection} 
+            disabled={isLoading}
+            variant="outline"
+          >
+            Test
+          </Button>
+        </div>
+
+        {isConnected && (
+          <div className="flex items-center gap-2 text-green-600">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-sm">Connected to Greyfinch API</span>
+          </div>
+        )}
+
+        {!isConnected && (
+          <div className="flex items-center gap-2 text-amber-600">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">Not connected to Greyfinch API</span>
+          </div>
+        )}
+
+        <div className="pt-2 border-t">
+          <Button variant="link" size="sm" className="p-0 h-auto">
+            <ExternalLink className="h-4 w-4 mr-1" />
+            Get Greyfinch API credentials
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }

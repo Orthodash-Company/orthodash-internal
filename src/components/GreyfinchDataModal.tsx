@@ -1,340 +1,121 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Database, 
-  MapPin, 
-  Users, 
-  Calendar, 
-  Activity, 
-  TrendingUp,
-  Check,
-  AlertCircle,
-  Loader2
-} from "lucide-react";
+'use client'
 
-interface GreyfinchLocation {
-  id: string;
-  name: string;
-  address: string;
-  patientCount: number;
-  lastSync: string;
-}
-
-interface DataSelection {
-  locations: string[];
-  metrics: string[];
-  dateRange: {
-    start: Date;
-    end: Date;
-  };
-}
-
-interface GreyfinchStatus {
-  status: 'connected' | 'mock' | 'error';
-  dataSource?: string;
-  message?: string;
-}
-
-const AVAILABLE_METRICS = [
-  { id: 'patients', label: 'Patient Data', icon: Users, description: 'Demographics, referral sources, status' },
-  { id: 'appointments', label: 'Appointments', icon: Calendar, description: 'Scheduling, no-shows, types' },
-  { id: 'treatments', label: 'Treatments', icon: Activity, description: 'Treatment plans, procedures, revenue' },
-  { id: 'referrals', label: 'Referral Sources', icon: TrendingUp, description: 'Marketing channels, conversion rates' },
-];
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { useToast } from '@/hooks/use-toast'
+import { MapPin, Database, RefreshCw } from 'lucide-react'
 
 interface GreyfinchDataModalProps {
-  onDataSelected: (selection: DataSelection) => void;
-  trigger?: React.ReactNode;
+  onDataSelected?: (selection: any) => void
+  trigger?: React.ReactNode
 }
 
 export function GreyfinchDataModal({ onDataSelected, trigger }: GreyfinchDataModalProps) {
-  const [open, setOpen] = useState(false);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['patients', 'appointments']);
+  const [isLoading, setIsLoading] = useState(false)
+  const [locations, setLocations] = useState<any[]>([])
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+  const { toast } = useToast()
 
-  // Query Greyfinch connection status and available locations
-  const { data: greyfinchStatus, isLoading: statusLoading } = useQuery<GreyfinchStatus>({
-    queryKey: ['/api/test-greyfinch'],
-    enabled: open,
-  });
+  const fetchLocations = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/locations')
+      const data = await response.json()
+      setLocations(data)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch locations",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-  // Query available locations from Greyfinch
-  const { data: locations = [], isLoading: locationsLoading, error: locationsError } = useQuery<GreyfinchLocation[]>({
-    queryKey: ['/api/greyfinch/locations'],
-    enabled: open && greyfinchStatus?.status === 'connected',
-    queryFn: async () => {
-      const response = await fetch('/api/greyfinch/locations');
-      if (!response.ok) throw new Error('Failed to fetch locations');
-      return response.json();
-    },
-  });
+  const handleLocationSelect = (locationId: string) => {
+    setSelectedLocation(locationId)
+    if (onDataSelected) {
+      onDataSelected({ locationId, type: 'location' })
+    }
+  }
 
-  const handleLocationToggle = (locationId: string) => {
-    setSelectedLocations(prev => 
-      prev.includes(locationId) 
-        ? prev.filter(id => id !== locationId)
-        : [...prev, locationId]
-    );
-  };
-
-  const handleMetricToggle = (metricId: string) => {
-    setSelectedMetrics(prev => 
-      prev.includes(metricId) 
-        ? prev.filter(id => id !== metricId)
-        : [...prev, metricId]
-    );
-  };
-
-  const handleSelectAllLocations = () => {
-    setSelectedLocations(locations.map(loc => loc.id));
-  };
-
-  const handleClearLocations = () => {
-    setSelectedLocations([]);
-  };
-
-  const handleConfirmSelection = () => {
-    const selection: DataSelection = {
-      locations: selectedLocations,
-      metrics: selectedMetrics,
-      dateRange: {
-        start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 90 days ago
-        end: new Date()
-      }
-    };
-    
-    onDataSelected(selection);
-    setOpen(false);
-  };
-
-  const isConnected = greyfinchStatus?.status === 'connected';
-  const canProceed = selectedLocations.length > 0 && selectedMetrics.length > 0;
+  const handleRefresh = () => {
+    fetchLocations()
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="outline" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Select Greyfinch Data
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MapPin className="h-5 w-5" />
+          Practice Locations
+        </CardTitle>
+        <CardDescription>
+          Select a practice location to view analytics data
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-600">Available Locations</span>
+          </div>
+          <Button
+            onClick={handleRefresh}
+            disabled={isLoading}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-        )}
-      </DialogTrigger>
-      
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-blue-600" />
-            Greyfinch Data Selection
-          </DialogTitle>
-          <DialogDescription>
-            Choose which locations and data types to include in your analytics dashboard.
-          </DialogDescription>
-        </DialogHeader>
+        </div>
 
-        <div className="space-y-6">
-          {/* Connection Status */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Connection Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statusLoading ? (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Checking connection...</span>
-                </div>
-              ) : isConnected ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <Check className="h-4 w-4" />
-                  <span>Connected to Greyfinch API</span>
-                  <Badge variant="secondary" className="ml-2">
-                    {greyfinchStatus?.dataSource || 'Live Data'}
-                  </Badge>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-red-600">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Connection failed - check API credentials</span>
-                  {greyfinchStatus?.message && (
-                    <div className="text-xs text-gray-600 ml-2">
-                      {greyfinchStatus.message}
-                    </div>
+        {isLoading ? (
+          <div className="text-center py-4">
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+            <p className="text-sm text-gray-600">Loading locations...</p>
+          </div>
+        ) : locations.length > 0 ? (
+          <div className="grid gap-2">
+            {locations.map((location) => (
+              <Button
+                key={location.id}
+                onClick={() => handleLocationSelect(location.id.toString())}
+                variant={selectedLocation === location.id.toString() ? "default" : "outline"}
+                className="justify-start"
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{location.name}</span>
+                  {location.patientCount && (
+                    <Badge variant="secondary" className="ml-auto">
+                      {location.patientCount} patients
+                    </Badge>
                   )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-600">No locations found</p>
+            <Button onClick={fetchLocations} variant="outline" size="sm" className="mt-2">
+              Load Locations
+            </Button>
+          </div>
+        )}
 
-          {/* Location Selection */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Practice Locations ({locations.length})
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleSelectAllLocations}
-                    disabled={locations.length === 0}
-                  >
-                    Select All
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleClearLocations}
-                  >
-                    Clear
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {locationsLoading ? (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Loading locations...</span>
-                </div>
-              ) : locations.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {locations.map((location) => (
-                    <div
-                      key={location.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                        selectedLocations.includes(location.id)
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      }`}
-                      onClick={() => handleLocationToggle(location.id)}
-                    >
-                      <Checkbox
-                        checked={selectedLocations.includes(location.id)}
-                        onChange={() => handleLocationToggle(location.id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {location.name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {location.address}
-                        </p>
-                        <div className="flex items-center gap-4 mt-1">
-                          <span className="text-xs text-gray-400">
-                            {location.patientCount} patients
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            Last sync: {new Date(location.lastSync).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No locations found</p>
-                  <p className="text-xs">Check your Greyfinch API connection</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Data Type Selection */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Data Types
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {AVAILABLE_METRICS.map((metric) => {
-                  const Icon = metric.icon;
-                  return (
-                    <div
-                      key={metric.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                        selectedMetrics.includes(metric.id)
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      }`}
-                      onClick={() => handleMetricToggle(metric.id)}
-                    >
-                      <Checkbox
-                        checked={selectedMetrics.includes(metric.id)}
-                        onChange={() => handleMetricToggle(metric.id)}
-                      />
-                      <Icon className="h-5 w-5 text-gray-600" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          {metric.label}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {metric.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Selection Summary */}
-          {(selectedLocations.length > 0 || selectedMetrics.length > 0) && (
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Check className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-900">Selection Summary</span>
-                </div>
-                <div className="text-sm text-blue-800 space-y-1">
-                  <p>{selectedLocations.length} location(s) selected</p>
-                  <p>{selectedMetrics.length} data type(s) selected</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <Separator />
-
-        {/* Action Buttons */}
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleConfirmSelection}
-            disabled={!canProceed}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Apply Data Selection
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+        {selectedLocation && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-800">
+              Selected: {locations.find(l => l.id.toString() === selectedLocation)?.name}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
 }

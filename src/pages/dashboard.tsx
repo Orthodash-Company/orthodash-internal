@@ -182,8 +182,8 @@ export default function Dashboard() {
       name: 'Period A',
       title: 'Period A',
       locationId: 'all',
-      startDate: undefined,
-      endDate: undefined
+      startDate: new Date(),
+      endDate: new Date()
     };
     
     setPeriods([initialPeriod]);

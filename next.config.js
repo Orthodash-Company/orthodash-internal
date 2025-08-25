@@ -6,6 +6,8 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  // Disable static generation
+  output: 'standalone',
 }
 
 module.exports = nextConfig
