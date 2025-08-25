@@ -19,14 +19,25 @@ export async function GET(request: NextRequest) {
     
     // Check cache first
     const cacheKey = `analytics_${parsedLocationId || 'all'}_${startDate}_${endDate}`
-    const cachedData = await db.select().from(analyticsCache).where(
-      and(
-        eq(analyticsCache.locationId, parsedLocationId || null),
-        eq(analyticsCache.startDate, startDate),
-        eq(analyticsCache.endDate, endDate),
-        eq(analyticsCache.dataType, 'analytics')
-      )
-    )
+    let cachedData;
+    if (parsedLocationId !== undefined) {
+      cachedData = await db.select().from(analyticsCache).where(
+        and(
+          eq(analyticsCache.locationId, parsedLocationId),
+          eq(analyticsCache.startDate, startDate),
+          eq(analyticsCache.endDate, endDate),
+          eq(analyticsCache.dataType, 'analytics')
+        )
+      );
+    } else {
+      cachedData = await db.select().from(analyticsCache).where(
+        and(
+          eq(analyticsCache.startDate, startDate),
+          eq(analyticsCache.endDate, endDate),
+          eq(analyticsCache.dataType, 'analytics')
+        )
+      );
+    }
 
     if (cachedData.length > 0) {
       const cacheAge = Date.now() - new Date(cachedData[0].createdAt!).getTime()
@@ -77,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     // Cache the result
     await db.insert(analyticsCache).values({
-      locationId: parsedLocationId || null,
+      locationId: parsedLocationId || undefined,
       startDate: startDate,
       endDate: endDate,
       dataType: 'analytics',
