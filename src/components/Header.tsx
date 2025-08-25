@@ -42,7 +42,7 @@ export function Header() {
             />
 
             {/* Desktop User Menu */}
-            {true && ( {/* Show user menu always for testing */}
+            {true && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="flex items-center space-x-2 hover:bg-gray-100">
@@ -79,7 +79,7 @@ export function Header() {
           {/* Mobile Menu */}
           <div className="lg:hidden flex items-center space-x-2">
             {/* Mobile User Avatar */}
-            {true && ( {/* Show user menu always for testing */}
+            {true && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="p-2">
