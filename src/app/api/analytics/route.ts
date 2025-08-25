@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { analyticsCache, locations } from '@/shared/schema'
+import { analyticsCache, locations, acquisitionCosts } from '@/shared/schema'
 import { eq, and } from 'drizzle-orm'
 import { greyfinchService } from '@/lib/services/greyfinch'
 
@@ -66,19 +66,15 @@ export async function GET(request: NextRequest) {
     const period = new Date(startDate).toISOString().slice(0, 7) // YYYY-MM format
     let costs;
     if (parsedLocationId !== undefined) {
-      costs = await db.select().from(analyticsCache).where(
+      costs = await db.select().from(acquisitionCosts).where(
         and(
-          eq(analyticsCache.locationId, parsedLocationId),
-          eq(analyticsCache.dataType, 'acquisition_costs'),
-          eq(analyticsCache.startDate, period)
+          eq(acquisitionCosts.locationId, parsedLocationId),
+          eq(acquisitionCosts.period, period)
         )
       );
     } else {
-      costs = await db.select().from(analyticsCache).where(
-        and(
-          eq(analyticsCache.dataType, 'acquisition_costs'),
-          eq(analyticsCache.startDate, period)
-        )
+      costs = await db.select().from(acquisitionCosts).where(
+        eq(acquisitionCosts.period, period)
       );
     }
     
