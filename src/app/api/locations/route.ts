@@ -23,26 +23,30 @@ export async function GET(request: NextRequest) {
     // Try to connect to database, but fallback to sample data if connection fails
     let dbLocations = []
     try {
-      // Filter locations by user_id
-      dbLocations = await db.select().from(locations).where(
-        and(
-          eq(locations.userId, userId),
-          eq(locations.isActive, true)
+      // Filter locations by user_id (with fallback for missing column)
+      try {
+        dbLocations = await db.select().from(locations).where(
+          and(
+            eq(locations.userId, userId),
+            eq(locations.isActive, true)
+          )
         )
-      )
+      } catch (error) {
+        // Fallback: get all locations if user_id column doesn't exist yet
+        console.log('user_id column not found, falling back to all locations:', error)
+        dbLocations = await db.select().from(locations).where(eq(locations.isActive, true))
+      }
       
       // If no locations exist, create some sample ones for demonstration
       if (dbLocations.length === 0) {
         console.log('No locations found, creating sample locations...')
         const sampleLocations = [
           {
-            userId: userId,
             name: 'Main Orthodontic Center',
             address: '123 Main St, Downtown',
             patientCount: 1247
           },
           {
-            userId: userId,
             name: 'Westside Dental & Orthodontics', 
             address: '456 West Ave, Westside',
             patientCount: 892
@@ -53,12 +57,18 @@ export async function GET(request: NextRequest) {
           await db.insert(locations).values(locationData)
         }
         
-        dbLocations = await db.select().from(locations).where(
-          and(
-            eq(locations.userId, userId),
-            eq(locations.isActive, true)
+        try {
+          dbLocations = await db.select().from(locations).where(
+            and(
+              eq(locations.userId, userId),
+              eq(locations.isActive, true)
+            )
           )
-        )
+        } catch (error) {
+          // Fallback: get all locations if user_id column doesn't exist yet
+          console.log('user_id column not found, falling back to all locations:', error)
+          dbLocations = await db.select().from(locations).where(eq(locations.isActive, true))
+        }
       }
     } catch (dbError) {
       console.log('Database connection failed, using sample data:', dbError)
