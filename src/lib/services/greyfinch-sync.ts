@@ -11,16 +11,7 @@ import {
 import { eq, and } from 'drizzle-orm';
 import crypto from 'crypto';
 
-interface GreyfinchSyncService {
-  syncLocations: (userId: string, greyfinchData: any) => Promise<void>;
-  syncPatients: (userId: string, greyfinchData: any) => Promise<void>;
-  syncAppointments: (userId: string, greyfinchData: any) => Promise<void>;
-  syncDailyMetrics: (userId: string, greyfinchData: any) => Promise<void>;
-  syncLocationMetrics: (userId: string, greyfinchData: any) => Promise<void>;
-  syncAllData: (userId: string, greyfinchData: any) => Promise<void>;
-}
-
-class GreyfinchSyncService implements GreyfinchSyncService {
+class GreyfinchSyncService {
   // Hash patient data for HIPAA compliance
   private hashPatientData(data: string): string {
     return crypto.createHash('sha256').update(data).digest('hex');
