@@ -43,6 +43,15 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
       return;
     }
 
+    if (!periods || periods.length === 0) {
+      toast({
+        title: "No Data Available",
+        description: "Please add analysis periods before generating a summary.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     try {
       // Get Greyfinch data for analysis
@@ -50,11 +59,16 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
       
       // Fetch acquisition cost data for all periods
       const acquisitionCostPromises = periods.map(async (period) => {
-        const response = await fetch(`/api/acquisition-costs?locationId=&period=${period.startDate?.toISOString().split('T')[0]}&userId=${user.id}`);
-        if (response.ok) {
-          return response.json();
+        try {
+          const response = await fetch(`/api/acquisition-costs?locationId=&period=${period.startDate?.toISOString().split('T')[0]}&userId=${user.id}`);
+          if (response.ok) {
+            return response.json();
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching costs for period ${period.id}:`, error);
+          return null;
         }
-        return null;
       });
 
       const acquisitionCostData = await Promise.all(acquisitionCostPromises);
@@ -70,6 +84,12 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
         userId: user.id
       };
 
+      console.log('Sending analysis data:', {
+        periodsCount: analysisData.periods.length,
+        hasGreyfinchData: !!analysisData.greyfinchData,
+        userId: analysisData.userId
+      });
+
       const response = await fetch('/api/generate-summary', {
         method: 'POST',
         headers: {
@@ -78,21 +98,27 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
         body: JSON.stringify(analysisData),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setSummary(data);
-        toast({
-          title: "AI Summary Generated",
-          description: "Your comprehensive analysis is ready!",
-        });
-      } else {
-        throw new Error('Failed to generate summary');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Failed to generate summary: ${response.status} - ${errorData.error || errorData.details || 'Unknown error'}`);
       }
+
+      const data = await response.json();
+      
+      if (!data.summary) {
+        throw new Error('Invalid response from AI summary service');
+      }
+      
+      setSummary(data);
+      toast({
+        title: "AI Summary Generated",
+        description: "Your comprehensive analysis is ready!",
+      });
     } catch (error) {
       console.error('Error generating AI summary:', error);
       toast({
         title: "Generation Failed",
-        description: "An error occurred while generating the AI summary.",
+        description: error instanceof Error ? error.message : "An error occurred while generating the AI summary.",
         variant: "destructive",
       });
     } finally {

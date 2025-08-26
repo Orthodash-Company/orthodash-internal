@@ -111,6 +111,16 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
   const saveManualCosts = async (costs: any[]) => {
     if (!user) return;
     
+    // Validate period
+    if (!period || period.trim() === '') {
+      toast({
+        title: "Period Required",
+        description: "Please select a period before saving costs.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsSaving(true);
     try {
       const response = await fetch('/api/acquisition-costs', {
@@ -128,7 +138,8 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to save costs: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Failed to save costs: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
       
       await response.json();
@@ -138,6 +149,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
         description: "Manual acquisition costs have been saved successfully."
       });
     } catch (error) {
+      console.error('Error saving costs:', error);
       toast({
         title: "Save Failed",
         description: error instanceof Error ? error.message : "Failed to save costs",

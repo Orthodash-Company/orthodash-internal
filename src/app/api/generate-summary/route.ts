@@ -10,20 +10,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { periods, greyfinchData, userId } = body;
 
+    console.log('Generate summary request:', { 
+      periodsCount: periods?.length || 0, 
+      hasGreyfinchData: !!greyfinchData, 
+      userId: userId ? 'present' : 'missing' 
+    });
+
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
+    }
+
     // Calculate KPIs from Greyfinch data and acquisition costs
-    const kpis = calculateKPIs(periods, greyfinchData);
+    const kpis = calculateKPIs(periods || [], greyfinchData || {});
 
     // Prepare data for AI analysis
     const analysisData = {
       periods: periods || [],
       greyfinchData: greyfinchData || {},
       kpis: kpis,
-      acquisitionCosts: extractAcquisitionCosts(periods)
+      acquisitionCosts: extractAcquisitionCosts(periods || [])
     };
+
+    console.log('Analysis data prepared:', {
+      periodsCount: analysisData.periods.length,
+      kpis: kpis,
+      acquisitionCostsCount: analysisData.acquisitionCosts.length
+    });
 
     const prompt = `
 You are an expert orthodontic practice analyst. Analyze the following data and provide comprehensive insights:
@@ -63,12 +79,14 @@ Format your response as JSON with the following structure:
 }
 `;
 
+    console.log('Sending request to OpenAI...');
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Provide clear, actionable insights."
+          content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Provide clear, actionable insights. Always respond with valid JSON."
         },
         {
           role: "user",
@@ -85,11 +103,17 @@ Format your response as JSON with the following structure:
       throw new Error('No response from OpenAI');
     }
 
+    console.log('OpenAI response received, length:', response.length);
+
     // Try to parse JSON response
     let parsedResponse;
     try {
       parsedResponse = JSON.parse(response);
+      console.log('Successfully parsed JSON response');
     } catch (e) {
+      console.error('Failed to parse JSON response:', e);
+      console.log('Raw response:', response);
+      
       // If JSON parsing fails, create a structured response
       parsedResponse = {
         summary: response,

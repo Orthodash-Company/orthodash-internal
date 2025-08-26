@@ -266,7 +266,10 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CostManagementEnhanced locationId={null} period="" />
+              <CostManagementEnhanced 
+                locationId={null} 
+                period={periods.length > 0 ? periods[0].startDate?.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
+              />
             </CardContent>
           </Card>
 
