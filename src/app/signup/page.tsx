@@ -35,10 +35,8 @@ export default function SignupPage() {
     
     try {
       registerMutation.mutate({
-        email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName
+        username: formData.email,
+        password: formData.password
       });
       router.push('/welcome');
     } catch (error) {
