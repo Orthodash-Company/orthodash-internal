@@ -137,8 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user!);
         toast({
           title: "Registration successful",
-          description: "Welcome to ORTHODASH!",
+          description: "Welcome to ORTHODASH! Redirecting to setup...",
         });
+        // Redirect to welcome page for new users
+        if (typeof window !== 'undefined') {
+          window.location.href = '/welcome';
+        }
       } catch (error) {
         toast({
           title: "Registration failed",
