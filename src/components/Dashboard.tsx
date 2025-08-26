@@ -47,6 +47,13 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Load Greyfinch data on component mount
+  useEffect(() => {
+    if (user?.id) {
+      loadGreyfinchData();
+    }
+  }, [user?.id]);
+
   // Handle click outside tabs
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

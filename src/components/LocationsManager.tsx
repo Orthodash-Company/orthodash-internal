@@ -133,6 +133,12 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       if (data.success) {
         setDataCounts(data.counts || {});
         setLastPullTime(new Date().toLocaleString());
+        
+        // Pass the full data to parent component
+        if (onGreyfinchDataUpdate) {
+          onGreyfinchDataUpdate(data);
+        }
+        
         toast({
           title: "Data Pull Successful",
           description: `Successfully pulled Greyfinch data. Found ${Object.values(data.counts || {}).reduce((sum: number, count: any) => sum + (count || 0), 0)} total records.`,

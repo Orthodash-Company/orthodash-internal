@@ -75,6 +75,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   // Debug logging
   console.log(`PeriodColumn ${period.id} - isLoading: ${isLoading}, hasData: ${!!data}, error: ${!!error}`);
   console.log(`Period dates: start=${period.startDate}, end=${period.endDate}`);
+  console.log(`Period data:`, data);
 
   // Handle loading and error states for live data
   if (isLoading) {
@@ -102,16 +103,37 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
       <Card className={isCompact ? "h-auto" : "h-[500px]"}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg text-red-600">{period.title}</CardTitle>
+            <CardTitle className="text-lg">{period.title}</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="text-red-500 mb-4">⚠️</div>
-              <p className="text-red-600 font-medium">Failed to load data</p>
-              <p className="text-gray-600 text-sm mt-2">{error.message}</p>
-              <p className="text-xs text-gray-500 mt-2">Check your Greyfinch API connection</p>
+              <p className="text-gray-600">Error loading data</p>
+              <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If no data, show empty state with option to add data
+  if (!data) {
+    return (
+      <Card className={isCompact ? "h-auto" : "h-[500px]"}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{period.title}</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="text-gray-400 mb-4">📊</div>
+              <p className="text-gray-600">No data available</p>
+              <p className="text-sm text-gray-500 mt-2">Add data sources to see analytics</p>
             </div>
           </div>
         </CardContent>
