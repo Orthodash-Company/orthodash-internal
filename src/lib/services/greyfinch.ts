@@ -176,71 +176,120 @@ export class GreyfinchService {
       // Try to get available data
       const availableData: any = {};
 
-      // Test appointment requests
+      // Test companies (organizations)
       try {
-        const appointmentData = await this.makeGraphQLRequest(`
-          query GetAppointmentRequests {
-            access_appointment_requests(limit: 5) {
+        const companiesData = await this.makeGraphQLRequest(`
+          query GetCompanies {
+            companies {
               id
+              name
             }
           }
         `);
-        if (appointmentData?.access_appointment_requests) {
-          availableData.appointmentRequests = appointmentData.access_appointment_requests.length;
+        if (companiesData?.companies) {
+          availableData.companies = companiesData.companies.length;
         }
       } catch (e) {
-        console.log('Appointment requests not available:', e);
+        console.log('Companies not available:', e);
       }
 
-      // Test NPS configurations
+      // Test locations
       try {
-        const npsData = await this.makeGraphQLRequest(`
-          query GetNPSConfigurations {
-            nps_configurations(limit: 5) {
+        const locationsData = await this.makeGraphQLRequest(`
+          query GetLocations {
+            locations {
               id
+              name
+              address
             }
           }
         `);
-        if (npsData?.nps_configurations) {
-          availableData.npsConfigurations = npsData.nps_configurations.length;
+        if (locationsData?.locations) {
+          availableData.locations = locationsData.locations.length;
+          availableData.locationNames = locationsData.locations.map((loc: any) => loc.name);
         }
       } catch (e) {
-        console.log('NPS configurations not available:', e);
+        console.log('Locations not available:', e);
       }
 
-      // Test virtual rooms
+      // Test appointments
       try {
-        const virtualRoomsData = await this.makeGraphQLRequest(`
-          query GetVirtualRooms {
-            virtual_rooms_list(limit: 5) {
+        const appointmentsData = await this.makeGraphQLRequest(`
+          query GetAppointments {
+            appointments {
               id
+              patientId
+              locationId
+              appointmentTypeId
+              startTime
+              endTime
+              status
             }
           }
         `);
-        if (virtualRoomsData?.virtual_rooms_list) {
-          availableData.virtualRooms = virtualRoomsData.virtual_rooms_list.length;
+        if (appointmentsData?.appointments) {
+          availableData.appointments = appointmentsData.appointments.length;
         }
       } catch (e) {
-        console.log('Virtual rooms not available:', e);
+        console.log('Appointments not available:', e);
       }
 
-      // Test location access keys (Gilbert/Scottsdale locations)
+      // Test appointment bookings
       try {
-        const locationData = await this.makeGraphQLRequest(`
-          query GetLocationAccessKeys {
-            vaxiom_location_access_keys {
+        const bookingsData = await this.makeGraphQLRequest(`
+          query GetAppointmentBookings {
+            appointmentBookings {
               id
-              access_key
-              access_name
+              appointmentId
+              patientId
+              status
             }
           }
         `);
-        if (locationData?.vaxiom_location_access_keys) {
-          availableData.locations = locationData.vaxiom_location_access_keys.length;
-          availableData.locationNames = locationData.vaxiom_location_access_keys.map((loc: any) => loc.access_name);
+        if (bookingsData?.appointmentBookings) {
+          availableData.appointmentBookings = bookingsData.appointmentBookings.length;
         }
       } catch (e) {
-        console.log('Location access keys not available:', e);
+        console.log('Appointment bookings not available:', e);
+      }
+
+      // Test leads
+      try {
+        const leadsData = await this.makeGraphQLRequest(`
+          query GetLeads {
+            leads {
+              id
+              firstName
+              lastName
+              email
+              phone
+              status
+            }
+          }
+        `);
+        if (leadsData?.leads) {
+          availableData.leads = leadsData.leads.length;
+        }
+      } catch (e) {
+        console.log('Leads not available:', e);
+      }
+
+      // Test apps
+      try {
+        const appsData = await this.makeGraphQLRequest(`
+          query GetApps {
+            apps {
+              id
+              name
+              type
+            }
+          }
+        `);
+        if (appsData?.apps) {
+          availableData.apps = appsData.apps.length;
+        }
+      } catch (e) {
+        console.log('Apps not available:', e);
       }
 
       return {
@@ -262,10 +311,13 @@ export class GreyfinchService {
   async pullAllData(userId: string): Promise<{
     success: boolean;
     message: string;
-    data: {
-      appointmentRequests: number;
-      npsConfigurations: number;
-      virtualRooms: number;
+    counts: {
+      companies: number;
+      locations: number;
+      appointments: number;
+      appointmentBookings: number;
+      leads: number;
+      apps: number;
     };
   }> {
     try {
@@ -281,76 +333,141 @@ export class GreyfinchService {
       }
 
       // Pull available data based on what's accessible
-      const data = {
-        appointmentRequests: 0,
-        npsConfigurations: 0,
-        virtualRooms: 0
+      const counts = {
+        companies: 0,
+        locations: 0,
+        appointments: 0,
+        appointmentBookings: 0,
+        leads: 0,
+        apps: 0
       };
 
-      // Try to get appointment requests
+      // Try to get companies
       try {
-        const appointmentData = await this.makeGraphQLRequest(`
-          query GetAppointmentRequests {
-            access_appointment_requests(limit: 100) {
+        const companiesData = await this.makeGraphQLRequest(`
+          query GetCompanies {
+            companies {
               id
+              name
             }
           }
         `);
-        if (appointmentData?.access_appointment_requests) {
-          data.appointmentRequests = appointmentData.access_appointment_requests.length;
+        if (companiesData?.companies) {
+          counts.companies = companiesData.companies.length;
         }
       } catch (e) {
-        console.log('Appointment requests not available');
+        console.log('Companies not available:', e);
       }
 
-      // Try to get NPS configurations
+      // Try to get locations
       try {
-        const npsData = await this.makeGraphQLRequest(`
-          query GetNPSConfigurations {
-            nps_configurations(limit: 100) {
+        const locationsData = await this.makeGraphQLRequest(`
+          query GetLocations {
+            locations {
               id
+              name
+              address
             }
           }
         `);
-        if (npsData?.nps_configurations) {
-          data.npsConfigurations = npsData.nps_configurations.length;
+        if (locationsData?.locations) {
+          counts.locations = locationsData.locations.length;
         }
       } catch (e) {
-        console.log('NPS configurations not available');
+        console.log('Locations not available:', e);
       }
 
-      // Try to get virtual rooms
+      // Try to get appointments
       try {
-        const virtualRoomsData = await this.makeGraphQLRequest(`
-          query GetVirtualRooms {
-            virtual_rooms_list(limit: 100) {
+        const appointmentsData = await this.makeGraphQLRequest(`
+          query GetAppointments {
+            appointments {
               id
+              patientId
+              locationId
+              appointmentTypeId
+              startTime
+              endTime
+              status
             }
           }
         `);
-        if (virtualRoomsData?.virtual_rooms_list) {
-          data.virtualRooms = virtualRoomsData.virtual_rooms_list.length;
+        if (appointmentsData?.appointments) {
+          counts.appointments = appointmentsData.appointments.length;
         }
       } catch (e) {
-        console.log('Virtual rooms not available');
+        console.log('Appointments not available:', e);
       }
 
-      // Cache analytics data
-      await this.cacheAnalyticsData(userId);
+      // Try to get appointment bookings
+      try {
+        const bookingsData = await this.makeGraphQLRequest(`
+          query GetAppointmentBookings {
+            appointmentBookings {
+              id
+              appointmentId
+              patientId
+              status
+            }
+          }
+        `);
+        if (bookingsData?.appointmentBookings) {
+          counts.appointmentBookings = bookingsData.appointmentBookings.length;
+        }
+      } catch (e) {
+        console.log('Appointment bookings not available:', e);
+      }
+
+      // Try to get leads
+      try {
+        const leadsData = await this.makeGraphQLRequest(`
+          query GetLeads {
+            leads {
+              id
+              firstName
+              lastName
+              email
+              phone
+              status
+            }
+          }
+        `);
+        if (leadsData?.leads) {
+          counts.leads = leadsData.leads.length;
+        }
+      } catch (e) {
+        console.log('Leads not available:', e);
+      }
+
+      // Try to get apps
+      try {
+        const appsData = await this.makeGraphQLRequest(`
+          query GetApps {
+            apps {
+              id
+              name
+              type
+            }
+          }
+        `);
+        if (appsData?.apps) {
+          counts.apps = appsData.apps.length;
+        }
+      } catch (e) {
+        console.log('Apps not available:', e);
+      }
+
+      console.log('Greyfinch data pull completed:', counts);
 
       return {
         success: true,
-        message: 'Successfully pulled available data from Greyfinch',
-        data
+        message: 'Successfully pulled data from Greyfinch API',
+        counts
       };
 
     } catch (error) {
-      console.error('Error pulling data from Greyfinch:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to pull data',
-        data: { appointmentRequests: 0, npsConfigurations: 0, virtualRooms: 0 }
-      };
+      console.error('Greyfinch data pull failed:', error);
+      throw error;
     }
   }
 
@@ -440,9 +557,32 @@ export class GreyfinchService {
         console.log('Available data:', connectionTest.availableData);
       }
 
-      // Since the actual API doesn't have locations/patients, we need to work with available data
-      // For now, return empty array since we don't have location data
-      return [];
+      // Query for locations using the correct GraphQL schema
+      try {
+        const locationsData = await this.makeGraphQLRequest(`
+          query GetLocations {
+            locations {
+              id
+              name
+              address
+            }
+          }
+        `);
+        
+        if (locationsData?.locations) {
+          return locationsData.locations.map((location: any) => ({
+            id: location.id,
+            name: location.name,
+            address: location.address,
+            isActive: true
+          }));
+        }
+        
+        return [];
+      } catch (error) {
+        console.log('Locations query failed, returning empty array:', error);
+        return [];
+      }
       
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
