@@ -8,12 +8,13 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { periods, greyfinchData, userId } = body;
+    const { periods, greyfinchData, userId, availableData } = body;
 
     console.log('Generate summary request:', { 
       periodsCount: periods?.length || 0, 
       hasGreyfinchData: !!greyfinchData, 
-      userId: userId ? 'present' : 'missing' 
+      userId: userId ? 'present' : 'missing',
+      availableData
     });
 
     if (!userId) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
     }
 
-    // Calculate KPIs from Greyfinch data and acquisition costs
+    // Calculate KPIs from available data
     const kpis = calculateKPIs(periods || [], greyfinchData || {});
 
     // Prepare data for AI analysis
@@ -32,26 +33,46 @@ export async function POST(request: NextRequest) {
       periods: periods || [],
       greyfinchData: greyfinchData || {},
       kpis: kpis,
-      acquisitionCosts: extractAcquisitionCosts(periods || [])
+      acquisitionCosts: extractAcquisitionCosts(periods || []),
+      availableData: availableData || {}
     };
 
     console.log('Analysis data prepared:', {
       periodsCount: analysisData.periods.length,
       kpis: kpis,
-      acquisitionCostsCount: analysisData.acquisitionCosts.length
+      acquisitionCostsCount: analysisData.acquisitionCosts.length,
+      availableData: analysisData.availableData
     });
+
+    // Create a dynamic prompt based on available data
+    let dataDescription = '';
+    if (analysisData.availableData.hasPeriods) {
+      dataDescription += `- ${analysisData.availableData.totalPeriods} analysis periods with date ranges\n`;
+    }
+    if (analysisData.availableData.hasGreyfinchData) {
+      dataDescription += `- Greyfinch practice management data (patients, appointments, leads, locations)\n`;
+    }
+    if (analysisData.availableData.hasAcquisitionCosts) {
+      dataDescription += `- Acquisition cost data from ${analysisData.availableData.totalAcquisitionCosts} sources\n`;
+    }
+    if (!dataDescription) {
+      dataDescription = '- Basic practice information (no specific data available yet)';
+    }
 
     const prompt = `
 You are an expert orthodontic practice analyst. Analyze the following data and provide comprehensive insights:
+
+AVAILABLE DATA:
+${dataDescription}
 
 PRACTICE DATA:
 ${JSON.stringify(analysisData, null, 2)}
 
 Please provide:
 
-1. EXECUTIVE SUMMARY (2-3 paragraphs): A high-level overview of practice performance, key trends, and overall health.
+1. EXECUTIVE SUMMARY (2-3 paragraphs): A high-level overview of practice performance, key trends, and overall health. If limited data is available, focus on general best practices and recommendations for data collection.
 
-2. KEY INSIGHTS (5-7 bullet points): Specific observations about performance, trends, and opportunities.
+2. KEY INSIGHTS (5-7 bullet points): Specific observations about performance, trends, and opportunities. If data is limited, provide insights about what data would be valuable to collect.
 
 3. STRATEGIC RECOMMENDATIONS (5-7 actionable recommendations): Specific, actionable advice for improving practice performance, marketing efficiency, and patient acquisition.
 
@@ -60,6 +81,8 @@ Please provide:
    - Cost optimization opportunities
    - Revenue growth potential
    - Patient acquisition strategies
+
+5. DATA RECOMMENDATIONS: If data is limited, provide specific recommendations for what data to collect and how to use it for better analysis.
 
 Focus on practical, actionable insights that can help improve the practice's financial performance and patient acquisition efficiency.
 
@@ -75,7 +98,8 @@ Format your response as JSON with the following structure:
     "lifetimeValue": ${kpis.lifetimeValue},
     "conversionRate": ${kpis.conversionRate}
   },
-  "acquisitionCosts": ${JSON.stringify(analysisData.acquisitionCosts)}
+  "acquisitionCosts": ${JSON.stringify(analysisData.acquisitionCosts)},
+  "dataRecommendations": ["data recommendation 1", "data recommendation 2", ...]
 }
 `;
 
@@ -86,7 +110,7 @@ Format your response as JSON with the following structure:
       messages: [
         {
           role: "system",
-          content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Provide clear, actionable insights. Always respond with valid JSON."
+          content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Provide clear, actionable insights. Always respond with valid JSON. If limited data is available, provide general best practices and recommendations for data collection."
         },
         {
           role: "user",
@@ -120,7 +144,8 @@ Format your response as JSON with the following structure:
         insights: ["Analysis completed successfully"],
         recommendations: ["Review the generated summary for specific recommendations"],
         kpis: kpis,
-        acquisitionCosts: analysisData.acquisitionCosts
+        acquisitionCosts: analysisData.acquisitionCosts,
+        dataRecommendations: ["Consider collecting more data for better analysis"]
       };
     }
 

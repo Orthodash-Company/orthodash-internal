@@ -25,6 +25,7 @@ interface AISummary {
     conversionRate: number;
   };
   acquisitionCosts: any[];
+  dataRecommendations?: string[];
 }
 
 export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorProps) {
@@ -43,22 +44,13 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
       return;
     }
 
-    if (!periods || periods.length === 0) {
-      toast({
-        title: "No Data Available",
-        description: "Please add analysis periods before generating a summary.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsGenerating(true);
     try {
-      // Get Greyfinch data for analysis
+      // Get any available Greyfinch data
       const greyfinchAnalytics = greyfinchService.generateAnalyticsFromGreyfinchData();
       
-      // Fetch acquisition cost data for all periods
-      const acquisitionCostPromises = periods.map(async (period) => {
+      // Fetch any available acquisition cost data for periods
+      const acquisitionCostPromises = (periods || []).map(async (period) => {
         try {
           const response = await fetch(`/api/acquisition-costs?locationId=&period=${period.startDate?.toISOString().split('T')[0]}&userId=${user.id}`);
           if (response.ok) {
@@ -74,19 +66,27 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
       const acquisitionCostData = await Promise.all(acquisitionCostPromises);
       const allAcquisitionCosts = acquisitionCostData.filter(data => data !== null);
 
-      // Prepare data for AI analysis
+      // Prepare data for AI analysis - include whatever data we have
       const analysisData = {
-        periods: periods.map((period, index) => ({
+        periods: (periods || []).map((period, index) => ({
           ...period,
           acquisitionCosts: allAcquisitionCosts[index] || { manual: [], api: [], totals: {} }
         })),
-        greyfinchData: greyfinchAnalytics,
-        userId: user.id
+        greyfinchData: greyfinchAnalytics || {},
+        userId: user.id,
+        availableData: {
+          hasPeriods: (periods || []).length > 0,
+          hasGreyfinchData: !!greyfinchAnalytics,
+          hasAcquisitionCosts: allAcquisitionCosts.length > 0,
+          totalPeriods: (periods || []).length,
+          totalAcquisitionCosts: allAcquisitionCosts.length
+        }
       };
 
-      console.log('Sending analysis data:', {
+      console.log('Sending analysis data to ChatGPT:', {
         periodsCount: analysisData.periods.length,
         hasGreyfinchData: !!analysisData.greyfinchData,
+        availableData: analysisData.availableData,
         userId: analysisData.userId
       });
 
@@ -112,7 +112,7 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
       setSummary(data);
       toast({
         title: "AI Summary Generated",
-        description: "Your comprehensive analysis is ready!",
+        description: `Generated comprehensive analysis using ${analysisData.availableData.totalPeriods} periods and ${analysisData.availableData.hasGreyfinchData ? 'Greyfinch data' : 'available data'}.`,
       });
     } catch (error) {
       console.error('Error generating AI summary:', error);
@@ -233,6 +233,21 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* Data Recommendations */}
+            {summary.dataRecommendations && summary.dataRecommendations.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Data Collection Recommendations</h3>
+                <div className="space-y-2">
+                  {summary.dataRecommendations.map((recommendation, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <p className="text-yellow-800">{recommendation}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
