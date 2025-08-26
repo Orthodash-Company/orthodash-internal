@@ -242,7 +242,7 @@ export class GreyfinchService {
   }
 
   // Test the API connection with available fields
-  async testConnection(): Promise<{ success: boolean; message: string; availableData?: any; errors?: any[] }> {
+  async testConnection(): Promise<{ success: boolean; message: string; availableData?: any; errors?: any[]; schemaInfo?: any }> {
     try {
       if (!this.isValidCredentials()) {
         return { success: false, message: 'Greyfinch credentials not configured' };
