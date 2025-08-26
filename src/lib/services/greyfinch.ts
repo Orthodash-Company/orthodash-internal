@@ -271,27 +271,66 @@ export class GreyfinchService {
       const availableData: any = {};
       const errors: any[] = [];
 
-      // Test each available query field
-      for (const queryField of schemaInfo.queryFields) {
-        try {
-          console.log(`Testing query field: ${queryField.name}`);
-          const fieldData = await this.makeGraphQLRequest(`
-            query Test${queryField.name} {
-              ${queryField.name} {
-                __typename
-              }
-            }
-          `);
-          console.log(`${queryField.name} result:`, fieldData);
-          
-          if (fieldData && fieldData[queryField.name]) {
-            availableData[queryField.name] = 'available';
-          }
-        } catch (e) {
-          console.log(`${queryField.name} failed:`, e);
-          errors.push(`${queryField.name}: ${e instanceof Error ? e.message : 'Unknown error'}`);
-        }
-      }
+                 // Test specific fields we know exist from the playground
+           const knownFields = ['patients', 'locations', 'companies', 'organizations'];
+           
+           for (const fieldName of knownFields) {
+             try {
+               console.log(`Testing query field: ${fieldName}`);
+               let query = '';
+               
+               if (fieldName === 'patients') {
+                 query = `
+                   query TestPatients {
+                     patients(limit: 1) {
+                       id
+                       person {
+                         firstName
+                         lastName
+                       }
+                     }
+                   }
+                 `;
+               } else if (fieldName === 'locations') {
+                 query = `
+                   query TestLocations {
+                     locations(limit: 1) {
+                       id
+                       name
+                     }
+                   }
+                 `;
+               } else if (fieldName === 'companies') {
+                 query = `
+                   query TestCompanies {
+                     companies(limit: 1) {
+                       id
+                       name
+                     }
+                   }
+                 `;
+               } else if (fieldName === 'organizations') {
+                 query = `
+                   query TestOrganizations {
+                     organizations(limit: 1) {
+                       id
+                       name
+                     }
+                   }
+                 `;
+               }
+               
+               const fieldData = await this.makeGraphQLRequest(query);
+               console.log(`${fieldName} result:`, fieldData);
+
+               if (fieldData && fieldData[fieldName]) {
+                 availableData[fieldName] = 'available';
+               }
+             } catch (e) {
+               console.log(`${fieldName} failed:`, e);
+               errors.push(`${fieldName}: ${e instanceof Error ? e.message : 'Unknown error'}`);
+             }
+           }
 
       console.log('Final available data:', availableData);
       console.log('Errors encountered:', errors);
@@ -372,88 +411,155 @@ export class GreyfinchService {
         apps: []
       };
 
-      // Try to get appointment widget data (this is the field that's actually available)
+      // Try to get patients data (this is the correct field based on playground)
       try {
-        console.log('Testing appointments_appointment_widget_data query...');
-        const appointmentWidgetData = await this.makeGraphQLRequest(`
-          query GetAppointmentWidgetData {
-            appointments_appointment_widget_data {
-              __typename
+        console.log('Testing patients query...');
+        const patientsData = await this.makeGraphQLRequest(`
+          query GetPatients {
+            patients(limit: 10) {
+              id
+              person {
+                id
+                firstName
+                lastName
+              }
+              treatments(where: {status: {type: {_eq: "NEW_PATIENT"}}}) {
+                id
+                name
+                status {
+                  type
+                  name
+                }
+              }
+              appointments(where: {bookings: {localStartDate: {_gt: "now()"}}}, limit: 1) {
+                id
+                bookings {
+                  id
+                  startTime
+                  localStartDate
+                  localStartTime
+                }
+              }
             }
           }
         `);
-        console.log('Appointment widget data result:', appointmentWidgetData);
+        console.log('Patients data result:', patientsData);
         
-        if (appointmentWidgetData?.appointments_appointment_widget_data) {
-          // This field is available, let's try to get more detailed data
-          console.log('Appointment widget data field is available');
+        if (patientsData?.patients) {
+          // Extract appointments from patients
+          const allAppointments: any[] = [];
+          const allBookings: any[] = [];
           
-          // Try to get the actual appointment data with proper parameters
-          const detailedAppointmentData = await this.makeGraphQLRequest(`
-            query GetDetailedAppointmentData {
-              appointments_appointment_widget_data {
+          patientsData.patients.forEach((patient: any) => {
+            if (patient.appointments && patient.appointments.length > 0) {
+              patient.appointments.forEach((appointment: any) => {
+                allAppointments.push({
+                  ...appointment,
+                  patientId: patient.id,
+                  patientName: `${patient.person?.firstName || ''} ${patient.person?.lastName || ''}`.trim()
+                });
+                
+                if (appointment.bookings) {
+                  appointment.bookings.forEach((booking: any) => {
+                    allBookings.push({
+                      ...booking,
+                      appointmentId: appointment.id,
+                      patientId: patient.id
+                    });
+                  });
+                }
+              });
+            }
+          });
+          
+          data.appointments = allAppointments;
+          data.appointmentBookings = allBookings;
+          counts.appointments = allAppointments.length;
+          counts.appointmentBookings = allBookings.length;
+          
+          // Use patients as leads
+          data.leads = patientsData.patients.map((patient: any) => ({
+            id: patient.id,
+            firstName: patient.person?.firstName || '',
+            lastName: patient.person?.lastName || '',
+            email: `patient${patient.id}@example.com`,
+            phone: '',
+            status: 'active',
+            treatments: patient.treatments || []
+          }));
+          counts.leads = data.leads.length;
+          
+          console.log(`Found ${counts.leads} patients/leads`);
+          console.log(`Found ${counts.appointments} appointments`);
+          console.log(`Found ${counts.appointmentBookings} bookings`);
+        }
+      } catch (e) {
+        console.log('Patients query failed:', e);
+      }
+
+      // Try to get locations data
+      try {
+        console.log('Testing locations query...');
+        const locationsData = await this.makeGraphQLRequest(`
+          query GetLocations {
+            locations(limit: 10) {
+              id
+              name
+              address
+              city
+              state
+              zipCode
+            }
+          }
+        `);
+        console.log('Locations data result:', locationsData);
+        
+        if (locationsData?.locations) {
+          data.locations = locationsData.locations;
+          counts.locations = locationsData.locations.length;
+          console.log(`Found ${counts.locations} locations:`, locationsData.locations.map((loc: any) => loc.name));
+        }
+      } catch (e) {
+        console.log('Locations query failed:', e);
+      }
+
+      // Try to get companies/organizations data
+      try {
+        console.log('Testing companies query...');
+        const companiesData = await this.makeGraphQLRequest(`
+          query GetCompanies {
+            companies(limit: 10) {
+              id
+              name
+              type
+            }
+          }
+        `);
+        console.log('Companies data result:', companiesData);
+        
+        if (companiesData?.companies) {
+          data.companies = companiesData.companies;
+          counts.companies = companiesData.companies.length;
+          console.log(`Found ${counts.companies} companies`);
+        } else {
+          // Try organizations as fallback
+          const orgData = await this.makeGraphQLRequest(`
+            query GetOrganizations {
+              organizations(limit: 10) {
                 id
-                location_id
-                patient_id
-                appointment_date
-                status
-                appointment_type
+                name
+                type
               }
             }
           `);
-          console.log('Detailed appointment data result:', detailedAppointmentData);
-          
-          if (detailedAppointmentData?.appointments_appointment_widget_data) {
-            data.appointments = detailedAppointmentData.appointments_appointment_widget_data;
-            counts.appointments = detailedAppointmentData.appointments_appointment_widget_data.length;
-            console.log(`Found ${counts.appointments} appointments`);
+          if (orgData?.organizations) {
+            data.companies = orgData.organizations;
+            counts.companies = orgData.organizations.length;
+            console.log(`Found ${counts.companies} organizations`);
           }
         }
       } catch (e) {
-        console.log('Appointment widget data not available:', e);
-      }
-
-      // Try to get location data from the appointment widget data
-      try {
-        if (data.appointments.length > 0) {
-          // Extract unique locations from appointments
-          const locationIds = [...new Set(data.appointments.map((apt: any) => apt.location_id))];
-          console.log('Found location IDs from appointments:', locationIds);
-          
-          // Create location objects
-          data.locations = locationIds.map((id: string) => ({
-            id,
-            name: `Location ${id}`,
-            address: `Address for location ${id}`
-          }));
-          counts.locations = data.locations.length;
-          console.log(`Found ${counts.locations} locations from appointments`);
-        }
-      } catch (e) {
-        console.log('Location extraction failed:', e);
-      }
-
-      // Try to get patient/lead data from the appointment widget data
-      try {
-        if (data.appointments.length > 0) {
-          // Extract unique patients from appointments
-          const patientIds = [...new Set(data.appointments.map((apt: any) => apt.patient_id))];
-          console.log('Found patient IDs from appointments:', patientIds);
-          
-          // Create patient/lead objects
-          data.leads = patientIds.map((id: string) => ({
-            id,
-            firstName: `Patient ${id}`,
-            lastName: '',
-            email: `patient${id}@example.com`,
-            phone: '',
-            status: 'active'
-          }));
-          counts.leads = data.leads.length;
-          console.log(`Found ${counts.leads} patients from appointments`);
-        }
-      } catch (e) {
-        console.log('Patient extraction failed:', e);
+        console.log('Companies query failed:', e);
       }
 
       console.log('Greyfinch data pull completed:', counts);
