@@ -173,7 +173,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
               </Label>
               <EnhancedDatePicker
                 date={startDate}
-                onDateChange={setStartDate}
+                setDate={setStartDate}
                 placeholder="Select start date"
               />
             </div>
@@ -182,7 +182,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
               <Label>End Date</Label>
               <EnhancedDatePicker
                 date={endDate}
-                onDateChange={setEndDate}
+                setDate={setEndDate}
                 placeholder="Select end date"
               />
             </div>
