@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
 // import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ interface ReportsManagerProps {
 }
 
 export function ReportsManager({ trigger }: ReportsManagerProps) {
+  const { user } = useAuth();
   const [reports, setReports] = useState<SavedReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -35,9 +37,11 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
   // Load reports
   useEffect(() => {
     const fetchReports = async () => {
+      if (!user?.id) return;
+      
       try {
         setIsLoading(true);
-        const response = await fetch('/api/reports');
+        const response = await fetch(`/api/reports?userId=${user.id}`);
         if (!response.ok) {
           throw new Error(`Failed to fetch reports: ${response.status}`);
         }
@@ -51,13 +55,15 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
     };
 
     fetchReports();
-  }, []);
+  }, [user?.id]);
 
   const handleDeleteReport = async (reportId: string) => {
+    if (!user?.id) return;
+    
     if (window.confirm('Are you sure you want to delete this report?')) {
       setIsDeleting(reportId);
       try {
-        const response = await fetch(`/api/reports/${reportId}`, {
+        const response = await fetch(`/api/reports/${reportId}?userId=${user.id}`, {
           method: 'DELETE',
         });
         
@@ -76,9 +82,11 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
   };
 
   const handleDownloadPdf = async (reportId: string) => {
+    if (!user?.id) return;
+    
     setIsGeneratingPdf(reportId);
     try {
-      const response = await fetch(`/api/reports/${reportId}/pdf`, {
+      const response = await fetch(`/api/reports/${reportId}/pdf?userId=${user.id}`, {
         method: 'POST',
       });
       
