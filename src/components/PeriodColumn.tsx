@@ -1,26 +1,34 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
 import { Label } from "@/components/ui/label";
-import { PieChart } from "./charts/PieChart";
-import { ColumnChart } from "./charts/ColumnChart";
-import { SplineChart } from "./charts/SplineChart";
-import { StackedColumnChart } from "./charts/StackedColumnChart";
-import { DataSummaryChart } from "./charts/DataSummaryChart";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
-  DollarSign, 
-  CreditCard, 
-  CalendarX, 
+  Calendar, 
+  MapPin, 
+  BarChart3, 
   TrendingUp, 
-  TrendingDown, 
-  Edit3,
-  Calendar,
-  MapPin,
-  Plus
+  Users, 
+  DollarSign, 
+  Clock, 
+  Target,
+  Edit2,
+  Trash2,
+  Plus,
+  Download,
+  Share2,
+  Settings,
+  Eye,
+  EyeOff
 } from "lucide-react";
-import { format } from "date-fns";
 import { PeriodConfig, Location } from "@/shared/types";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 interface PeriodData {
   avgNetProduction: number;
@@ -154,7 +162,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 console.log('Period edit clicked for:', period.id);
               }}
             >
-              <Edit3 className="h-4 w-4" />
+              <Edit2 className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
@@ -166,7 +174,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               Select Date Range
             </Label>
             <div className="grid grid-cols-1 gap-2">
-              <EnhancedDatePicker
+              <SimpleDatePicker
                 date={period.startDate}
                 setDate={(date) => {
                   console.log('Start date changed:', date);
@@ -174,7 +182,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 }}
                 placeholder="Start date"
               />
-              <EnhancedDatePicker
+              <SimpleDatePicker
                 date={period.endDate}
                 setDate={(date) => {
                   console.log('End date changed:', date);
@@ -256,7 +264,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 <p className="text-xs text-gray-600">No-Show Rate</p>
                 <p className="text-lg font-semibold">{safeData.noShowRate}%</p>
               </div>
-              <CalendarX className="h-8 w-8 text-red-500" />
+              <Clock className="h-8 w-8 text-red-500" />
             </div>
           </div>
         </div>
@@ -270,7 +278,14 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           
           <div className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-2">Conversion Rates</h4>
-            <ColumnChart data={conversionData} />
+            <BarChart data={conversionData} layout="vertical">
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="x" />
+              <Tooltip />
+              <Bar dataKey="digital" fill="#8884d8" />
+              <Bar dataKey="professional" fill="#82ca9d" />
+              <Bar dataKey="direct" fill="#ffc658" />
+            </BarChart>
           </div>
         </div>
       </div>
@@ -293,7 +308,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               }
             }}
           >
-            <Edit3 className="h-4 w-4" />
+            <Edit2 className="h-4 w-4" />
           </Button>
         </div>
 
@@ -323,7 +338,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs text-gray-600">Start Date</Label>
-                <EnhancedDatePicker
+                <SimpleDatePicker
                   date={period.startDate}
                   setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
                   className="h-8"
@@ -332,7 +347,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               </div>
               <div>
                 <Label className="text-xs text-gray-600">End Date</Label>
-                <EnhancedDatePicker
+                <SimpleDatePicker
                   date={period.endDate}
                   setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
                   className="h-8"
@@ -369,7 +384,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                     <p className="text-xs text-gray-600">Acquisition Cost</p>
                     <p className="text-xl font-bold">${safeData.avgAcquisitionCost}</p>
                   </div>
-                  <CreditCard className="h-8 w-8 text-green-500" />
+                  <Target className="h-8 w-8 text-green-500" />
                 </div>
               </div>
               
@@ -379,16 +394,23 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                     <p className="text-xs text-gray-600">No-Show Rate</p>
                     <p className="text-xl font-bold">{safeData.noShowRate}%</p>
                   </div>
-                  <CalendarX className="h-8 w-8 text-red-500" />
+                  <Clock className="h-8 w-8 text-red-500" />
                 </div>
               </div>
             </div>
 
             {/* Data Summary Chart */}
-            <DataSummaryChart 
-              periodData={safeData}
-              periodTitle={period.title}
-            />
+            <div className="bg-white p-4 rounded-lg border">
+              <h4 className="text-sm font-medium mb-3">Data Summary</h4>
+              <BarChart data={conversionData} layout="vertical">
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="x" />
+                <Tooltip />
+                <Bar dataKey="digital" fill="#8884d8" />
+                <Bar dataKey="professional" fill="#82ca9d" />
+                <Bar dataKey="direct" fill="#ffc658" />
+              </BarChart>
+            </div>
 
             {/* Charts */}
             <div className="space-y-6">
@@ -399,13 +421,28 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               
               <div>
                 <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
-                <ColumnChart data={conversionData} />
+                <BarChart data={conversionData} layout="vertical">
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="x" />
+                  <Tooltip />
+                  <Bar dataKey="digital" fill="#8884d8" />
+                  <Bar dataKey="professional" fill="#82ca9d" />
+                  <Bar dataKey="direct" fill="#ffc658" />
+                </BarChart>
               </div>
               
               {safeData.trends.weekly.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
-                  <SplineChart data={trendsData} />
+                  <LineChart data={trendsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="x" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="digital" stroke="#8884d8" />
+                    <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
+                    <Line type="monotone" dataKey="direct" stroke="#ffc658" />
+                  </LineChart>
                 </div>
               )}
             </div>
