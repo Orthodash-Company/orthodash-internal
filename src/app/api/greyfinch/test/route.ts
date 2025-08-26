@@ -10,7 +10,8 @@ export async function GET() {
       return NextResponse.json({
         success: false,
         message: connectionTest.message,
-        error: 'Connection failed'
+        error: 'Connection failed',
+        errors: connectionTest.errors
       }, { status: 500 })
     }
 
@@ -21,6 +22,7 @@ export async function GET() {
       success: true,
       message: 'Greyfinch API connection successful',
       connectionTest: connectionTest.availableData,
+      errors: connectionTest.errors,
       locations
     })
   } catch (error) {
