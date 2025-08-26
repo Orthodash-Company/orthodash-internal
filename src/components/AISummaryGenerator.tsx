@@ -128,15 +128,6 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
 
   return (
     <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Brain className="h-5 w-5" />
-          AI-Powered Analytics Summary
-        </CardTitle>
-        <CardDescription>
-          Generate comprehensive insights and recommendations using AI analysis of your practice data
-        </CardDescription>
-      </CardHeader>
       <CardContent className="space-y-6">
         <Button
           onClick={handleGenerateSummary}

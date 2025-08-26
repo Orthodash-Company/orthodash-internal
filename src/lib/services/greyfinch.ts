@@ -64,6 +64,7 @@ export class GreyfinchService {
   private config: GreyfinchConfig;
 
   constructor() {
+    // Load credentials from environment variables first
     this.config = {
       apiKey: process.env.GREYFINCH_API_KEY || '',
       apiSecret: process.env.GREYFINCH_API_SECRET || '',
@@ -72,14 +73,30 @@ export class GreyfinchService {
       resourceToken: process.env.GREYFINCH_RESOURCE_TOKEN || ''
     };
 
+    // Load credentials from localStorage if available (client-side only)
+    if (typeof window !== 'undefined') {
+      try {
+        const storedCredentials = localStorage.getItem('greyfinch-credentials');
+        if (storedCredentials) {
+          const parsed = JSON.parse(storedCredentials);
+          this.config.apiKey = parsed.apiKey || this.config.apiKey;
+          this.config.apiSecret = parsed.apiSecret || this.config.apiSecret;
+          this.config.resourceId = parsed.resourceId || this.config.resourceId;
+          this.config.resourceToken = parsed.resourceToken || this.config.resourceToken;
+        }
+      } catch (error) {
+        console.error('Error loading Greyfinch credentials from localStorage:', error);
+      }
+    }
+
     if (process.env.NODE_ENV !== 'production') {
-    console.log('GreyfinchService initialized with credentials:', {
-      hasApiKey: !!this.config.apiKey,
-      hasApiSecret: !!this.config.apiSecret,
+      console.log('GreyfinchService initialized with credentials:', {
+        hasApiKey: !!this.config.apiKey,
+        hasApiSecret: !!this.config.apiSecret,
         hasResourceId: !!this.config.resourceId,
         hasResourceToken: !!this.config.resourceToken,
-      baseUrl: this.config.baseUrl
-    });
+        baseUrl: this.config.baseUrl
+      });
     }
   }
 

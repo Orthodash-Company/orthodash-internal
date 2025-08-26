@@ -16,8 +16,22 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period')
     const userId = searchParams.get('userId')
     
-    if (!period || !userId) {
-      return NextResponse.json({ error: "Period and userId are required" }, { status: 400 })
+    if (!userId) {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    }
+
+    // If no period is provided, return empty data instead of error
+    if (!period) {
+      return NextResponse.json({
+        manual: [],
+        api: [],
+        totals: {
+          manual: 0,
+          meta: 0,
+          google: 0,
+          total: 0
+        }
+      })
     }
 
     const parsedLocationId = locationId ? parseInt(locationId) : null
