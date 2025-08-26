@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
 import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [periods, setPeriods] = useState<PeriodConfig[]>([]);
   const [periodQueries, setPeriodQueries] = useState<any[]>([]);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Simulate loading time
@@ -44,6 +45,24 @@ export default function Dashboard() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Handle click outside tabs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tabsRef.current && !tabsRef.current.contains(event.target as Node)) {
+        setActiveTab(null);
+      }
+    };
+
+    // Only add listener if a tab is active
+    if (activeTab) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeTab]);
 
   const handleAddPeriod = (period: Omit<PeriodConfig, 'id'>) => {
     const newPeriod: PeriodConfig = {
@@ -83,7 +102,7 @@ export default function Dashboard() {
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Tabs Container */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg" ref={tabsRef}>
             <CardHeader className="pb-4">
               <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
