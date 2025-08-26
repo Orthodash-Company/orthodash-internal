@@ -395,6 +395,14 @@ export class GreyfinchService {
       leads: number;
       apps: number;
     };
+    data: {
+      companies: any[];
+      locations: any[];
+      appointments: any[];
+      appointmentBookings: any[];
+      leads: any[];
+      apps: any[];
+    };
   }> {
     try {
       if (!this.isValidCredentials()) {
@@ -418,6 +426,15 @@ export class GreyfinchService {
         apps: 0
       };
 
+      const data = {
+        companies: [],
+        locations: [],
+        appointments: [],
+        appointmentBookings: [],
+        leads: [],
+        apps: []
+      };
+
       // Try to get companies
       try {
         const companiesData = await this.makeGraphQLRequest(`
@@ -429,7 +446,9 @@ export class GreyfinchService {
           }
         `);
         if (companiesData?.companies) {
+          data.companies = companiesData.companies;
           counts.companies = companiesData.companies.length;
+          console.log(`Found ${companiesData.companies.length} companies`);
         }
       } catch (e) {
         console.log('Companies not available:', e);
@@ -447,7 +466,9 @@ export class GreyfinchService {
           }
         `);
         if (locationsData?.locations) {
+          data.locations = locationsData.locations;
           counts.locations = locationsData.locations.length;
+          console.log(`Found ${locationsData.locations.length} locations:`, locationsData.locations.map((loc: any) => loc.name));
         }
       } catch (e) {
         console.log('Locations not available:', e);
@@ -469,7 +490,9 @@ export class GreyfinchService {
           }
         `);
         if (appointmentsData?.appointments) {
+          data.appointments = appointmentsData.appointments;
           counts.appointments = appointmentsData.appointments.length;
+          console.log(`Found ${appointmentsData.appointments.length} appointments`);
         }
       } catch (e) {
         console.log('Appointments not available:', e);
@@ -488,7 +511,9 @@ export class GreyfinchService {
           }
         `);
         if (bookingsData?.appointmentBookings) {
+          data.appointmentBookings = bookingsData.appointmentBookings;
           counts.appointmentBookings = bookingsData.appointmentBookings.length;
+          console.log(`Found ${bookingsData.appointmentBookings.length} appointment bookings`);
         }
       } catch (e) {
         console.log('Appointment bookings not available:', e);
@@ -509,7 +534,9 @@ export class GreyfinchService {
           }
         `);
         if (leadsData?.leads) {
+          data.leads = leadsData.leads;
           counts.leads = leadsData.leads.length;
+          console.log(`Found ${leadsData.leads.length} leads`);
         }
       } catch (e) {
         console.log('Leads not available:', e);
@@ -527,7 +554,9 @@ export class GreyfinchService {
           }
         `);
         if (appsData?.apps) {
+          data.apps = appsData.apps;
           counts.apps = appsData.apps.length;
+          console.log(`Found ${appsData.apps.length} apps`);
         }
       } catch (e) {
         console.log('Apps not available:', e);
@@ -535,10 +564,20 @@ export class GreyfinchService {
 
       console.log('Greyfinch data pull completed:', counts);
 
+      // Store data in localStorage for client-side access
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('greyfinchData', JSON.stringify({
+          success: true,
+          counts,
+          data
+        }));
+      }
+
       return {
         success: true,
         message: 'Successfully pulled data from Greyfinch API',
-        counts
+        counts,
+        data
       };
 
     } catch (error) {

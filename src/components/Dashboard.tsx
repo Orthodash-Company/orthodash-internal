@@ -151,26 +151,31 @@ export default function Dashboard() {
     // Extract data from Greyfinch for this period
     const { data } = greyfinchData;
     
+    // Calculate actual metrics from real data
+    const totalAppointments = data.appointments ? data.appointments.length : 0;
+    const noShowAppointments = data.appointments ? data.appointments.filter((apt: any) => apt.status === 'no-show').length : 0;
+    const noShowRate = totalAppointments > 0 ? (noShowAppointments / totalAppointments) * 100 : 0;
+    
     // Calculate period-specific data
     const periodData = {
-      avgNetProduction: 5200, // Default value, should be calculated from actual data
-      avgAcquisitionCost: 1500, // Default value
-      noShowRate: data.appointments ? (data.appointments.filter((apt: any) => apt.status === 'no-show').length / data.appointments.length * 100) : 0,
+      avgNetProduction: 5200, // This would need financial data from Greyfinch
+      avgAcquisitionCost: 1500, // This would need cost data from Greyfinch
+      noShowRate: noShowRate,
       referralSources: {
-        digital: Math.floor(Math.random() * 100) + 50, // Placeholder
+        digital: Math.floor(Math.random() * 100) + 50, // Would need referral source data
         professional: Math.floor(Math.random() * 100) + 30,
         direct: Math.floor(Math.random() * 100) + 20
       },
       conversionRates: {
-        digital: 15 + Math.random() * 10,
+        digital: 15 + Math.random() * 10, // Would need conversion data
         professional: 25 + Math.random() * 15,
         direct: 20 + Math.random() * 10
       },
       trends: {
         weekly: generateWeeklyTrends()
       },
-      patients: data.patients || 0,
-      appointments: data.appointments ? data.appointments.length : 0,
+      patients: data.leads ? data.leads.length : 0, // Using leads as patients for now
+      appointments: totalAppointments,
       leads: data.leads ? data.leads.length : 0,
       locations: data.locations ? data.locations.length : 0
     };

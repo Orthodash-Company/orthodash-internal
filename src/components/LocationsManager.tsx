@@ -131,7 +131,24 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       const data = await response.json();
 
       if (data.success) {
-        setDataCounts(data.counts || {});
+        // Update data counts with actual Greyfinch data
+        setDataCounts({
+          patients: data.counts.leads || 0, // Using leads as patients
+          locations: data.counts.locations || 0,
+          appointments: data.counts.appointments || 0,
+          leads: data.counts.leads || 0
+        });
+        
+        // Update locations with actual Greyfinch location data
+        if (data.data && data.data.locations) {
+          const greyfinchLocations = data.data.locations.map((loc: any) => ({
+            id: loc.id,
+            name: loc.name,
+            address: loc.address || ''
+          }));
+          setLocations(greyfinchLocations);
+        }
+        
         setLastPullTime(new Date().toLocaleString());
         
         // Pass the full data to parent component
@@ -141,7 +158,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         
         toast({
           title: "Data Pull Successful",
-          description: `Successfully pulled Greyfinch data. Found ${Object.values(data.counts || {}).reduce((sum: number, count: any) => sum + (count || 0), 0)} total records.`,
+          description: `Successfully pulled Greyfinch data. Found ${data.counts.locations || 0} locations, ${data.counts.appointments || 0} appointments, and ${data.counts.leads || 0} leads.`,
         });
       } else {
         toast({
