@@ -25,10 +25,8 @@ export default function RootLayout({
       <body className={inter.className}>
         <ErrorBoundary>
             <TooltipProvider>
-              <AuthProvider>
-                <Toaster />
-                {children}
-              </AuthProvider>
+              <Toaster />
+              {children}
             </TooltipProvider>
         </ErrorBoundary>
       </body>
