@@ -170,6 +170,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           title: "Logged out",
           description: "You have been successfully logged out.",
         });
+        
+        // Route to auth page after successful logout
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth';
+        }
       } catch (error) {
         toast({
           title: "Logout failed",
