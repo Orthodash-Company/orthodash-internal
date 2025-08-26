@@ -5,8 +5,6 @@ import './globals.css'
 // import { queryClient } from '@/lib/queryClient'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { AuthProvider } from '@/hooks/use-auth'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,12 +21,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ErrorBoundary>
-            <TooltipProvider>
-              <Toaster />
-              {children}
-            </TooltipProvider>
-        </ErrorBoundary>
+        <TooltipProvider>
+          <Toaster />
+          {children}
+        </TooltipProvider>
       </body>
     </html>
   )
