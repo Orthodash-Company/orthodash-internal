@@ -28,7 +28,7 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      await loginMutation.mutateAsync({ email, password });
+      loginMutation.mutate({ email, password });
       router.push('/');
     } catch (error) {
       console.error('Login failed:', error);

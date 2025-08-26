@@ -34,7 +34,7 @@ export default function SignupPage() {
     setIsLoading(true);
     
     try {
-      await registerMutation.mutateAsync({
+      registerMutation.mutate({
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
