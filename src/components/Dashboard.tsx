@@ -10,7 +10,8 @@ import { LocationsManager } from "@/components/LocationsManager";
 import { format } from "date-fns";
 import { PeriodConfig, Location } from "@/shared/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Link, FileText } from "lucide-react";
+import { MapPin, Link, FileText, Database } from "lucide-react";
+import { GreyfinchSetup } from "@/components/GreyfinchSetup";
 
 export default function Dashboard() {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -92,9 +93,21 @@ export default function Dashboard() {
                 </TabsContent>
 
                 <TabsContent value="connections" className="p-6">
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <h3 className="text-lg font-semibold text-gray-900">External API Connections</h3>
                     <p className="text-gray-600">Configure external API integrations for enhanced data analysis</p>
+                    
+                    {/* Greyfinch API Setup */}
+                    <div className="p-6 border border-gray-200 rounded-lg bg-white">
+                      <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <Database className="h-5 w-5 text-blue-600" />
+                        Greyfinch API
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-4">Connect your Greyfinch practice management system to import live data</p>
+                      
+                      <GreyfinchSetup />
+                    </div>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="p-4 border border-gray-200 rounded-lg">
                         <h4 className="font-medium text-gray-900 mb-2">Meta Ads</h4>

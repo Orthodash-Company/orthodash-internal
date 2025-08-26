@@ -224,6 +224,25 @@ export class GreyfinchService {
         console.log('Virtual rooms not available:', e);
       }
 
+      // Test location access keys (Gilbert/Scottsdale locations)
+      try {
+        const locationData = await this.makeGraphQLRequest(`
+          query GetLocationAccessKeys {
+            vaxiom_location_access_keys {
+              id
+              access_key
+              access_name
+            }
+          }
+        `);
+        if (locationData?.vaxiom_location_access_keys) {
+          availableData.locations = locationData.vaxiom_location_access_keys.length;
+          availableData.locationNames = locationData.vaxiom_location_access_keys.map((loc: any) => loc.access_name);
+        }
+      } catch (e) {
+        console.log('Location access keys not available:', e);
+      }
+
       return {
         success: true,
         message: 'Greyfinch API connection successful',

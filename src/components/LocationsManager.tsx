@@ -2,14 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
-import { MapPin, Database, RefreshCw, Settings, CheckCircle, AlertCircle, ExternalLink, Download, Users, DollarSign, Calendar } from 'lucide-react'
+import { MapPin, Database, RefreshCw, CheckCircle, Users, DollarSign, Calendar, Download } from 'lucide-react'
 
 interface Location {
   id: string;
@@ -21,21 +18,11 @@ interface Location {
   isSelected?: boolean;
 }
 
-interface GreyfinchCredentials {
-  apiKey: string;
-  apiSecret: string;
-}
-
 export function LocationsManager() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [credentials, setCredentials] = useState<GreyfinchCredentials>({
-    apiKey: '',
-    apiSecret: ''
-  });
-  const [showSetupDialog, setShowSetupDialog] = useState(false);
   const [isPullingData, setIsPullingData] = useState(false);
   const [pullProgress, setPullProgress] = useState<{
     organizations: number;
@@ -58,58 +45,9 @@ export function LocationsManager() {
     // Check if Greyfinch is connected
     const savedCredentials = localStorage.getItem('greyfinch-credentials');
     if (savedCredentials) {
-      setCredentials(JSON.parse(savedCredentials));
       setIsConnected(true);
     }
   }, []);
-
-  const handleSetupGreyfinch = async () => {
-    if (!credentials.apiKey || !credentials.apiSecret) {
-      toast({
-        title: "Missing Credentials",
-        description: "Please enter both API key and secret.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/greyfinch/setup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setIsConnected(true);
-        localStorage.setItem('greyfinch-credentials', JSON.stringify(credentials));
-        setShowSetupDialog(false);
-        toast({
-          title: "Success",
-          description: "Greyfinch API connected successfully!",
-        });
-      } else {
-        toast({
-          title: "Connection Failed",
-          description: data.message || "Failed to connect to Greyfinch API",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to setup Greyfinch API connection",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handlePullAllData = async () => {
     if (!user) {
@@ -139,7 +77,7 @@ export function LocationsManager() {
         setPullProgress(data.data);
         toast({
           title: "Data Pull Successful",
-          description: `Successfully pulled ${data.data.patients} patients, ${data.data.appointments} appointments, and ${data.data.treatments} treatments`,
+          description: `Successfully pulled data from Greyfinch API`,
         });
         
         // Refresh locations after data pull
@@ -193,35 +131,6 @@ export function LocationsManager() {
     localStorage.setItem('orthodash-locations', JSON.stringify(updatedLocations));
   };
 
-  const testConnection = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/greyfinch/test');
-      const data = await response.json();
-
-      if (data.success) {
-        toast({
-          title: "Connection Test Successful",
-          description: "Greyfinch API is working correctly",
-        });
-      } else {
-        toast({
-          title: "Connection Test Failed",
-          description: data.message || "Failed to connect to Greyfinch API",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to test Greyfinch API connection",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -234,70 +143,15 @@ export function LocationsManager() {
           <p className="text-gray-600">Select a practice location to view analytics data</p>
         </div>
         
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadLocations}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          
-          <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                API Setup
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Greyfinch API Configuration</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="api-key">API Key</Label>
-                  <Input
-                    id="api-key"
-                    type="password"
-                    value={credentials.apiKey}
-                    onChange={(e) => setCredentials(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder="Enter your Greyfinch API key"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="api-secret">API Secret</Label>
-                  <Input
-                    id="api-secret"
-                    type="password"
-                    value={credentials.apiSecret}
-                    onChange={(e) => setCredentials(prev => ({ ...prev, apiSecret: e.target.value }))}
-                    placeholder="Enter your Greyfinch API secret"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleSetupGreyfinch} disabled={isLoading} className="flex-1">
-                    {isLoading ? (
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                    )}
-                    Setup API
-                  </Button>
-                  <Button variant="outline" onClick={testConnection} disabled={isLoading}>
-                    Test
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Get your API credentials from Greyfinch</span>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadLocations}
+          disabled={isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Connection Status */}
@@ -306,7 +160,7 @@ export function LocationsManager() {
           {isConnected ? (
             <CheckCircle className="h-5 w-5 text-green-600" />
           ) : (
-            <AlertCircle className="h-5 w-5 text-orange-600" />
+            <div className="h-5 w-5 text-orange-600">⚠️</div>
           )}
           <span className={`font-medium ${isConnected ? 'text-green-800' : 'text-orange-800'}`}>
             {isConnected ? 'Connected to Greyfinch API' : 'Not connected to Greyfinch API'}
@@ -389,10 +243,10 @@ export function LocationsManager() {
       {/* Available Locations */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Available Locations
-          </Label>
+            <span className="font-medium text-gray-900">Available Locations</span>
+          </div>
           <Button
             variant="ghost"
             size="sm"
