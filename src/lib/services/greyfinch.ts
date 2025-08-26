@@ -205,7 +205,30 @@ export class GreyfinchService {
       const availableData: any = {};
       const errors: any[] = [];
 
-      // Test companies (organizations)
+      // Test introspection to see available schema
+      try {
+        console.log('Testing schema introspection...');
+        const introspectionData = await this.makeGraphQLRequest(`
+          query IntrospectionQuery {
+            __schema {
+              types {
+                name
+                fields {
+                  name
+                  type {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        `);
+        console.log('Schema introspection result:', introspectionData);
+      } catch (e) {
+        console.log('Introspection not available:', e);
+      }
+
+      // Test companies (organizations) - try different field names
       try {
         console.log('Testing companies query...');
         const companiesData = await this.makeGraphQLRequest(`
@@ -221,15 +244,31 @@ export class GreyfinchService {
           availableData.companies = companiesData.companies.length;
           console.log(`Found ${companiesData.companies.length} companies`);
         } else {
-          console.log('No companies data found');
-          errors.push('Companies query returned no data');
+          console.log('No companies data found, trying organizations...');
+          // Try organizations instead
+          const orgData = await this.makeGraphQLRequest(`
+            query GetOrganizations {
+              organizations {
+                id
+                name
+              }
+            }
+          `);
+          console.log('Organizations data result:', orgData);
+          if (orgData?.organizations) {
+            availableData.companies = orgData.organizations.length;
+            console.log(`Found ${orgData.organizations.length} organizations`);
+          } else {
+            console.log('No organizations data found');
+            errors.push('Companies/Organizations query returned no data');
+          }
         }
       } catch (e) {
         console.error('Companies query failed:', e);
         errors.push(`Companies: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
 
-      // Test locations
+      // Test locations - try different field names
       try {
         console.log('Testing locations query...');
         const locationsData = await this.makeGraphQLRequest(`
@@ -247,15 +286,33 @@ export class GreyfinchService {
           availableData.locationNames = locationsData.locations.map((loc: any) => loc.name);
           console.log(`Found ${locationsData.locations.length} locations:`, availableData.locationNames);
         } else {
-          console.log('No locations data found');
-          errors.push('Locations query returned no data');
+          console.log('No locations data found, trying offices...');
+          // Try offices instead
+          const officesData = await this.makeGraphQLRequest(`
+            query GetOffices {
+              offices {
+                id
+                name
+                address
+              }
+            }
+          `);
+          console.log('Offices data result:', officesData);
+          if (officesData?.offices) {
+            availableData.locations = officesData.offices.length;
+            availableData.locationNames = officesData.offices.map((office: any) => office.name);
+            console.log(`Found ${officesData.offices.length} offices:`, availableData.locationNames);
+          } else {
+            console.log('No offices data found');
+            errors.push('Locations/Offices query returned no data');
+          }
         }
       } catch (e) {
         console.error('Locations query failed:', e);
         errors.push(`Locations: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
 
-      // Test appointments
+      // Test appointments - try different field names
       try {
         console.log('Testing appointments query...');
         const appointmentsData = await this.makeGraphQLRequest(`
@@ -276,41 +333,35 @@ export class GreyfinchService {
           availableData.appointments = appointmentsData.appointments.length;
           console.log(`Found ${appointmentsData.appointments.length} appointments`);
         } else {
-          console.log('No appointments data found');
-          errors.push('Appointments query returned no data');
+          console.log('No appointments data found, trying visits...');
+          // Try visits instead
+          const visitsData = await this.makeGraphQLRequest(`
+            query GetVisits {
+              visits {
+                id
+                patientId
+                locationId
+                startTime
+                endTime
+                status
+              }
+            }
+          `);
+          console.log('Visits data result:', visitsData);
+          if (visitsData?.visits) {
+            availableData.appointments = visitsData.visits.length;
+            console.log(`Found ${visitsData.visits.length} visits`);
+          } else {
+            console.log('No visits data found');
+            errors.push('Appointments/Visits query returned no data');
+          }
         }
       } catch (e) {
         console.error('Appointments query failed:', e);
         errors.push(`Appointments: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
 
-      // Test appointment bookings
-      try {
-        console.log('Testing appointment bookings query...');
-        const bookingsData = await this.makeGraphQLRequest(`
-          query GetAppointmentBookings {
-            appointmentBookings {
-              id
-              appointmentId
-              patientId
-              status
-            }
-          }
-        `);
-        console.log('Appointment bookings data result:', bookingsData);
-        if (bookingsData?.appointmentBookings) {
-          availableData.appointmentBookings = bookingsData.appointmentBookings.length;
-          console.log(`Found ${bookingsData.appointmentBookings.length} appointment bookings`);
-        } else {
-          console.log('No appointment bookings data found');
-          errors.push('Appointment bookings query returned no data');
-        }
-      } catch (e) {
-        console.error('Appointment bookings query failed:', e);
-        errors.push(`Appointment bookings: ${e instanceof Error ? e.message : 'Unknown error'}`);
-      }
-
-      // Test leads
+      // Test leads - try different field names
       try {
         console.log('Testing leads query...');
         const leadsData = await this.makeGraphQLRequest(`
@@ -330,37 +381,32 @@ export class GreyfinchService {
           availableData.leads = leadsData.leads.length;
           console.log(`Found ${leadsData.leads.length} leads`);
         } else {
-          console.log('No leads data found');
-          errors.push('Leads query returned no data');
+          console.log('No leads data found, trying patients...');
+          // Try patients instead
+          const patientsData = await this.makeGraphQLRequest(`
+            query GetPatients {
+              patients {
+                id
+                firstName
+                lastName
+                email
+                phone
+                status
+              }
+            }
+          `);
+          console.log('Patients data result:', patientsData);
+          if (patientsData?.patients) {
+            availableData.leads = patientsData.patients.length;
+            console.log(`Found ${patientsData.patients.length} patients`);
+          } else {
+            console.log('No patients data found');
+            errors.push('Leads/Patients query returned no data');
+          }
         }
       } catch (e) {
         console.error('Leads query failed:', e);
         errors.push(`Leads: ${e instanceof Error ? e.message : 'Unknown error'}`);
-      }
-
-      // Test apps
-      try {
-        console.log('Testing apps query...');
-        const appsData = await this.makeGraphQLRequest(`
-          query GetApps {
-            apps {
-              id
-              name
-              type
-            }
-          }
-        `);
-        console.log('Apps data result:', appsData);
-        if (appsData?.apps) {
-          availableData.apps = appsData.apps.length;
-          console.log(`Found ${appsData.apps.length} apps`);
-        } else {
-          console.log('No apps data found');
-          errors.push('Apps query returned no data');
-        }
-      } catch (e) {
-        console.error('Apps query failed:', e);
-        errors.push(`Apps: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
 
       console.log('Final available data:', availableData);
@@ -372,7 +418,6 @@ export class GreyfinchService {
         availableData,
         errors: errors.length > 0 ? errors : undefined
       };
-
     } catch (error) {
       console.error('Greyfinch connection test failed:', error);
       return {
@@ -449,6 +494,21 @@ export class GreyfinchService {
           data.companies = companiesData.companies;
           counts.companies = companiesData.companies.length;
           console.log(`Found ${companiesData.companies.length} companies`);
+        } else {
+          // Try organizations instead
+          const orgData = await this.makeGraphQLRequest(`
+            query GetOrganizations {
+              organizations {
+                id
+                name
+              }
+            }
+          `);
+          if (orgData?.organizations) {
+            data.companies = orgData.organizations;
+            counts.companies = orgData.organizations.length;
+            console.log(`Found ${orgData.organizations.length} organizations`);
+          }
         }
       } catch (e) {
         console.log('Companies not available:', e);
@@ -469,6 +529,22 @@ export class GreyfinchService {
           data.locations = locationsData.locations;
           counts.locations = locationsData.locations.length;
           console.log(`Found ${locationsData.locations.length} locations:`, locationsData.locations.map((loc: any) => loc.name));
+        } else {
+          // Try offices instead
+          const officesData = await this.makeGraphQLRequest(`
+            query GetOffices {
+              offices {
+                id
+                name
+                address
+              }
+            }
+          `);
+          if (officesData?.offices) {
+            data.locations = officesData.offices;
+            counts.locations = officesData.offices.length;
+            console.log(`Found ${officesData.offices.length} offices:`, officesData.offices.map((office: any) => office.name));
+          }
         }
       } catch (e) {
         console.log('Locations not available:', e);
@@ -493,6 +569,25 @@ export class GreyfinchService {
           data.appointments = appointmentsData.appointments;
           counts.appointments = appointmentsData.appointments.length;
           console.log(`Found ${appointmentsData.appointments.length} appointments`);
+        } else {
+          // Try visits instead
+          const visitsData = await this.makeGraphQLRequest(`
+            query GetVisits {
+              visits {
+                id
+                patientId
+                locationId
+                startTime
+                endTime
+                status
+              }
+            }
+          `);
+          if (visitsData?.visits) {
+            data.appointments = visitsData.visits;
+            counts.appointments = visitsData.visits.length;
+            console.log(`Found ${visitsData.visits.length} visits`);
+          }
         }
       } catch (e) {
         console.log('Appointments not available:', e);
@@ -537,6 +632,25 @@ export class GreyfinchService {
           data.leads = leadsData.leads;
           counts.leads = leadsData.leads.length;
           console.log(`Found ${leadsData.leads.length} leads`);
+        } else {
+          // Try patients instead
+          const patientsData = await this.makeGraphQLRequest(`
+            query GetPatients {
+              patients {
+                id
+                firstName
+                lastName
+                email
+                phone
+                status
+              }
+            }
+          `);
+          if (patientsData?.patients) {
+            data.leads = patientsData.patients;
+            counts.leads = patientsData.patients.length;
+            console.log(`Found ${patientsData.patients.length} patients`);
+          }
         }
       } catch (e) {
         console.log('Leads not available:', e);
