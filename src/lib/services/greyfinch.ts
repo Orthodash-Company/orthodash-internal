@@ -1,6 +1,7 @@
-import { db } from '@/lib/db';
-import { locations, acquisitionCosts, analyticsCache } from '@/shared/schema';
-import { eq, and } from 'drizzle-orm';
+// Remove the database import since this is used on the client side
+// import { db } from '@/lib/db';
+// import { analyticsCache } from '@/shared/schema';
+// import { eq, and } from 'drizzle-orm';
 
 interface GreyfinchConfig {
   apiKey: string;
@@ -477,13 +478,13 @@ export class GreyfinchService {
       const analyticsData = await this.generateComprehensiveAnalytics();
       
       // Cache the data
-      await db.insert(analyticsCache).values({
-        locationId: null,
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
-        dataType: 'comprehensive_analytics',
-        data: JSON.stringify(analyticsData)
-      }).onConflictDoNothing();
+      // await db.insert(analyticsCache).values({
+      //   locationId: null,
+      //   startDate: new Date().toISOString().split('T')[0],
+      //   endDate: new Date().toISOString().split('T')[0],
+      //   dataType: 'comprehensive_analytics',
+      //   data: JSON.stringify(analyticsData)
+      // }).onConflictDoNothing();
       
     } catch (error) {
       console.error('Error caching analytics data:', error);
@@ -618,6 +619,70 @@ export class GreyfinchService {
       }
       throw error;
     }
+  }
+
+  // Method to get stored Greyfinch data for analysis
+  getStoredData(): any {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('greyfinchData');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    }
+    return null;
+  }
+
+  // Method to generate analytics from Greyfinch data
+  generateAnalyticsFromGreyfinchData(): any {
+    const storedData = this.getStoredData();
+    if (!storedData) {
+      return null;
+    }
+
+    const { counts, data } = storedData;
+
+    // Calculate patient count from appointments and leads
+    const uniquePatients = new Set();
+    if (data.appointments) {
+      data.appointments.forEach((appointment: any) => {
+        if (appointment.patientId) {
+          uniquePatients.add(appointment.patientId);
+        }
+      });
+    }
+    if (data.leads) {
+      data.leads.forEach((lead: any) => {
+        if (lead.id) {
+          uniquePatients.add(lead.id);
+        }
+      });
+    }
+
+    // Calculate appointment statistics
+    const completedAppointments = data.appointments?.filter((app: any) => 
+      app.status === 'completed' || app.status === 'Confirmed'
+    ).length || 0;
+    
+    const cancelledAppointments = data.appointments?.filter((app: any) => 
+      app.status === 'cancelled' || app.status === 'Cancelled'
+    ).length || 0;
+
+    const noShowRate = counts.appointments > 0 
+      ? ((counts.appointments - completedAppointments - cancelledAppointments) / counts.appointments * 100).toFixed(1)
+      : '0';
+
+    return {
+      patients: uniquePatients.size,
+      locations: counts.locations,
+      appointments: counts.appointments,
+      leads: counts.leads,
+      completedAppointments,
+      cancelledAppointments,
+      noShowRate: parseFloat(noShowRate),
+      locationData: data.locations || [],
+      appointmentData: data.appointments || [],
+      leadData: data.leads || []
+    };
   }
 }
 
