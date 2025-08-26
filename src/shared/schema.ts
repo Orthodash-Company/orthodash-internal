@@ -7,6 +7,7 @@ import { z } from "zod";
 
 export const locations = pgTable("locations", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(), // References Supabase auth.users.id
   name: text("name").notNull(),
   greyfinchId: text("greyfinch_id").unique(),
   address: text("address"),
