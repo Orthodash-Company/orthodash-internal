@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
 import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
-import { MobileFriendlyControls } from './MobileFriendlyControls';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
@@ -325,27 +324,6 @@ export default function Dashboard() {
                 onAddPeriod={handleAddPeriod}
                 onRemovePeriod={handleRemovePeriod}
                 onUpdatePeriod={handleUpdatePeriod}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Mobile Controls */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">Quick Actions</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
-                Mobile-friendly controls for managing your data
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MobileFriendlyControls
-                periods={periods}
-                locations={locations}
-                onAddPeriod={handleAddPeriod}
-                onClearData={() => setPeriods([])}
-                onExport={() => {}}
-                onShare={() => ({})}
-                onGreyfinchDataSelected={() => {}}
               />
             </CardContent>
           </Card>

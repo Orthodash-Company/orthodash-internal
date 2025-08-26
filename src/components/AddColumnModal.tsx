@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
+import { ScrollDatePicker } from "@/components/ui/scroll-date-picker";
 import { Plus, Calendar, MapPin } from "lucide-react";
 import { PeriodConfig, Location } from "@/shared/types";
 
@@ -171,7 +171,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
                 <Calendar className="w-4 h-4" />
                 Start Date
               </Label>
-              <EnhancedDatePicker
+              <ScrollDatePicker
                 date={startDate}
                 setDate={setStartDate}
                 placeholder="Select start date"
@@ -180,7 +180,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
             
             <div className="space-y-2">
               <Label>End Date</Label>
-              <EnhancedDatePicker
+              <ScrollDatePicker
                 date={endDate}
                 setDate={setEndDate}
                 placeholder="Select end date"
