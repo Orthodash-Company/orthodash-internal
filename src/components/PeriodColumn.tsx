@@ -325,7 +325,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 <Label className="text-xs text-gray-600">Start Date</Label>
                 <EnhancedDatePicker
                   date={period.startDate}
-                  onDateChange={(date) => onUpdatePeriod(period.id, { startDate: date })}
+                  setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
                   className="h-8"
                   placeholder="Select start"
                 />
@@ -334,7 +334,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 <Label className="text-xs text-gray-600">End Date</Label>
                 <EnhancedDatePicker
                   date={period.endDate}
-                  onDateChange={(date) => onUpdatePeriod(period.id, { endDate: date })}
+                  setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
                   className="h-8"
                   placeholder="Select end"
                 />
