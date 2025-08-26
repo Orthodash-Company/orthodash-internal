@@ -33,7 +33,7 @@ import { useSessionManager } from '@/hooks/use-session-manager';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { autoSaveSession } = useSessionManager();
+  const { cacheSessionData } = useSessionManager();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -53,11 +53,25 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Load Greyfinch data on component mount
+  // Load Greyfinch data on component mount and refresh on page load
   useEffect(() => {
     if (user?.id) {
       loadGreyfinchData();
     }
+  }, [user?.id]);
+
+  // Refresh Greyfinch data on page focus (when user returns to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user?.id) {
+        loadGreyfinchData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [user?.id]);
 
   // Handle click outside tabs
@@ -209,7 +223,7 @@ export default function Dashboard() {
     setPeriodQueries(queries);
   }, [periods, greyfinchData]);
 
-  // Auto-save session when data changes
+  // Cache session data when data changes (no API call)
   useEffect(() => {
     if (user?.id && (greyfinchData || periods.length > 0 || acquisitionCosts || aiSummary)) {
       const sessionData = {
@@ -218,9 +232,9 @@ export default function Dashboard() {
         acquisitionCosts,
         aiSummary
       };
-      autoSaveSession(sessionData);
+      cacheSessionData(sessionData);
     }
-  }, [user?.id, greyfinchData, periods, acquisitionCosts, aiSummary, autoSaveSession]);
+  }, [user?.id, greyfinchData, periods, acquisitionCosts, aiSummary, cacheSessionData]);
 
   // Handle Greyfinch data updates
   const handleGreyfinchDataUpdate = (data: any) => {
@@ -480,3 +494,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

@@ -20,6 +20,7 @@ export function useSessionManager() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentSession, setCurrentSession] = useState<SessionData | null>(null);
+  const [cachedData, setCachedData] = useState<any>(null);
 
   // Load all sessions
   const loadSessions = useCallback(async () => {
@@ -35,19 +36,39 @@ export function useSessionManager() {
       setSessions(data);
     } catch (error) {
       console.error('Error loading sessions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load sessions",
-        variant: "destructive"
-      });
+      // Don't show error toast for session loading failures
     } finally {
       setIsLoading(false);
     }
   }, [user?.id]);
 
-  // Save current session
-  const saveSession = useCallback(async (sessionData: Omit<SessionData, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (!user?.id) return;
+  // Cache current session data (no API call)
+  const cacheSessionData = useCallback((sessionData: {
+    greyfinchData?: any;
+    acquisitionCosts?: any;
+    periods?: any[];
+    aiSummary?: any;
+  }) => {
+    const sessionName = `Session ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+    
+    const cachedSession = {
+      name: sessionName,
+      description: "Cached session data",
+      ...sessionData,
+      cachedAt: new Date().toISOString()
+    };
+    
+    setCachedData(cachedSession);
+    
+    // Store in localStorage for persistence
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orthodash_cached_session', JSON.stringify(cachedSession));
+    }
+  }, []);
+
+  // Save cached session to database (only called on page exit/refresh)
+  const saveCachedSession = useCallback(async () => {
+    if (!user?.id || !cachedData) return;
     
     try {
       const response = await fetch('/api/sessions', {
@@ -56,7 +77,7 @@ export function useSessionManager() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...sessionData,
+          ...cachedData,
           userId: user.id
         }),
       });
@@ -66,24 +87,22 @@ export function useSessionManager() {
       }
 
       const result = await response.json();
-      toast({
-        title: "Success",
-        description: "Session saved successfully",
-      });
-
+      console.log('Session saved successfully:', result);
+      
+      // Clear cached data after successful save
+      setCachedData(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('orthodash_cached_session');
+      }
+      
       // Reload sessions
       await loadSessions();
       return result.data;
     } catch (error) {
       console.error('Error saving session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save session",
-        variant: "destructive"
-      });
-      throw error;
+      // Don't show error toast - this is background operation
     }
-  }, [user?.id, loadSessions]);
+  }, [user?.id, cachedData, loadSessions]);
 
   // Load a specific session
   const loadSession = useCallback(async (sessionId: number) => {
@@ -179,27 +198,48 @@ export function useSessionManager() {
     }
   }, [user?.id, loadSessions]);
 
-  // Auto-save current session data
-  const autoSaveSession = useCallback(async (data: {
-    greyfinchData?: any;
-    acquisitionCosts?: any;
-    periods?: any[];
-    aiSummary?: any;
-  }) => {
-    if (!user?.id) return;
-    
-    const sessionName = `Session ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
-    
-    try {
-      await saveSession({
-        name: sessionName,
-        description: "Auto-saved session",
-        ...data
-      });
-    } catch (error) {
-      console.error('Auto-save failed:', error);
+  // Load cached session from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('orthodash_cached_session');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setCachedData(parsed);
+        } catch (error) {
+          console.error('Error parsing cached session:', error);
+        }
+      }
     }
-  }, [user?.id, saveSession]);
+  }, []);
+
+  // Save session on page unload/refresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (cachedData) {
+        // Use sendBeacon for reliable data sending on page unload
+        const data = JSON.stringify({
+          ...cachedData,
+          userId: user?.id
+        });
+        
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/sessions', data);
+        } else {
+          // Fallback to synchronous XMLHttpRequest
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/sessions', false);
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.send(data);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [cachedData, user?.id]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -209,13 +249,14 @@ export function useSessionManager() {
   return {
     sessions,
     currentSession,
+    cachedData,
     isLoading,
     loadSessions,
-    saveSession,
+    cacheSessionData,
+    saveCachedSession,
     loadSession,
     deleteSession,
     updateSession,
-    autoSaveSession,
     setCurrentSession
   };
 }

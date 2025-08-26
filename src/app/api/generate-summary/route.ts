@@ -7,6 +7,9 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Generate summary API called');
+    console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
+    
     const body = await request.json();
     const { periods, greyfinchData, userId, availableData } = body;
 
@@ -22,6 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!process.env.OPENAI_API_KEY) {
+      console.error('OpenAI API key not configured');
       return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
     }
 
@@ -104,30 +108,36 @@ Format your response as JSON with the following structure:
 `;
 
     console.log('Sending request to OpenAI...');
+    console.log('Prompt length:', prompt.length);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Provide clear, actionable insights. Always respond with valid JSON. If limited data is available, provide general best practices and recommendations for data collection."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
-    });
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Provide clear, actionable insights. Always respond with valid JSON. If limited data is available, provide general best practices and recommendations for data collection."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
 
-    const response = completion.choices[0]?.message?.content;
-    
-    if (!response) {
-      throw new Error('No response from OpenAI');
+      const response = completion.choices[0]?.message?.content;
+      
+      if (!response) {
+        throw new Error('No response from OpenAI');
+      }
+
+      console.log('OpenAI response received, length:', response.length);
+    } catch (openaiError) {
+      console.error('OpenAI API error:', openaiError);
+      throw new Error(`OpenAI API error: ${openaiError instanceof Error ? openaiError.message : 'Unknown error'}`);
     }
-
-    console.log('OpenAI response received, length:', response.length);
 
     // Try to parse JSON response
     let parsedResponse;
