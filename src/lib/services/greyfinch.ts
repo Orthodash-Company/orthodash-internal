@@ -178,6 +178,69 @@ export class GreyfinchService {
     return !!(this.config.apiKey && this.config.apiSecret);
   }
 
+  // Discover available schema fields
+  async discoverSchema(): Promise<any> {
+    try {
+      console.log('Discovering Greyfinch schema...');
+      
+      // Get all available types
+      const schemaData = await this.makeGraphQLRequest(`
+        query IntrospectionQuery {
+          __schema {
+            queryType {
+              name
+              fields {
+                name
+                type {
+                  name
+                  kind
+                  ofType {
+                    name
+                    kind
+                  }
+                }
+              }
+            }
+            types {
+              name
+              kind
+              fields {
+                name
+                type {
+                  name
+                  kind
+                  ofType {
+                    name
+                    kind
+                  }
+                }
+              }
+            }
+          }
+        }
+      `);
+      
+      console.log('Full schema data:', schemaData);
+      
+      // Find query fields (these are the top-level queries we can make)
+      const queryFields = schemaData?.__schema?.queryType?.fields || [];
+      console.log('Available query fields:', queryFields.map((f: any) => f.name));
+      
+      // Find object types that might contain our data
+      const objectTypes = schemaData?.__schema?.types?.filter((t: any) => t.kind === 'OBJECT' && t.name !== 'Query' && t.name !== 'Mutation') || [];
+      console.log('Available object types:', objectTypes.map((t: any) => t.name));
+      
+      return {
+        queryFields,
+        objectTypes,
+        fullSchema: schemaData
+      };
+    } catch (error) {
+      console.error('Schema discovery failed:', error);
+      throw error;
+    }
+  }
+
   // Test the API connection with available fields
   async testConnection(): Promise<{ success: boolean; message: string; availableData?: any; errors?: any[] }> {
     try {
@@ -201,212 +264,33 @@ export class GreyfinchService {
         return { success: false, message: 'Basic API connection failed' };
       }
 
+      // Discover the actual schema
+      const schemaInfo = await this.discoverSchema();
+      
       // Try to get available data
       const availableData: any = {};
       const errors: any[] = [];
 
-      // Test introspection to see available schema
-      try {
-        console.log('Testing schema introspection...');
-        const introspectionData = await this.makeGraphQLRequest(`
-          query IntrospectionQuery {
-            __schema {
-              types {
-                name
-                fields {
-                  name
-                  type {
-                    name
-                  }
-                }
-              }
-            }
-          }
-        `);
-        console.log('Schema introspection result:', introspectionData);
-      } catch (e) {
-        console.log('Introspection not available:', e);
-      }
-
-      // Test companies (organizations) - try different field names
-      try {
-        console.log('Testing companies query...');
-        const companiesData = await this.makeGraphQLRequest(`
-          query GetCompanies {
-            companies {
-              id
-              name
-            }
-          }
-        `);
-        console.log('Companies data result:', companiesData);
-        if (companiesData?.companies) {
-          availableData.companies = companiesData.companies.length;
-          console.log(`Found ${companiesData.companies.length} companies`);
-        } else {
-          console.log('No companies data found, trying organizations...');
-          // Try organizations instead
-          const orgData = await this.makeGraphQLRequest(`
-            query GetOrganizations {
-              organizations {
-                id
-                name
+      // Test each available query field
+      for (const queryField of schemaInfo.queryFields) {
+        try {
+          console.log(`Testing query field: ${queryField.name}`);
+          const fieldData = await this.makeGraphQLRequest(`
+            query Test${queryField.name} {
+              ${queryField.name} {
+                __typename
               }
             }
           `);
-          console.log('Organizations data result:', orgData);
-          if (orgData?.organizations) {
-            availableData.companies = orgData.organizations.length;
-            console.log(`Found ${orgData.organizations.length} organizations`);
-          } else {
-            console.log('No organizations data found');
-            errors.push('Companies/Organizations query returned no data');
+          console.log(`${queryField.name} result:`, fieldData);
+          
+          if (fieldData && fieldData[queryField.name]) {
+            availableData[queryField.name] = 'available';
           }
+        } catch (e) {
+          console.log(`${queryField.name} failed:`, e);
+          errors.push(`${queryField.name}: ${e instanceof Error ? e.message : 'Unknown error'}`);
         }
-      } catch (e) {
-        console.error('Companies query failed:', e);
-        errors.push(`Companies: ${e instanceof Error ? e.message : 'Unknown error'}`);
-      }
-
-      // Test locations - try different field names
-      try {
-        console.log('Testing locations query...');
-        const locationsData = await this.makeGraphQLRequest(`
-          query GetLocations {
-            locations {
-              id
-              name
-              address
-            }
-          }
-        `);
-        console.log('Locations data result:', locationsData);
-        if (locationsData?.locations) {
-          availableData.locations = locationsData.locations.length;
-          availableData.locationNames = locationsData.locations.map((loc: any) => loc.name);
-          console.log(`Found ${locationsData.locations.length} locations:`, availableData.locationNames);
-        } else {
-          console.log('No locations data found, trying offices...');
-          // Try offices instead
-          const officesData = await this.makeGraphQLRequest(`
-            query GetOffices {
-              offices {
-                id
-                name
-                address
-              }
-            }
-          `);
-          console.log('Offices data result:', officesData);
-          if (officesData?.offices) {
-            availableData.locations = officesData.offices.length;
-            availableData.locationNames = officesData.offices.map((office: any) => office.name);
-            console.log(`Found ${officesData.offices.length} offices:`, availableData.locationNames);
-          } else {
-            console.log('No offices data found');
-            errors.push('Locations/Offices query returned no data');
-          }
-        }
-      } catch (e) {
-        console.error('Locations query failed:', e);
-        errors.push(`Locations: ${e instanceof Error ? e.message : 'Unknown error'}`);
-      }
-
-      // Test appointments - try different field names
-      try {
-        console.log('Testing appointments query...');
-        const appointmentsData = await this.makeGraphQLRequest(`
-          query GetAppointments {
-            appointments {
-              id
-              patientId
-              locationId
-              appointmentTypeId
-              startTime
-              endTime
-              status
-            }
-          }
-        `);
-        console.log('Appointments data result:', appointmentsData);
-        if (appointmentsData?.appointments) {
-          availableData.appointments = appointmentsData.appointments.length;
-          console.log(`Found ${appointmentsData.appointments.length} appointments`);
-        } else {
-          console.log('No appointments data found, trying visits...');
-          // Try visits instead
-          const visitsData = await this.makeGraphQLRequest(`
-            query GetVisits {
-              visits {
-                id
-                patientId
-                locationId
-                startTime
-                endTime
-                status
-              }
-            }
-          `);
-          console.log('Visits data result:', visitsData);
-          if (visitsData?.visits) {
-            availableData.appointments = visitsData.visits.length;
-            console.log(`Found ${visitsData.visits.length} visits`);
-          } else {
-            console.log('No visits data found');
-            errors.push('Appointments/Visits query returned no data');
-          }
-        }
-      } catch (e) {
-        console.error('Appointments query failed:', e);
-        errors.push(`Appointments: ${e instanceof Error ? e.message : 'Unknown error'}`);
-      }
-
-      // Test leads - try different field names
-      try {
-        console.log('Testing leads query...');
-        const leadsData = await this.makeGraphQLRequest(`
-          query GetLeads {
-            leads {
-              id
-              firstName
-              lastName
-              email
-              phone
-              status
-            }
-          }
-        `);
-        console.log('Leads data result:', leadsData);
-        if (leadsData?.leads) {
-          availableData.leads = leadsData.leads.length;
-          console.log(`Found ${leadsData.leads.length} leads`);
-        } else {
-          console.log('No leads data found, trying patients...');
-          // Try patients instead
-          const patientsData = await this.makeGraphQLRequest(`
-            query GetPatients {
-              patients {
-                id
-                firstName
-                lastName
-                email
-                phone
-                status
-              }
-            }
-          `);
-          console.log('Patients data result:', patientsData);
-          if (patientsData?.patients) {
-            availableData.leads = patientsData.patients.length;
-            console.log(`Found ${patientsData.patients.length} patients`);
-          } else {
-            console.log('No patients data found');
-            errors.push('Leads/Patients query returned no data');
-          }
-        }
-      } catch (e) {
-        console.error('Leads query failed:', e);
-        errors.push(`Leads: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
 
       console.log('Final available data:', availableData);
@@ -416,7 +300,8 @@ export class GreyfinchService {
         success: true,
         message: 'Greyfinch API connection successful',
         availableData,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
+        schemaInfo
       };
     } catch (error) {
       console.error('Greyfinch connection test failed:', error);
