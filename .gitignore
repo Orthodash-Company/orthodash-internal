@@ -77,3 +77,4 @@ temp/
 
 # TypeScript build info
 tsconfig.tsbuildinfo
+.env*.local
