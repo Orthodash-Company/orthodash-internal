@@ -168,7 +168,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="grid grid-cols-1 gap-2">
               <EnhancedDatePicker
                 date={period.startDate}
-                onDateChange={(date) => {
+                setDate={(date) => {
                   console.log('Start date changed:', date);
                   onUpdatePeriod(period.id, { startDate: date });
                 }}
@@ -176,7 +176,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               />
               <EnhancedDatePicker
                 date={period.endDate}
-                onDateChange={(date) => {
+                setDate={(date) => {
                   console.log('End date changed:', date);
                   onUpdatePeriod(period.id, { endDate: date });
                 }}
