@@ -20,7 +20,7 @@ export function Header() {
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      <div className="px-5">
+      <div className="max-w-[600px] mx-auto px-5">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center">
@@ -32,11 +32,18 @@ export function Header() {
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center space-x-3">
+            {/* Session History */}
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-[#1d1d52] hover:bg-gray-100">
+              <History className="h-4 w-4" />
+              <span className="ml-2 hidden xl:inline">Sessions</span>
+            </Button>
+
             {/* Reports History */}
             <ReportsManager 
               trigger={
                 <Button variant="ghost" size="sm" className="text-gray-600 hover:text-[#1d1d52] hover:bg-gray-100">
                   <History className="h-4 w-4" />
+                  <span className="ml-2 hidden xl:inline">Reports</span>
                 </Button>
               } 
             />
@@ -90,10 +97,10 @@ export function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 hidden sm:block">
                       orthodash@teamorthodontics.com
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 hidden sm:block">
                       Team Orthodontics
                     </p>
                   </div>
@@ -123,11 +130,15 @@ export function Header() {
                       <ChartLine className="h-5 w-5" />
                       <span>Dashboard</span>
                     </a>
+                    <button className="flex items-center space-x-3 text-gray-700 hover:text-[#1d1d52] w-full text-left">
+                      <History className="h-5 w-5" />
+                      <span className="hidden sm:inline">Sessions</span>
+                    </button>
                     <ReportsManager 
                       trigger={
                         <button className="flex items-center space-x-3 text-gray-700 hover:text-[#1d1d52] w-full text-left">
                           <History className="h-5 w-5" />
-                          <span>Reports History</span>
+                          <span className="hidden sm:inline">Reports History</span>
                         </button>
                       } 
                     />
