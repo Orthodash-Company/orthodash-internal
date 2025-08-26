@@ -6,6 +6,7 @@ import { HorizontalFixedColumnLayout } from "@/components/HorizontalFixedColumnL
 import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
 import { CostManagementEnhanced } from "@/components/CostManagementEnhanced";
 import { AISummaryGenerator } from "@/components/AISummaryGenerator";
+import { LocationsManager } from "@/components/LocationsManager";
 import { format } from "date-fns";
 import { PeriodConfig, Location } from "@/shared/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -87,46 +88,42 @@ export default function Dashboard() {
                 </div>
 
                 <TabsContent value="locations" className="p-6">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Practice Locations</h3>
-                    <p className="text-gray-600">Select a practice location to view analytics data</p>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-gray-500 text-sm">No locations found</p>
-                    </div>
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                      Load Locations
-                    </button>
-                  </div>
+                  <LocationsManager />
                 </TabsContent>
 
                 <TabsContent value="connections" className="p-6">
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Greyfinch API Setup</h3>
-                    <p className="text-gray-600">Configure your Greyfinch credentials to enable integration</p>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
-                        <input 
-                          type="text" 
-                          placeholder="Enter your Greyfinch API key"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                    <h3 className="text-lg font-semibold text-gray-900">External API Connections</h3>
+                    <p className="text-gray-600">Configure external API integrations for enhanced data analysis</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">Meta Ads</h4>
+                        <p className="text-sm text-gray-600 mb-3">Connect your Meta Business account to import advertising spend data</p>
+                        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                          Connect
+                        </button>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">API Secret</label>
-                        <input 
-                          type="password" 
-                          placeholder="Enter your Greyfinch API secret"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">Google Ads</h4>
+                        <p className="text-sm text-gray-600 mb-3">Import Google Ads campaign performance and spend data</p>
+                        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                          Connect
+                        </button>
                       </div>
-                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        Setup API
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 text-orange-600 text-sm">
-                      <span>⚠</span>
-                      <span>Not connected to API</span>
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">QuickBooks</h4>
+                        <p className="text-sm text-gray-600 mb-3">Sync vendor data, revenue, and expense information</p>
+                        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                          Connect
+                        </button>
+                      </div>
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">Custom API</h4>
+                        <p className="text-sm text-gray-600 mb-3">Connect to other data sources with custom API configuration</p>
+                        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                          Configure
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
