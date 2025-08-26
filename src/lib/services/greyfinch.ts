@@ -72,13 +72,13 @@ export class GreyfinchService {
     };
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('GreyfinchService initialized with credentials:', {
-        hasApiKey: !!this.config.apiKey,
-        hasApiSecret: !!this.config.apiSecret,
+    console.log('GreyfinchService initialized with credentials:', {
+      hasApiKey: !!this.config.apiKey,
+      hasApiSecret: !!this.config.apiSecret,
         hasResourceId: !!this.config.resourceId,
         hasResourceToken: !!this.config.resourceToken,
-        baseUrl: this.config.baseUrl
-      });
+      baseUrl: this.config.baseUrl
+    });
     }
   }
 
@@ -93,13 +93,13 @@ export class GreyfinchService {
     }
     
     if (process.env.NODE_ENV !== 'production') {
-      console.log('GreyfinchService credentials updated:', {
-        hasApiKey: !!this.config.apiKey,
+    console.log('GreyfinchService credentials updated:', {
+      hasApiKey: !!this.config.apiKey,
         hasApiSecret: !!this.config.apiSecret,
         hasResourceId: !!this.config.resourceId,
         hasResourceToken: !!this.config.resourceToken
-      });
-    }
+    });
+  }
   }
 
   async makeGraphQLRequest(query: string, variables: any = {}): Promise<any> {
@@ -120,15 +120,15 @@ export class GreyfinchService {
 
     try {
       response = await fetch(this.config.baseUrl, {
-        method: 'POST',
+          method: 'POST',
         headers,
-        body: JSON.stringify({
-          query,
+          body: JSON.stringify({
+            query,
           variables
         })
-      });
+        });
 
-      if (!response.ok) {
+        if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
       }
@@ -454,7 +454,7 @@ export class GreyfinchService {
 
   async getAnalytics(locationId?: string, startDate?: string, endDate?: string): Promise<AnalyticsData> {
     try {
-      if (!this.isValidCredentials()) {
+    if (!this.isValidCredentials()) {
         throw new Error('Greyfinch credentials not configured');
       }
 
@@ -464,11 +464,11 @@ export class GreyfinchService {
         throw new Error(connectionTest.message);
       }
 
-      if (process.env.NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
         console.log('✓ Successfully connected to Greyfinch API for analytics');
         console.log('Available data for analytics:', connectionTest.availableData);
       }
-
+      
       // Since we can't get patient data from the current API schema, throw an error
       throw new Error('Patient analytics data not available in current Greyfinch API schema. Available data: ' + JSON.stringify(connectionTest.availableData));
       
