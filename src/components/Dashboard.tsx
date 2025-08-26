@@ -1,348 +1,274 @@
 'use client'
 
-import { useState, useEffect } from "react";
-import { SimpleHeader } from "@/components/SimpleHeader";
-import { HorizontalFixedColumnLayout } from "@/components/HorizontalFixedColumnLayout";
-import { MobileFriendlyControls } from "@/components/MobileFriendlyControls";
-import { CostManagementEnhanced } from "@/components/CostManagementEnhanced";
-import { AISummaryGenerator } from "@/components/AISummaryGenerator";
-import { LocationsManager } from "@/components/LocationsManager";
-import { format } from "date-fns";
-import { PeriodConfig, Location } from "@/shared/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Link, FileText, Database } from "lucide-react";
-import { GreyfinchSetup } from "@/components/GreyfinchSetup";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { SimpleHeader } from './SimpleHeader';
+import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
+import { MobileFriendlyControls } from './MobileFriendlyControls';
+import { CostManagementEnhanced } from './CostManagementEnhanced';
+import { AISummaryGenerator } from './AISummaryGenerator';
+import { LocationsManager } from './LocationsManager';
+import { GreyfinchSetup } from './GreyfinchSetup';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { 
+  MapPin, 
+  Settings, 
+  FileText, 
+  Plus, 
+  BarChart3, 
+  TrendingUp, 
+  PieChart,
+  Download,
+  Calendar,
+  Building2
+} from 'lucide-react';
 
 export default function Dashboard() {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [periods, setPeriods] = useState<PeriodConfig[]>([]);
-  const [periodQueries, setPeriodQueries] = useState<any[]>([]);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load locations and initial data
-    setLoading(false);
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleAddPeriod = (period: Omit<PeriodConfig, 'id'>) => {
-    const newPeriod: PeriodConfig = {
-      ...period,
-      id: `period-${Date.now()}`
-    };
-    setPeriods(prev => [...prev, newPeriod]);
-  };
-
-  const handleRemovePeriod = (periodId: string) => {
-    setPeriods(prev => prev.filter(p => p.id !== periodId));
-  };
-
-  const handleUpdatePeriod = (periodId: string, updates: Partial<PeriodConfig>) => {
-    setPeriods(prev => prev.map(p => p.id === periodId ? { ...p, ...updates } : p));
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <div className="bg-white rounded-2xl p-8 shadow-2xl">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600"></div>
+        <div className="bg-white border border-[#1C1F4F]/20 rounded-2xl p-8 shadow-xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#1C1F4F]/20 border-t-[#1C1F4F] mx-auto"></div>
+          <p className="text-[#1C1F4F] text-center mt-4 font-medium">Loading Orthodash...</p>
         </div>
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
       <SimpleHeader />
       
-      {/* Main content with proper spacing for floating header */}
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
-          {/* Compact Tabs Section */}
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-            <Tabs value={activeTab || ""} onValueChange={setActiveTab} className="w-full">
-              <div className="border-b border-gray-200">
-                <TabsList className="flex justify-start bg-transparent h-12 px-4">
+          {/* Tabs Container */}
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <CardHeader className="pb-4">
+              <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
                   <TabsTrigger 
                     value="locations" 
-                    className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 text-gray-600 hover:text-blue-600 transition-colors"
+                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10"
                   >
-                    <MapPin className="h-4 w-4" />
+                    <MapPin className="h-4 w-4 mr-2" />
                     Locations
                   </TabsTrigger>
                   <TabsTrigger 
                     value="connections" 
-                    className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 text-gray-600 hover:text-blue-600 transition-colors"
+                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10"
                   >
-                    <Link className="h-4 w-4" />
+                    <Settings className="h-4 w-4 mr-2" />
                     Connections
                   </TabsTrigger>
                   <TabsTrigger 
                     value="export" 
-                    className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 text-gray-600 hover:text-blue-600 transition-colors"
+                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10"
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="h-4 w-4 mr-2" />
                     Export PDF
                   </TabsTrigger>
                 </TabsList>
-              </div>
 
-              {activeTab && (
-                <>
-                  <TabsContent value="locations" className="p-6">
-                    <LocationsManager />
-                  </TabsContent>
+                <TabsContent value="locations" className="mt-6">
+                  <LocationsManager />
+                </TabsContent>
 
-                  <TabsContent value="connections" className="p-6">
-                    <div className="space-y-6">
-                      <h3 className="text-lg font-semibold text-gray-900">External API Connections</h3>
-                      <p className="text-gray-600">Configure external API integrations for enhanced data analysis</p>
-                      
-                      {/* Greyfinch API Setup */}
-                      <div className="p-6 border border-gray-200 rounded-lg bg-gray-50">
-                        <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-                          <Database className="h-5 w-5 text-blue-600" />
-                          Greyfinch API
-                        </h4>
-                        <p className="text-sm text-gray-600 mb-4">Connect your Greyfinch practice management system to import live data</p>
-                        
-                        <GreyfinchSetup />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 border border-gray-200 rounded-lg bg-white">
-                          <h4 className="font-medium text-gray-900 mb-2">Meta Ads</h4>
-                          <p className="text-sm text-gray-600 mb-3">Connect your Meta Business account to import advertising spend data</p>
-                          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
-                            Connect
-                          </button>
-                        </div>
-                        <div className="p-4 border border-gray-200 rounded-lg bg-white">
-                          <h4 className="font-medium text-gray-900 mb-2">Google Ads</h4>
-                          <p className="text-sm text-gray-600 mb-3">Import Google Ads campaign performance and spend data</p>
-                          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
-                            Connect
-                          </button>
-                        </div>
-                        <div className="p-4 border border-gray-200 rounded-lg bg-white">
-                          <h4 className="font-medium text-gray-900 mb-2">QuickBooks</h4>
-                          <p className="text-sm text-gray-600 mb-3">Sync vendor data, revenue, and expense information</p>
-                          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
-                            Connect
-                          </button>
-                        </div>
-                        <div className="p-4 border border-gray-200 rounded-lg bg-white">
-                          <h4 className="font-medium text-gray-900 mb-2">Custom API</h4>
-                          <p className="text-sm text-gray-600 mb-3">Connect to other data sources with custom API configuration</p>
-                          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
-                            Configure
-                          </button>
-                        </div>
-                      </div>
+                <TabsContent value="connections" className="mt-6">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
+                        <CardHeader>
+                          <CardTitle className="text-[#1C1F4F] flex items-center">
+                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
+                              <Building2 className="h-4 w-4 text-white" />
+                            </div>
+                            Meta Ads
+                          </CardTitle>
+                          <CardDescription className="text-[#1C1F4F]/70">
+                            Connect your Facebook and Instagram advertising accounts
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
+                            Connect Meta Ads
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
+                        <CardHeader>
+                          <CardTitle className="text-[#1C1F4F] flex items-center">
+                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
+                              <TrendingUp className="h-4 w-4 text-white" />
+                            </div>
+                            Google Ads
+                          </CardTitle>
+                          <CardDescription className="text-[#1C1F4F]/70">
+                            Connect your Google Ads account for campaign data
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
+                            Connect Google Ads
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
+                        <CardHeader>
+                          <CardTitle className="text-[#1C1F4F] flex items-center">
+                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
+                              <BarChart3 className="h-4 w-4 text-white" />
+                            </div>
+                            QuickBooks
+                          </CardTitle>
+                          <CardDescription className="text-[#1C1F4F]/70">
+                            Connect QuickBooks for vendor and revenue data
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
+                            Connect QuickBooks
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
+                        <CardHeader>
+                          <CardTitle className="text-[#1C1F4F] flex items-center">
+                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
+                              <Settings className="h-4 w-4 text-white" />
+                            </div>
+                            Custom API
+                          </CardTitle>
+                          <CardDescription className="text-[#1C1F4F]/70">
+                            Connect custom APIs for additional data sources
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
+                            Connect Custom API
+                          </Button>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </TabsContent>
 
-                  <TabsContent value="export" className="p-6">
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Export PDF</h3>
-                        <p className="text-gray-600">Generate and download PDF reports of your analytics data</p>
-                      </div>
-                      
-                      {/* Report Name Section */}
-                      <div className="space-y-3">
-                        <label className="block text-sm font-medium text-gray-700">Name your report</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g., Q4 2024 Practice Performance Analysis"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                    <Separator className="bg-[#1C1F4F]/20" />
+
+                    <GreyfinchSetup />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="export" className="mt-6">
+                  <div className="space-y-6">
+                    {/* Report Name */}
+                    <Card className="bg-white border-[#1C1F4F]/20">
+                      <CardHeader>
+                        <CardTitle className="text-[#1C1F4F]">Name your report</CardTitle>
+                        <CardDescription className="text-[#1C1F4F]/70">
+                          Give your report a descriptive name
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <input
+                          type="text"
+                          placeholder="Enter report name..."
+                          className="w-full px-4 py-3 border border-[#1C1F4F]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/20 focus:border-[#1C1F4F] text-[#1C1F4F] placeholder-[#1C1F4F]/50"
                         />
-                      </div>
+                      </CardContent>
+                    </Card>
 
-                      {/* Analysis Periods Section */}
-                      <div className="space-y-3">
-                        <label className="block text-sm font-medium text-gray-700">Analysis Periods</label>
-                        
-                        {periods.length === 0 ? (
-                          <div className="space-y-3">
-                            {/* Skeleton Placeholders */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              <div className="h-20 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
-                                <div className="text-gray-500 text-sm">Add analysis period</div>
-                              </div>
-                              <div className="h-20 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
-                                <div className="text-gray-500 text-sm">Add analysis period</div>
-                              </div>
-                              <div className="h-20 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
-                                <div className="text-gray-500 text-sm">Add analysis period</div>
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-500">Add analysis periods from the main dashboard to include in your report</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {/* Compressed Previews */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {periods.map((period, index) => (
-                                <div key={period.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="font-medium text-gray-900 text-sm truncate">{period.name}</h4>
-                                      <p className="text-xs text-gray-500">
-                                        {format(period.startDate, 'MMM d')} - {format(period.endDate, 'MMM d, yyyy')}
-                                      </p>
-                                    </div>
-                                    <button 
-                                      onClick={() => handleRemovePeriod(period.id)}
-                                      className="text-gray-400 hover:text-red-500 transition-colors ml-2"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                  
-                                  {/* Location Info */}
-                                  <div className="flex items-center gap-1 mb-2">
-                                    <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    <span className="text-xs text-gray-600">
-                                      {locations.find(loc => loc.id.toString() === period.locationId)?.name || 'Unknown Location'}
-                                    </span>
-                                  </div>
-
-                                  {/* Chart Types Preview */}
-                                  {period.visualizations && period.visualizations.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1 mb-2">
-                                      {period.visualizations.slice(0, 3).map((viz, vizIndex) => (
-                                        <span key={viz.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
-                                          {viz.type}
-                                        </span>
-                                      ))}
-                                      {period.visualizations.length > 3 && (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
-                                          +{period.visualizations.length - 3}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-gray-400 mb-2">No visualizations</div>
-                                  )}
-
-                                  {/* Summary Snippet */}
-                                  <div className="text-xs text-gray-600 line-clamp-2">
-                                    {period.visualizations && period.visualizations.length > 0 
-                                      ? period.visualizations[0].summary || 'Analysis period with multiple data points'
-                                      : 'Analysis period ready for visualization'
-                                    }
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            
-                            {/* Add More Periods Button */}
-                            <button 
-                              onClick={() => setActiveTab('locations')}
-                              className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
-                            >
-                              <div className="flex items-center justify-center gap-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                                Add More Analysis Periods
-                              </div>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Report Options */}
-                      <div className="space-y-3">
-                        <label className="block text-sm font-medium text-gray-700">Report Options</label>
-                        <div className="space-y-2">
-                          <label className="flex items-center">
-                            <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" defaultChecked />
-                            <span className="ml-2 text-sm text-gray-700">Include executive summary</span>
-                          </label>
-                          <label className="flex items-center">
-                            <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" defaultChecked />
-                            <span className="ml-2 text-sm text-gray-700">Include detailed charts and graphs</span>
-                          </label>
-                          <label className="flex items-center">
-                            <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" defaultChecked />
-                            <span className="ml-2 text-sm text-gray-700">Include recommendations and insights</span>
-                          </label>
+                    {/* Analysis Periods */}
+                    <Card className="bg-white border-[#1C1F4F]/20">
+                      <CardHeader>
+                        <CardTitle className="text-[#1C1F4F] flex items-center justify-between">
+                          Analysis Periods
+                          <Button 
+                            onClick={() => setActiveTab('locations')}
+                            className="bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add More Analysis Periods
+                          </Button>
+                        </CardTitle>
+                        <CardDescription className="text-[#1C1F4F]/70">
+                          Select the periods you want to include in your report
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {/* Placeholder for analysis periods */}
+                        <div className="text-center py-8 text-[#1C1F4F]/50">
+                          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No analysis periods added yet</p>
+                          <p className="text-sm">Add periods from the Locations tab to get started</p>
                         </div>
-                      </div>
+                      </CardContent>
+                    </Card>
 
-                      {/* Generate Button */}
-                      <button 
-                        disabled={periods.length === 0}
-                        className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                          periods.length === 0
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-green-600 text-white hover:bg-green-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Generate PDF Report
+                    {/* Report Options */}
+                    <Card className="bg-white border-[#1C1F4F]/20">
+                      <CardHeader>
+                        <CardTitle className="text-[#1C1F4F]">Report Options</CardTitle>
+                        <CardDescription className="text-[#1C1F4F]/70">
+                          Customize what to include in your report
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center space-x-3">
+                          <input type="checkbox" id="executive" className="rounded border-[#1C1F4F]/20 text-[#1C1F4F] focus:ring-[#1C1F4F]/20" />
+                          <label htmlFor="executive" className="text-[#1C1F4F]">Executive Summary</label>
                         </div>
-                      </button>
-                    </div>
-                  </TabsContent>
-                </>
-              )}
-            </Tabs>
-          </div>
+                        <div className="flex items-center space-x-3">
+                          <input type="checkbox" id="charts" className="rounded border-[#1C1F4F]/20 text-[#1C1F4F] focus:ring-[#1C1F4F]/20" />
+                          <label htmlFor="charts" className="text-[#1C1F4F]">Detailed Charts</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input type="checkbox" id="recommendations" className="rounded border-[#1C1F4F]/20 text-[#1C1F4F] focus:ring-[#1C1F4F]/20" />
+                          <label htmlFor="recommendations" className="text-[#1C1F4F]">Recommendations</label>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-          {/* Main Dashboard Content - Single Column */}
-          <div className="space-y-6">
-            {/* Main Content Area */}
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-              <HorizontalFixedColumnLayout
-                periods={periods}
-                locations={locations}
-                periodQueries={periodQueries}
-                onAddPeriod={handleAddPeriod}
-                onRemovePeriod={handleRemovePeriod}
-                onUpdatePeriod={handleUpdatePeriod}
-              />
-            </div>
+                    {/* Generate Report Button */}
+                    <Button 
+                      className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white py-4 text-lg font-semibold"
+                      disabled
+                    >
+                      <Download className="h-5 w-5 mr-2" />
+                      Generate PDF Report
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardHeader>
+          </Card>
 
-            {/* Mobile Controls */}
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-              <MobileFriendlyControls
-                periods={periods}
-                locations={locations}
-                onAddPeriod={handleAddPeriod}
-                onClearData={() => setPeriods([])}
-                onExport={() => {}}
-                onShare={() => ({})}
-                onGreyfinchDataSelected={() => {}}
-              />
-            </div>
-
-            {/* Cost Management */}
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-              <CostManagementEnhanced
-                locationId={null}
-                period=""
-              />
-            </div>
-
-            {/* AI Summary Generator */}
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-              <AISummaryGenerator
-                periods={periods}
-                periodData={{}}
-              />
-            </div>
-          </div>
+          {/* Main Dashboard Content */}
+          <HorizontalFixedColumnLayout />
+          <MobileFriendlyControls />
+          <CostManagementEnhanced />
+          <AISummaryGenerator />
         </div>
       </main>
     </div>
