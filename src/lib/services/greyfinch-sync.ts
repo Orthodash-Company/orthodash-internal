@@ -250,11 +250,11 @@ class GreyfinchSyncService {
           )
         );
 
-        const completedAppointments = todayAppointments.filter(apt => apt.status === 'completed');
-        const cancelledAppointments = todayAppointments.filter(apt => apt.status === 'cancelled');
-        const noShows = todayAppointments.filter(apt => apt.status === 'no_show');
+        const completedAppointments = todayAppointments.filter((apt: any) => apt.status === 'completed');
+        const cancelledAppointments = todayAppointments.filter((apt: any) => apt.status === 'cancelled');
+        const noShows = todayAppointments.filter((apt: any) => apt.status === 'no_show');
 
-        const totalRevenue = completedAppointments.reduce((sum, apt) => sum + (apt.revenue || 0), 0);
+        const totalRevenue = completedAppointments.reduce((sum: number, apt: any) => sum + (apt.revenue || 0), 0);
         const averageRevenue = completedAppointments.length > 0 ? totalRevenue / completedAppointments.length : 0;
 
         // Check if daily metrics already exist for today
@@ -327,14 +327,14 @@ class GreyfinchSyncService {
           )
         );
 
-        const completedAppointments = periodAppointments.filter(apt => apt.status === 'completed');
+        const completedAppointments = periodAppointments.filter((apt: any) => apt.status === 'completed');
         const totalAppointments = periodAppointments.length;
         const cancellationRate = totalAppointments > 0 ? 
-          (periodAppointments.filter(apt => apt.status === 'cancelled').length / totalAppointments) * 100 : 0;
+          (periodAppointments.filter((apt: any) => apt.status === 'cancelled').length / totalAppointments) * 100 : 0;
         const noShowRate = totalAppointments > 0 ? 
-          (periodAppointments.filter(apt => apt.status === 'no_show').length / totalAppointments) * 100 : 0;
+          (periodAppointments.filter((apt: any) => apt.status === 'no_show').length / totalAppointments) * 100 : 0;
 
-        const totalRevenue = completedAppointments.reduce((sum, apt) => sum + (apt.revenue || 0), 0);
+        const totalRevenue = completedAppointments.reduce((sum: number, apt: any) => sum + (apt.revenue || 0), 0);
         const averageRevenuePerPatient = completedAppointments.length > 0 ? totalRevenue / completedAppointments.length : 0;
 
         // Check if location metrics already exist for this period
