@@ -56,6 +56,21 @@ export function LocationsManager() {
       if (data.success) {
         setIsConnected(true);
         setLocations(data.locations || []);
+        
+        // Update data counts from the connection test
+        if (data.connectionTest) {
+          setDataCounts({
+            patients: data.connectionTest.patients || 0,
+            locations: data.connectionTest.locations || 0,
+            appointments: data.connectionTest.appointments || 0,
+            treatments: data.connectionTest.treatments || 0,
+            companies: data.connectionTest.companies || 0,
+            leads: data.connectionTest.leads || 0,
+            apps: data.connectionTest.apps || 0,
+            appointmentBookings: data.connectionTest.appointmentBookings || 0
+          });
+        }
+        
         toast({
           title: "Greyfinch Connected",
           description: "Successfully connected to Greyfinch API.",
@@ -63,6 +78,7 @@ export function LocationsManager() {
       } else {
         setIsConnected(false);
         setLocations([]);
+        setDataCounts({});
         toast({
           title: "Greyfinch Not Connected",
           description: data.error || "Failed to connect to Greyfinch API. Please check credentials in Connections tab.",
@@ -73,6 +89,7 @@ export function LocationsManager() {
       console.error('Error checking Greyfinch connection:', error);
       setIsConnected(false);
       setLocations([]);
+      setDataCounts({});
       toast({
         title: "Connection Error",
         description: "Could not reach Greyfinch API. Please check your network and credentials.",
@@ -189,8 +206,8 @@ export function LocationsManager() {
             </div>
             <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
               <DollarSign className="h-8 w-8 mx-auto mb-2 text-orange-500" />
-              <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.treatments || 0}</div>
-              <div className="text-sm text-gray-600">Treatments</div>
+              <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.leads || 0}</div>
+              <div className="text-sm text-gray-600">Leads</div>
             </div>
           </div>
 
