@@ -63,7 +63,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
 
   // Load cost data
   useEffect(() => {
-    if (user && period) {
+    if (user) {
       fetchCostData();
       fetchApiConfigs();
     }
@@ -74,18 +74,21 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
     
     try {
       const response = await fetch(
-        `/api/acquisition-costs?locationId=${locationId || ''}&period=${period}&userId=${user.id}`
+        `/api/acquisition-costs?locationId=${locationId || ''}&period=${period || ''}&userId=${user.id}`
       );
       if (!response.ok) throw new Error('Failed to fetch costs');
       const data = await response.json();
       setCostData(data);
     } catch (error) {
       console.error('Error fetching costs:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load cost data",
-        variant: "destructive"
-      });
+      // Don't show error toast for empty period, just set loading to false
+      if (period) {
+        toast({
+          title: "Error",
+          description: "Failed to load cost data",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }
