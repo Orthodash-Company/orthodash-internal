@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
+import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
+import { MobileFriendlyControls } from './MobileFriendlyControls';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
@@ -24,11 +26,15 @@ import {
   Calendar,
   Building2
 } from 'lucide-react';
+import { PeriodConfig, Location } from '@/shared/types';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [periods, setPeriods] = useState<PeriodConfig[]>([]);
+  const [periodQueries, setPeriodQueries] = useState<any[]>([]);
 
   useEffect(() => {
     // Simulate loading time
@@ -38,6 +44,22 @@ export default function Dashboard() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  const handleAddPeriod = (period: Omit<PeriodConfig, 'id'>) => {
+    const newPeriod: PeriodConfig = {
+      ...period,
+      id: `period-${Date.now()}`
+    };
+    setPeriods(prev => [...prev, newPeriod]);
+  };
+
+  const handleRemovePeriod = (periodId: string) => {
+    setPeriods(prev => prev.filter(p => p.id !== periodId));
+  };
+
+  const handleUpdatePeriod = (periodId: string, updates: Partial<PeriodConfig>) => {
+    setPeriods(prev => prev.map(p => p.id === periodId ? { ...p, ...updates } : p));
+  };
 
   if (isLoading) {
     return (
@@ -262,9 +284,72 @@ export default function Dashboard() {
             </CardHeader>
           </Card>
 
-          {/* Main Dashboard Content */}
-          <CostManagementEnhanced locationId={null} period="" />
-          <AISummaryGenerator periods={[]} periodData={{}} />
+          {/* Main Dashboard Content - Analysis Columns */}
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-[#1C1F4F]">Analysis Periods</CardTitle>
+              <CardDescription className="text-[#1C1F4F]/70">
+                Create and manage analysis periods for your practice data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HorizontalFixedColumnLayout
+                periods={periods}
+                locations={locations}
+                periodQueries={periodQueries}
+                onAddPeriod={handleAddPeriod}
+                onRemovePeriod={handleRemovePeriod}
+                onUpdatePeriod={handleUpdatePeriod}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Mobile Controls */}
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-[#1C1F4F]">Quick Actions</CardTitle>
+              <CardDescription className="text-[#1C1F4F]/70">
+                Mobile-friendly controls for managing your data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MobileFriendlyControls
+                periods={periods}
+                locations={locations}
+                onAddPeriod={handleAddPeriod}
+                onClearData={() => setPeriods([])}
+                onExport={() => {}}
+                onShare={() => ({})}
+                onGreyfinchDataSelected={() => {}}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Cost Management */}
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-[#1C1F4F]">Acquisition Cost Management</CardTitle>
+              <CardDescription className="text-[#1C1F4F]/70">
+                Manage manual costs and API integrations for comprehensive cost tracking
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CostManagementEnhanced locationId={null} period="" />
+            </CardContent>
+          </Card>
+
+          {/* AI Summary Generator */}
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-[#1C1F4F]">AI-Powered Analytics Summary</CardTitle>
+              <CardDescription className="text-[#1C1F4F]/70">
+                Generate comprehensive insights and recommendations using AI
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AISummaryGenerator periods={periods} periodData={{}} />
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
