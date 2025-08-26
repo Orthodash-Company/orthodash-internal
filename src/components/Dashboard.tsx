@@ -9,6 +9,7 @@ import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
 import { GreyfinchSetup } from './GreyfinchSetup';
 import { PDFReportGenerator } from './PDFReportGenerator';
+import { SessionHistoryManager } from './SessionHistoryManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,18 +25,23 @@ import {
   PieChart,
   Download,
   Calendar,
-  Building2
+  Building2,
+  Save
 } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
+import { useSessionManager } from '@/hooks/use-session-manager';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { autoSaveSession } = useSessionManager();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [locations, setLocations] = useState<Location[]>([]);
   const [periods, setPeriods] = useState<PeriodConfig[]>([]);
   const [periodQueries, setPeriodQueries] = useState<any[]>([]);
   const [greyfinchData, setGreyfinchData] = useState<any>(null);
+  const [acquisitionCosts, setAcquisitionCosts] = useState<any>(null);
+  const [aiSummary, setAiSummary] = useState<any>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -203,6 +209,19 @@ export default function Dashboard() {
     setPeriodQueries(queries);
   }, [periods, greyfinchData]);
 
+  // Auto-save session when data changes
+  useEffect(() => {
+    if (user?.id && (greyfinchData || periods.length > 0 || acquisitionCosts || aiSummary)) {
+      const sessionData = {
+        greyfinchData,
+        periods,
+        acquisitionCosts,
+        aiSummary
+      };
+      autoSaveSession(sessionData);
+    }
+  }, [user?.id, greyfinchData, periods, acquisitionCosts, aiSummary, autoSaveSession]);
+
   // Handle Greyfinch data updates
   const handleGreyfinchDataUpdate = (data: any) => {
     setGreyfinchData(data);
@@ -210,6 +229,37 @@ export default function Dashboard() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('greyfinchData', JSON.stringify(data));
     }
+  };
+
+  // Session management handlers
+  const handleRestoreSession = (session: any) => {
+    if (session.greyfinchData) {
+      setGreyfinchData(session.greyfinchData);
+    }
+    if (session.periods) {
+      setPeriods(session.periods);
+    }
+    if (session.acquisitionCosts) {
+      setAcquisitionCosts(session.acquisitionCosts);
+    }
+    if (session.aiSummary) {
+      setAiSummary(session.aiSummary);
+    }
+  };
+
+  const handlePreviewSession = (session: any) => {
+    // Show session preview in a modal or sidebar
+    console.log('Preview session:', session);
+  };
+
+  const handleDownloadSession = (session: any) => {
+    // Generate and download a comprehensive report
+    console.log('Download session:', session);
+  };
+
+  const handleShareSession = (session: any) => {
+    // Open share modal
+    console.log('Share session:', session);
   };
 
   if (isLoading) {
@@ -233,6 +283,15 @@ export default function Dashboard() {
       
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* Session History Button */}
+          <div className="flex justify-end">
+            <SessionHistoryManager
+              onRestoreSession={handleRestoreSession}
+              onPreviewSession={handlePreviewSession}
+              onDownloadSession={handleDownloadSession}
+              onShareSession={handleShareSession}
+            />
+          </div>
           {/* Tabs Container */}
           <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-200 ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
             <CardHeader className="pb-4">

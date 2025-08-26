@@ -145,6 +145,21 @@ export const reports = pgTable("reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const sessions = pgTable("sessions", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(), // References Supabase auth.users.id
+  name: text("name").notNull(),
+  description: text("description"),
+  greyfinchData: jsonb("greyfinch_data"), // Complete Greyfinch data
+  acquisitionCosts: jsonb("acquisition_costs"), // All cost data
+  periods: jsonb("periods"), // Period configurations
+  aiSummary: jsonb("ai_summary"), // Generated AI summary
+  metadata: jsonb("metadata"), // Additional session metadata
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Schema insert types
 export const insertLocationSchema = createInsertSchema(locations).omit({
   id: true,
@@ -196,6 +211,12 @@ export const insertReportSchema = createInsertSchema(reports).omit({
   updatedAt: true,
 });
 
+export const insertSessionSchema = createInsertSchema(sessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Type exports
 export type Location = typeof locations.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
@@ -215,3 +236,5 @@ export type AnalyticsCache = typeof analyticsCache.$inferSelect;
 export type InsertAnalyticsCache = z.infer<typeof insertAnalyticsCacheSchema>;
 export type Report = typeof reports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
+export type Session = typeof sessions.$inferSelect;
+export type InsertSession = z.infer<typeof insertSessionSchema>;
