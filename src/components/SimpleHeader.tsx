@@ -22,7 +22,7 @@ export function SimpleHeader() {
 
   return (
     <header className="fixed top-4 left-4 right-4 z-50">
-      <div className="backdrop-blur-xl bg-white/80 border border-white/20 rounded-2xl shadow-2xl">
+      <div className="backdrop-blur-xl bg-white/80 border border-white/20 rounded-2xl">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
