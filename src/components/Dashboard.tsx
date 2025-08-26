@@ -8,6 +8,7 @@ import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
 import { GreyfinchSetup } from './GreyfinchSetup';
+import { PDFReportGenerator } from './PDFReportGenerator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [periods, setPeriods] = useState<PeriodConfig[]>([]);
   const [periodQueries, setPeriodQueries] = useState<any[]>([]);
+  const [greyfinchData, setGreyfinchData] = useState<any>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,7 +137,7 @@ export default function Dashboard() {
                 )}
 
                 <TabsContent value="locations" className="mt-6">
-                  <LocationsManager />
+                  <LocationsManager onGreyfinchDataUpdate={setGreyfinchData} />
                 </TabsContent>
 
                 <TabsContent value="connections" className="mt-6">
@@ -225,84 +227,11 @@ export default function Dashboard() {
                 </TabsContent>
 
                 <TabsContent value="export" className="mt-6">
-                  <div className="space-y-6">
-                    {/* Report Name */}
-                    <Card className="bg-white border-[#1C1F4F]/20">
-                      <CardHeader>
-                        <CardTitle className="text-[#1C1F4F]">Name your report</CardTitle>
-                        <CardDescription className="text-[#1C1F4F]/70">
-                          Give your report a descriptive name
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <input
-                          type="text"
-                          placeholder="Enter report name..."
-                          className="w-full px-4 py-3 border border-[#1C1F4F]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/20 focus:border-[#1C1F4F] text-[#1C1F4F] placeholder-[#1C1F4F]/50"
-                        />
-                      </CardContent>
-                    </Card>
-
-                    {/* Analysis Periods */}
-                    <Card className="bg-white border-[#1C1F4F]/20">
-                      <CardHeader>
-                        <CardTitle className="text-[#1C1F4F] flex items-center justify-between">
-                          Analysis Periods
-                          <Button 
-                            onClick={() => setActiveTab('locations')}
-                            className="bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add More Analysis Periods
-                          </Button>
-                        </CardTitle>
-                        <CardDescription className="text-[#1C1F4F]/70">
-                          Select the periods you want to include in your report
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {/* Placeholder for analysis periods */}
-                        <div className="text-center py-8 text-[#1C1F4F]/50">
-                          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No analysis periods added yet</p>
-                          <p className="text-sm">Add periods from the Locations tab to get started</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Report Options */}
-                    <Card className="bg-white border-[#1C1F4F]/20">
-                      <CardHeader>
-                        <CardTitle className="text-[#1C1F4F]">Report Options</CardTitle>
-                        <CardDescription className="text-[#1C1F4F]/70">
-                          Customize what to include in your report
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center space-x-3">
-                          <input type="checkbox" id="executive" className="rounded border-[#1C1F4F]/20 text-[#1C1F4F] focus:ring-[#1C1F4F]/20" />
-                          <label htmlFor="executive" className="text-[#1C1F4F]">Executive Summary</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <input type="checkbox" id="charts" className="rounded border-[#1C1F4F]/20 text-[#1C1F4F] focus:ring-[#1C1F4F]/20" />
-                          <label htmlFor="charts" className="text-[#1C1F4F]">Detailed Charts</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <input type="checkbox" id="recommendations" className="rounded border-[#1C1F4F]/20 text-[#1C1F4F] focus:ring-[#1C1F4F]/20" />
-                          <label htmlFor="recommendations" className="text-[#1C1F4F]">Recommendations</label>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Generate Report Button */}
-                    <Button 
-                      className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white py-4 text-lg font-semibold"
-                      disabled
-                    >
-                      <Download className="h-5 w-5 mr-2" />
-                      Generate PDF Report
-                    </Button>
-                  </div>
+                  <PDFReportGenerator 
+                    periods={periods}
+                    locations={locations}
+                    greyfinchData={greyfinchData}
+                  />
                 </TabsContent>
               </Tabs>
             </CardHeader>

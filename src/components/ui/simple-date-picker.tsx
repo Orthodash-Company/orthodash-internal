@@ -166,7 +166,7 @@ export function SimpleDatePicker({
                 <div className="text-xs font-medium text-gray-500 mb-2 text-center">Month</div>
                 <div className="relative h-32 overflow-hidden border border-gray-200 rounded">
                   <div className="h-16" /> {/* Top spacer */}
-                  <div className="h-32 overflow-y-auto scrollbar-hide">
+                  <div className="h-32 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {months.map((month, index) => (
                       <div
                         key={month}
@@ -190,7 +190,7 @@ export function SimpleDatePicker({
                 <div className="text-xs font-medium text-gray-500 mb-2 text-center">Day</div>
                 <div className="relative h-32 overflow-hidden border border-gray-200 rounded">
                   <div className="h-16" /> {/* Top spacer */}
-                  <div className="h-32 overflow-y-auto scrollbar-hide">
+                  <div className="h-32 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {generateDays().map((day) => (
                       <div
                         key={day}
@@ -214,7 +214,7 @@ export function SimpleDatePicker({
                 <div className="text-xs font-medium text-gray-500 mb-2 text-center">Year</div>
                 <div className="relative h-32 overflow-hidden border border-gray-200 rounded">
                   <div className="h-16" /> {/* Top spacer */}
-                  <div className="h-32 overflow-y-auto scrollbar-hide">
+                  <div className="h-32 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {years.map((year) => (
                       <div
                         key={year}

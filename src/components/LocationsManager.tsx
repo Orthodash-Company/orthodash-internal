@@ -26,7 +26,11 @@ interface DataCounts {
   [key: string]: number | undefined;
 }
 
-export function LocationsManager() {
+interface LocationsManagerProps {
+  onGreyfinchDataUpdate?: (data: any) => void;
+}
+
+export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([]);
@@ -59,7 +63,7 @@ export function LocationsManager() {
         
         // Update data counts from the connection test
         if (data.connectionTest) {
-          setDataCounts({
+          const newDataCounts = {
             patients: data.connectionTest.patients || 0,
             locations: data.connectionTest.locations || 0,
             appointments: data.connectionTest.appointments || 0,
@@ -68,7 +72,13 @@ export function LocationsManager() {
             leads: data.connectionTest.leads || 0,
             apps: data.connectionTest.apps || 0,
             appointmentBookings: data.connectionTest.appointmentBookings || 0
-          });
+          };
+          setDataCounts(newDataCounts);
+          
+          // Pass data to parent component
+          if (onGreyfinchDataUpdate) {
+            onGreyfinchDataUpdate(newDataCounts);
+          }
         }
         
         toast({

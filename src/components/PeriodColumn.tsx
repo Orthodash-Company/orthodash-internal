@@ -400,25 +400,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             {/* Data Summary Chart */}
             <div className="bg-white p-4 rounded-lg border">
               <h4 className="text-sm font-medium mb-3">Data Summary</h4>
-              <BarChart data={conversionData} layout="vertical">
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="x" />
-                <Tooltip />
-                <Bar dataKey="digital" fill="#8884d8" />
-                <Bar dataKey="professional" fill="#82ca9d" />
-                <Bar dataKey="direct" fill="#ffc658" />
-              </BarChart>
-            </div>
-
-            {/* Charts */}
-            <div className="space-y-6">
-              <div>
-                <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
-                <PieChart data={pieData} />
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={conversionData} layout="vertical">
                   <XAxis type="number" />
                   <YAxis type="category" dataKey="x" />
@@ -427,20 +409,62 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                   <Bar dataKey="professional" fill="#82ca9d" />
                   <Bar dataKey="direct" fill="#ffc658" />
                 </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Charts */}
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={conversionData} layout="vertical">
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="x" />
+                    <Tooltip />
+                    <Bar dataKey="digital" fill="#8884d8" />
+                    <Bar dataKey="professional" fill="#82ca9d" />
+                    <Bar dataKey="direct" fill="#ffc658" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
               
               {safeData.trends.weekly.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
-                  <LineChart data={trendsData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="x" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="digital" stroke="#8884d8" />
-                    <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
-                    <Line type="monotone" dataKey="direct" stroke="#ffc658" />
-                  </LineChart>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={trendsData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="x" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="digital" stroke="#8884d8" />
+                      <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
+                      <Line type="monotone" dataKey="direct" stroke="#ffc658" />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </div>
