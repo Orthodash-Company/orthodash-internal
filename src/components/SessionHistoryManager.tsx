@@ -18,7 +18,7 @@ import {
   Clock
 } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface SessionHistoryManagerProps {
   trigger?: React.ReactNode;
