@@ -110,6 +110,7 @@ Format your response as JSON with the following structure:
     console.log('Sending request to OpenAI...');
     console.log('Prompt length:', prompt.length);
 
+    let response: string;
     try {
       const completion = await openai.chat.completions.create({
         model: "gpt-4",
@@ -127,7 +128,7 @@ Format your response as JSON with the following structure:
         max_tokens: 2000
       });
 
-      const response = completion.choices[0]?.message?.content;
+      response = completion.choices[0]?.message?.content || '';
       
       if (!response) {
         throw new Error('No response from OpenAI');
