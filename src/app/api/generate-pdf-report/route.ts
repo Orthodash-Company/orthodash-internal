@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import { db } from '@/lib/db';
-import { periods, locations } from '@/shared/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { locations } from '@/shared/schema';
+import { inArray } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,19 +15,18 @@ export async function POST(request: NextRequest) {
       includeAIInsights,
       includeRecommendations,
       greyfinchData,
-      userId
+      userId,
+      periodData // Pass period data from frontend
     } = body;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    // Fetch period data
-    const periodData = await db.select().from(periods).where(
-      inArray(periods.id, selectedPeriods)
-    );
+    // Use period data passed from frontend instead of querying database
+    const periods = periodData || [];
 
-    // Fetch location data
+    // Fetch location data if locations are selected
     const locationData = selectedLocations.length > 0 
       ? await db.select().from(locations).where(inArray(locations.id, selectedLocations))
       : [];
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            periods: periodData,
+            periods: periods,
             locations: locationData,
             greyfinchData,
             includeRecommendations
@@ -62,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Generate HTML content for PDF
     const htmlContent = generatePDFHTML({
       reportName,
-      periodData,
+      periodData: periods,
       locationData,
       greyfinchData,
       aiInsights,

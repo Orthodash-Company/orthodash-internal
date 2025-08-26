@@ -64,7 +64,8 @@ export function PDFReportGenerator({ periods, locations, greyfinchData }: PDFRep
           includeAIInsights,
           includeRecommendations,
           greyfinchData,
-          userId: user?.id
+          userId: user?.id,
+          periodData: periods.filter(period => selectedPeriods.includes(period.id))
         }),
       });
 
