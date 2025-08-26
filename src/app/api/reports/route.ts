@@ -5,12 +5,18 @@ import { eq, and } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('Reports API called');
+    console.log('Database object:', typeof db);
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 })
     }
+
+    console.log('Fetching reports for userId:', userId);
 
     const userReports = await db.select().from(reports).where(
       eq(reports.userId, userId)
@@ -19,7 +25,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(userReports)
   } catch (error) {
     console.error('Error fetching reports:', error)
-    return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to fetch reports", 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 })
   }
 }
 
