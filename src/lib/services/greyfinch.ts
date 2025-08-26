@@ -356,7 +356,14 @@ export class GreyfinchService {
         apps: 0
       };
 
-      const data = {
+      const data: {
+        companies: any[];
+        locations: any[];
+        appointments: any[];
+        appointmentBookings: any[];
+        leads: any[];
+        apps: any[];
+      } = {
         companies: [],
         locations: [],
         appointments: [],
