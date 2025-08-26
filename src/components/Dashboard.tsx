@@ -102,7 +102,7 @@ export default function Dashboard() {
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Tabs Container */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg" ref={tabsRef}>
+          <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-200 ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
             <CardHeader className="pb-4">
               <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
@@ -128,6 +128,12 @@ export default function Dashboard() {
                     Export PDF
                   </TabsTrigger>
                 </TabsList>
+
+                {activeTab && (
+                  <div className="mt-2 text-xs text-[#1C1F4F]/60 text-center">
+                    Click outside or press Escape to close
+                  </div>
+                )}
 
                 <TabsContent value="locations" className="mt-6">
                   <LocationsManager />
