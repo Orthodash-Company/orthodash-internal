@@ -341,7 +341,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 <SimpleDatePicker
                   date={period.startDate}
                   setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
-                  className="h-8"
                   placeholder="Select start"
                 />
               </div>
@@ -350,7 +349,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 <SimpleDatePicker
                   date={period.endDate}
                   setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
-                  className="h-8"
                   placeholder="Select end"
                 />
               </div>
