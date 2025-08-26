@@ -263,8 +263,8 @@ export default function Dashboard() {
           </Card>
 
           {/* Main Dashboard Content */}
-          <CostManagementEnhanced />
-          <AISummaryGenerator />
+          <CostManagementEnhanced locationId={null} period="" />
+          <AISummaryGenerator periods={[]} periodData={{}} />
         </div>
       </main>
     </div>
