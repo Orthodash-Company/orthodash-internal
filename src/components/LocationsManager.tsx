@@ -121,7 +121,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     }
     setIsLoading(true);
     try {
-      const response = await fetch('/api/greyfinch/pull-all-data', {
+      const response = await fetch('/api/greyfinch/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,15 +133,15 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       if (data.success) {
         // Update data counts with actual Greyfinch data
         setDataCounts({
-          patients: data.counts.leads || 0, // Using leads as patients
-          locations: data.counts.locations || 0,
-          appointments: data.counts.appointments || 0,
-          leads: data.counts.leads || 0
+          patients: data.data.counts.leads || 0, // Using leads as patients
+          locations: data.data.counts.locations || 0,
+          appointments: data.data.counts.appointments || 0,
+          leads: data.data.counts.leads || 0
         });
         
         // Update locations with actual Greyfinch location data
-        if (data.data && data.data.locations) {
-          const greyfinchLocations = data.data.locations.map((loc: any) => ({
+        if (data.data && data.data.data && data.data.data.locations) {
+          const greyfinchLocations = data.data.data.locations.map((loc: any) => ({
             id: loc.id,
             name: loc.name,
             address: loc.address || ''
@@ -157,8 +157,8 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         }
         
         toast({
-          title: "Data Pull Successful",
-          description: `Successfully pulled Greyfinch data. Found ${data.counts.locations || 0} locations, ${data.counts.appointments || 0} appointments, and ${data.counts.leads || 0} leads.`,
+          title: "Data Sync Successful",
+          description: `Successfully synced Greyfinch data to Supabase. Found ${data.data.counts.locations || 0} locations, ${data.data.counts.appointments || 0} appointments, and ${data.data.counts.leads || 0} leads.`,
         });
       } else {
         toast({

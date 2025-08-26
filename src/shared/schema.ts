@@ -160,6 +160,115 @@ export const sessions = pgTable("sessions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// HIPAA-compliant patient data (no PII)
+export const patients = pgTable("patients", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(), // References Supabase auth.users.id
+  greyfinchId: text("greyfinch_id").unique(), // External Greyfinch ID
+  locationId: integer("location_id").references(() => locations.id),
+  patientHash: text("patient_hash").notNull(), // Hashed patient identifier for HIPAA compliance
+  ageGroup: text("age_group"), // 'child', 'teen', 'adult'
+  gender: text("gender"), // 'male', 'female', 'other'
+  treatmentStatus: text("treatment_status"), // 'new_patient', 'active', 'completed'
+  firstVisitDate: timestamp("first_visit_date"),
+  lastVisitDate: timestamp("last_visit_date"),
+  totalVisits: integer("total_visits").default(0),
+  totalRevenue: real("total_revenue").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// HIPAA-compliant appointment data
+export const appointments = pgTable("appointments", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  greyfinchId: text("greyfinch_id").unique(),
+  patientId: integer("patient_id").references(() => patients.id),
+  locationId: integer("location_id").references(() => locations.id),
+  appointmentType: text("appointment_type"), // 'consultation', 'treatment', 'follow_up'
+  status: text("status"), // 'scheduled', 'completed', 'cancelled', 'no_show'
+  scheduledDate: timestamp("scheduled_date"),
+  actualDate: timestamp("actual_date"),
+  duration: integer("duration"), // in minutes
+  revenue: real("revenue").default(0),
+  notes: text("notes"), // Non-PII notes
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Booking details for appointments
+export const bookings = pgTable("bookings", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  greyfinchId: text("greyfinch_id").unique(),
+  appointmentId: integer("appointment_id").references(() => appointments.id),
+  startTime: timestamp("start_time"),
+  endTime: timestamp("end_time"),
+  localStartDate: timestamp("local_start_date"),
+  localStartTime: timestamp("local_start_time"),
+  timezone: text("timezone"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Treatment data
+export const treatments = pgTable("treatments", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  greyfinchId: text("greyfinch_id").unique(),
+  patientId: integer("patient_id").references(() => patients.id),
+  name: text("name").notNull(),
+  type: text("type"), // 'orthodontic', 'surgical', 'preventive'
+  status: text("status"), // 'planned', 'in_progress', 'completed'
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  totalCost: real("total_cost").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Daily check-ins and metrics
+export const dailyMetrics = pgTable("daily_metrics", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  locationId: integer("location_id").references(() => locations.id),
+  date: timestamp("date").notNull(),
+  totalPatients: integer("total_patients").default(0),
+  newPatients: integer("new_patients").default(0),
+  appointments: integer("appointments").default(0),
+  completedAppointments: integer("completed_appointments").default(0),
+  cancelledAppointments: integer("cancelled_appointments").default(0),
+  noShows: integer("no_shows").default(0),
+  totalRevenue: real("total_revenue").default(0),
+  averageRevenue: real("average_revenue").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Location performance metrics
+export const locationMetrics = pgTable("location_metrics", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  locationId: integer("location_id").references(() => locations.id),
+  period: text("period").notNull(), // 'YYYY-MM' format
+  totalPatients: integer("total_patients").default(0),
+  newPatients: integer("new_patients").default(0),
+  totalAppointments: integer("total_appointments").default(0),
+  completedAppointments: integer("completed_appointments").default(0),
+  cancellationRate: real("cancellation_rate").default(0),
+  noShowRate: real("no_show_rate").default(0),
+  totalRevenue: real("total_revenue").default(0),
+  averageRevenuePerPatient: real("average_revenue_per_patient").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Schema insert types
 export const insertLocationSchema = createInsertSchema(locations).omit({
   id: true,
@@ -217,6 +326,42 @@ export const insertSessionSchema = createInsertSchema(sessions).omit({
   updatedAt: true,
 });
 
+export const insertPatientSchema = createInsertSchema(patients).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBookingSchema = createInsertSchema(bookings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTreatmentSchema = createInsertSchema(treatments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDailyMetricsSchema = createInsertSchema(dailyMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLocationMetricsSchema = createInsertSchema(locationMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Type exports
 export type Location = typeof locations.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
@@ -238,3 +383,15 @@ export type Report = typeof reports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type Patient = typeof patients.$inferSelect;
+export type InsertPatient = z.infer<typeof insertPatientSchema>;
+export type Appointment = typeof appointments.$inferSelect;
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type Booking = typeof bookings.$inferSelect;
+export type InsertBooking = z.infer<typeof insertBookingSchema>;
+export type Treatment = typeof treatments.$inferSelect;
+export type InsertTreatment = z.infer<typeof insertTreatmentSchema>;
+export type DailyMetrics = typeof dailyMetrics.$inferSelect;
+export type InsertDailyMetrics = z.infer<typeof insertDailyMetricsSchema>;
+export type LocationMetrics = typeof locationMetrics.$inferSelect;
+export type InsertLocationMetrics = z.infer<typeof insertLocationMetricsSchema>;

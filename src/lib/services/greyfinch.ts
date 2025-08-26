@@ -2,6 +2,7 @@
 // import { db } from '@/lib/db';
 // import { analyticsCache } from '@/shared/schema';
 // import { eq, and } from 'drizzle-orm';
+import { greyfinchSyncService } from './greyfinch-sync';
 
 interface GreyfinchConfig {
   apiKey: string;
@@ -571,6 +572,18 @@ export class GreyfinchService {
           counts,
           data
         }));
+      }
+
+      // Sync data to Supabase if userId is provided
+      if (userId) {
+        try {
+          console.log('Starting Supabase sync...');
+          await greyfinchSyncService.syncAllData(userId, { success: true, counts, data });
+          console.log('Supabase sync completed');
+        } catch (syncError) {
+          console.error('Supabase sync failed:', syncError);
+          // Don't fail the entire operation if sync fails
+        }
       }
 
       return {
