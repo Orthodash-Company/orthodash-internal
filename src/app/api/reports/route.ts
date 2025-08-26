@@ -13,10 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const userReports = await db.select().from(reports).where(
-      and(
-        eq(reports.userId, userId),
-        eq(reports.isActive, true)
-      )
+      eq(reports.userId, userId)
     ).orderBy(reports.createdAt);
 
     return NextResponse.json(userReports)
@@ -40,9 +37,8 @@ export async function POST(request: NextRequest) {
     const report = await db.insert(reports).values({
       userId,
       name,
-      content,
-      metadata: metadata || null,
-      isActive: true
+      periodConfigs: JSON.stringify(content),
+      description: metadata?.description || null
     }).returning();
 
     return NextResponse.json({

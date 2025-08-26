@@ -18,8 +18,7 @@ export async function POST(
     const report = await db.select().from(reports).where(
       and(
         eq(reports.id, parseInt(params.id)),
-        eq(reports.userId, userId),
-        eq(reports.isActive, true)
+        eq(reports.userId, userId)
       )
     ).limit(1);
 
@@ -29,7 +28,7 @@ export async function POST(
 
     // For now, return a simple PDF response
     // In a real implementation, you would generate a PDF using a library like puppeteer
-    const pdfContent = `PDF Report: ${report[0].name}\n\n${report[0].content}`;
+    const pdfContent = `PDF Report: ${report[0].name}\n\n${report[0].periodConfigs}`;
     
     return new NextResponse(pdfContent, {
       headers: {

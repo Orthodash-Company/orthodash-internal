@@ -18,8 +18,7 @@ export async function GET(
     const report = await db.select().from(reports).where(
       and(
         eq(reports.id, parseInt(params.id)),
-        eq(reports.userId, userId),
-        eq(reports.isActive, true)
+        eq(reports.userId, userId)
       )
     ).limit(1);
 
@@ -46,12 +45,8 @@ export async function DELETE(
       return NextResponse.json({ error: "userId is required" }, { status: 400 })
     }
 
-    // Soft delete by setting isActive to false
-    await db.update(reports)
-      .set({
-        isActive: false,
-        updatedAt: new Date()
-      })
+    // Hard delete the report
+    await db.delete(reports)
       .where(
         and(
           eq(reports.id, parseInt(params.id)),
