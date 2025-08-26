@@ -76,19 +76,49 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
       const response = await fetch(
         `/api/acquisition-costs?locationId=${locationId || ''}&period=${period || ''}&userId=${user.id}`
       );
-      if (!response.ok) throw new Error('Failed to fetch costs');
+      
+      // If response is not ok, check if it's a 400 error (which might be expected for empty periods)
+      if (!response.ok) {
+        if (response.status === 400) {
+          // This might be expected for empty periods, just set empty data
+          setCostData({
+            manual: [],
+            api: [],
+            totals: {
+              manual: 0,
+              meta: 0,
+              google: 0,
+              total: 0
+            }
+          });
+          return;
+        }
+        throw new Error('Failed to fetch costs');
+      }
+      
       const data = await response.json();
       setCostData(data);
     } catch (error) {
       console.error('Error fetching costs:', error);
-      // Don't show error toast for empty period, just set loading to false
-      if (period) {
+      // Only show error toast for unexpected errors, not for empty periods
+      if (period && error instanceof Error && !error.message.includes('400')) {
         toast({
           title: "Error",
           description: "Failed to load cost data",
           variant: "destructive"
         });
       }
+      // Set empty data on error to prevent loading state
+      setCostData({
+        manual: [],
+        api: [],
+        totals: {
+          manual: 0,
+          meta: 0,
+          google: 0,
+          total: 0
+        }
+      });
     } finally {
       setIsLoading(false);
     }
