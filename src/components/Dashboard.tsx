@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
-import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
-import { MobileFriendlyControls } from './MobileFriendlyControls';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
@@ -265,8 +263,6 @@ export default function Dashboard() {
           </Card>
 
           {/* Main Dashboard Content */}
-          <HorizontalFixedColumnLayout />
-          <MobileFriendlyControls />
           <CostManagementEnhanced />
           <AISummaryGenerator />
         </div>
