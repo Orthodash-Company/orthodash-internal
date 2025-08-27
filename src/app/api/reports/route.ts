@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sql } from 'drizzle-orm'
+import { reports } from '@/shared/schema'
+import { eq } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,13 +12,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
     
-    const reports = await db.execute(sql`
-      SELECT * FROM reports 
-      WHERE user_id = ${userId} 
-      ORDER BY generated_at DESC
-    `)
+    const userReports = await db.select().from(reports).where(
+      eq(reports.userId, userId)
+    ).orderBy(reports.createdAt)
     
-    return NextResponse.json(reports)
+    return NextResponse.json(userReports)
   } catch (error) {
     console.error('Error fetching reports:', error)
     return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
@@ -34,18 +33,14 @@ export async function POST(request: NextRequest) {
     }
     
     const reportData = {
-      user_id: userId,
-      title,
-      content: JSON.stringify(content),
-      generated_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
+      userId,
+      name: title,
+      description: `Generated report: ${title}`,
+      periodConfigs: JSON.stringify(content),
+      isPublic: false
     }
     
-    const result = await db.execute(sql`
-      INSERT INTO reports (user_id, title, content, generated_at, created_at)
-      VALUES (${reportData.user_id}, ${reportData.title}, ${reportData.content}, ${reportData.generated_at}, ${reportData.created_at})
-      RETURNING id
-    `)
+    const result = await db.insert(reports).values(reportData).returning()
     
     return NextResponse.json({ 
       success: true, 

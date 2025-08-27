@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sql } from 'drizzle-orm'
+import { sessions } from '@/shared/schema'
+import { eq } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,13 +12,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
     
-    const sessions = await db.execute(sql`
-      SELECT * FROM session_history 
-      WHERE user_id = ${userId} 
-      ORDER BY created_at DESC
-    `)
+    const userSessions = await db.select().from(sessions).where(
+      eq(sessions.userId, userId)
+    ).orderBy(sessions.createdAt)
     
-    return NextResponse.json(sessions)
+    return NextResponse.json(userSessions)
   } catch (error) {
     console.error('Error fetching sessions:', error)
     return NextResponse.json({ error: "Failed to fetch sessions" }, { status: 500 })
@@ -34,26 +33,18 @@ export async function POST(request: NextRequest) {
     }
     
     const sessionData = {
-      user_id: userId,
-      session_data: JSON.stringify({
-        name,
-        description,
-        greyfinchData,
-        acquisitionCosts,
-        periods,
-        aiSummary,
-        reportData,
-        createdAt: new Date().toISOString()
-      }),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      userId,
+      name: name || `Analysis Session ${new Date().toLocaleDateString()}`,
+      description: description || 'Comprehensive analysis session with Greyfinch data and AI insights',
+      greyfinchData: greyfinchData || null,
+      acquisitionCosts: acquisitionCosts || null,
+      periods: periods || null,
+      aiSummary: aiSummary || null,
+      metadata: reportData || null,
+      isActive: true
     }
     
-    const result = await db.execute(sql`
-      INSERT INTO session_history (user_id, session_data, created_at, updated_at)
-      VALUES (${sessionData.user_id}, ${sessionData.session_data}, ${sessionData.created_at}, ${sessionData.updated_at})
-      RETURNING id
-    `)
+    const result = await db.insert(sessions).values(sessionData).returning()
     
     return NextResponse.json({ 
       success: true, 
