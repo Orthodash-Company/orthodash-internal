@@ -3,15 +3,15 @@ import { greyfinchService } from '@/lib/services/greyfinch'
 
 export async function GET() {
   try {
-    // Test the connection first
+    // Test the connection first (without credentials - will return "not configured" status)
     const connectionTest = await greyfinchService.testConnection();
     
     if (!connectionTest.success) {
       return NextResponse.json({
         success: false,
         message: connectionTest.message,
-        error: 'Connection failed'
-      }, { status: 500 })
+        error: connectionTest.error || 'Connection failed'
+      }, { status: 400 }) // Changed from 500 to 400 for "not configured" status
     }
 
     // Pull basic counts to verify data access
