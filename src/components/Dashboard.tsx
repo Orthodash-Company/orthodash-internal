@@ -9,7 +9,7 @@ import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
 import { GreyfinchSetup } from './GreyfinchSetup';
 import { PDFReportGenerator } from './PDFReportGenerator';
-import { SessionHistoryManager } from './SessionHistoryManager';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -243,7 +243,7 @@ export default function Dashboard() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('greyfinchData', JSON.stringify(data));
     }
-  };
+    };
 
   // Session management handlers
   const handleRestoreSession = (session: any) => {
@@ -276,6 +276,8 @@ export default function Dashboard() {
     console.log('Share session:', session);
   };
 
+ 
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
@@ -293,19 +295,16 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <SimpleHeader />
+      <SimpleHeader 
+        onRestoreSession={handleRestoreSession}
+        onPreviewSession={handlePreviewSession}
+        onDownloadSession={handleDownloadSession}
+        onShareSession={handleShareSession}
+      />
       
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
-          {/* Session History Button */}
-          <div className="flex justify-end">
-            <SessionHistoryManager
-              onRestoreSession={handleRestoreSession}
-              onPreviewSession={handlePreviewSession}
-              onDownloadSession={handleDownloadSession}
-              onShareSession={handleShareSession}
-            />
-          </div>
+
           {/* Tabs Container */}
           <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-200 ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
             <CardHeader className="pb-4">

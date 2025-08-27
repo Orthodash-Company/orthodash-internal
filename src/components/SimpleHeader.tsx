@@ -12,8 +12,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReportsManager } from "./ReportsManager";
+import { SessionHistoryManager } from "./SessionHistoryManager";
 
-export function SimpleHeader() {
+interface SimpleHeaderProps {
+  onRestoreSession?: (session: any) => void;
+  onPreviewSession?: (session: any) => void;
+  onDownloadSession?: (session: any) => void;
+  onShareSession?: (session: any) => void;
+}
+
+export function SimpleHeader({ 
+  onRestoreSession,
+  onPreviewSession,
+  onDownloadSession,
+  onShareSession
+}: SimpleHeaderProps = {}) {
   const { user, logoutMutation } = useAuth();
 
   const handleLogout = () => {
@@ -39,6 +52,22 @@ export function SimpleHeader() {
             <div className="flex items-center space-x-3">
               {user && (
                 <>
+                  <SessionHistoryManager
+                    trigger={
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl"
+                      >
+                        <History className="h-4 w-4" />
+                        <span className="hidden sm:inline ml-2 font-medium">Session History</span>
+                      </Button>
+                    }
+                    onRestoreSession={onRestoreSession}
+                    onPreviewSession={onPreviewSession}
+                    onDownloadSession={onDownloadSession}
+                    onShareSession={onShareSession}
+                  />
                   <ReportsManager 
                     trigger={
                       <Button 

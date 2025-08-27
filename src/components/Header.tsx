@@ -2,6 +2,7 @@ import { User, ChartLine, LogOut, Menu, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { ReportsManager } from "./ReportsManager";
+import { SessionHistoryManager } from "./SessionHistoryManager";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -33,10 +34,14 @@ export function Header() {
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center space-x-3">
             {/* Session History */}
-            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-[#1d1d52] hover:bg-gray-100">
-              <History className="h-4 w-4" />
-              <span className="ml-2 hidden xl:inline">Sessions</span>
-            </Button>
+            <SessionHistoryManager
+              trigger={
+                <Button variant="ghost" size="sm" className="text-gray-600 hover:text-[#1d1d52] hover:bg-gray-100">
+                  <History className="h-4 w-4" />
+                  <span className="ml-2 hidden xl:inline">Sessions</span>
+                </Button>
+              }
+            />
 
             {/* Reports History */}
             <ReportsManager 
@@ -130,10 +135,14 @@ export function Header() {
                       <ChartLine className="h-5 w-5" />
                       <span>Dashboard</span>
                     </a>
-                    <button className="flex items-center space-x-3 text-gray-700 hover:text-[#1d1d52] w-full text-left">
-                      <History className="h-5 w-5" />
-                      <span className="hidden sm:inline">Sessions</span>
-                    </button>
+                    <SessionHistoryManager
+                      trigger={
+                        <button className="flex items-center space-x-3 text-gray-700 hover:text-[#1d1d52] w-full text-left">
+                          <History className="h-5 w-5" />
+                          <span className="hidden sm:inline">Sessions</span>
+                        </button>
+                      }
+                    />
                     <ReportsManager 
                       trigger={
                         <button className="flex items-center space-x-3 text-gray-700 hover:text-[#1d1d52] w-full text-left">
