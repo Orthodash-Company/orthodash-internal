@@ -186,7 +186,7 @@ export class GreyfinchService {
       try {
         const locationsData = await this.makeGraphQLRequest(`
           query GetLocations {
-            locations(
+            divisions(
               limit: 50
               orderBy: {name: ASC}
             ) {
@@ -196,11 +196,11 @@ export class GreyfinchService {
           }
         `)
         
-        if (locationsData?.locations) {
-          data.locations = locationsData.locations
-          data.counts.locations = locationsData.locations.length
+        if (locationsData?.divisions) {
+          data.locations = locationsData.divisions
+          data.counts.locations = locationsData.divisions.length
           console.log('Locations loaded:', data.counts.locations)
-          console.log('Location details:', JSON.stringify(locationsData.locations, null, 2))
+          console.log('Location details:', JSON.stringify(locationsData.divisions, null, 2))
         }
       } catch (e) {
         console.log('Locations query failed:', e)
@@ -215,10 +215,8 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              person {
-                firstName
-                lastName
-              }
+              firstName
+              lastName
             }
           }
         `)
@@ -240,10 +238,8 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              person {
-                firstName
-                lastName
-              }
+              firstName
+              lastName
               status
             }
           }
@@ -266,10 +262,8 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              bookings {
-                localStartDate
-                localStartTime
-              }
+              startDate
+              startTime
             }
           }
         `)
@@ -286,19 +280,19 @@ export class GreyfinchService {
       try {
         const bookingsData = await this.makeGraphQLRequest(`
           query GetBookings {
-            appointmentBookings(
+            bookings(
               limit: 100
-              orderBy: {localStartDate: DESC}
+              orderBy: {startDate: DESC}
             ) {
               id
-              localStartDate
-              localStartTime
+              startDate
+              startTime
             }
           }
         `)
         
-        if (bookingsData?.appointmentBookings) {
-          data.counts.bookings = bookingsData.appointmentBookings.length
+        if (bookingsData?.bookings) {
+          data.counts.bookings = bookingsData.bookings.length
           console.log('Bookings loaded:', data.counts.bookings)
         }
       } catch (e) {
@@ -349,14 +343,13 @@ export class GreyfinchService {
       try {
         const locationsData = await this.makeGraphQLRequest(`
           query GetLocations {
-            locations(limit: 50) {
+            divisions(limit: 50) {
               id
               name
-              address
             }
           }
         `)
-        detailedData.locations = locationsData?.locations || []
+        detailedData.locations = locationsData?.divisions || []
         console.log('Pulled locations:', detailedData.locations.length)
       } catch (e) {
         console.log('Locations query failed:', e)
@@ -368,19 +361,8 @@ export class GreyfinchService {
           query GetPatients {
             patients(limit: 100) {
               id
-              person {
-                id
-                firstName
-                lastName
-              }
-              treatments(limit: 5) {
-                id
-                      name
-                status {
-                  type
-                  name
-                }
-              }
+              firstName
+              lastName
             }
           }
         `)
@@ -396,10 +378,8 @@ export class GreyfinchService {
           query GetAppointments {
             appointments(limit: 100) {
               id
-              bookings {
-                localStartDate
-                localStartTime
-              }
+              startDate
+              startTime
             }
           }
         `)
