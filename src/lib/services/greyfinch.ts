@@ -155,48 +155,67 @@ export class GreyfinchService {
     }
   }
 
-  // Pull basic counts only (fast, safe)
+  // Pull comprehensive data for counters and analysis
   async pullBasicCounts(userId: string) {
     try {
-      console.log('Pulling basic counts from Greyfinch...')
+      console.log('Pulling comprehensive data from Greyfinch...')
       
-      const counts = {
-        patients: 0,
-        locations: 0,
-        appointments: 0,
-        leads: 0,
-        treatments: 0,
-        companies: 0,
-        apps: 0,
-        appointmentBookings: 0
+      const data = {
+        counts: {
+          patients: 0,
+          locations: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0
+        },
+        locations: [],
+        periodData: {}
       }
 
-      // Get locations count
+      // Get locations with names and basic info
       try {
         const locationsData = await this.makeGraphQLRequest(`
-          query GetLocationsCount {
-            locations(limit: 1) {
+          query GetLocations {
+            locations {
               id
+              name
+              address
             }
           }
         `)
-        counts.locations = locationsData?.locations?.length || 0
-        console.log('Locations count:', counts.locations)
+        
+        if (locationsData?.locations) {
+          data.locations = locationsData.locations
+          data.counts.locations = locationsData.locations.length
+          console.log('Locations loaded:', data.counts.locations)
+        }
       } catch (e) {
         console.log('Locations query failed:', e)
       }
 
-      // Get patients count
+      // Get patients count and basic info
       try {
         const patientsData = await this.makeGraphQLRequest(`
-          query GetPatientsCount {
-            patients(limit: 1) {
+          query GetPatients {
+            patients {
               id
+              person {
+                firstName
+                lastName
+              }
+              location {
+                id
+                name
+              }
             }
           }
         `)
-        counts.patients = patientsData?.patients?.length || 0
-        console.log('Patients count:', counts.patients)
+        
+        if (patientsData?.patients) {
+          data.counts.patients = patientsData.patients.length
+          data.counts.leads = patientsData.patients.length // Using patients as leads
+          console.log('Patients loaded:', data.counts.patients)
+        }
       } catch (e) {
         console.log('Patients query failed:', e)
       }
@@ -204,28 +223,63 @@ export class GreyfinchService {
       // Get appointments count
       try {
         const appointmentsData = await this.makeGraphQLRequest(`
-          query GetAppointmentsCount {
-            appointments(limit: 1) {
+          query GetAppointments {
+            appointments {
               id
+              location {
+                id
+                name
+              }
+              bookings {
+                localStartDate
+                localStartTime
+              }
             }
           }
         `)
-        counts.appointments = appointmentsData?.appointments?.length || 0
-        console.log('Appointments count:', counts.appointments)
+        
+        if (appointmentsData?.appointments) {
+          data.counts.appointments = appointmentsData.appointments.length
+          console.log('Appointments loaded:', data.counts.appointments)
+        }
       } catch (e) {
         console.log('Appointments query failed:', e)
       }
 
-      // Get leads count (using patients as leads for now)
-      counts.leads = counts.patients
+      // Get bookings count
+      try {
+        const bookingsData = await this.makeGraphQLRequest(`
+          query GetBookings {
+            appointmentBookings {
+              id
+              localStartDate
+              localStartTime
+              appointment {
+                location {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        `)
+        
+        if (bookingsData?.appointmentBookings) {
+          data.counts.bookings = bookingsData.appointmentBookings.length
+          console.log('Bookings loaded:', data.counts.bookings)
+        }
+      } catch (e) {
+        console.log('Bookings query failed:', e)
+      }
 
       return {
         success: true,
-        counts,
-        message: 'Basic counts pulled successfully'
+        counts: data.counts,
+        locations: data.locations,
+        message: 'Comprehensive data pulled successfully'
       }
     } catch (error) {
-      console.error('Error pulling basic counts:', error)
+      console.error('Error pulling comprehensive data:', error)
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -234,11 +288,9 @@ export class GreyfinchService {
           locations: 0,
           appointments: 0,
           leads: 0,
-          treatments: 0,
-          companies: 0,
-          apps: 0,
-          appointmentBookings: 0
-        }
+          bookings: 0
+        },
+        locations: []
       }
     }
   }
@@ -347,28 +399,44 @@ export class GreyfinchService {
     }
   }
 
-  // Pull data for specific time period
+  // Pull data for specific time period with location filtering
   async pullPeriodData(periodConfig: any) {
     try {
-      const { startDate, endDate, locationId } = periodConfig
+      const { startDate, endDate, locationId, locationName } = periodConfig
+      console.log(`Pulling period data for ${locationName || 'all locations'} from ${startDate} to ${endDate}`)
       
       const periodData = {
+        locationName: locationName || 'All Locations',
         leads: [],
         patients: [],
         appointments: [],
+        bookings: [],
         revenue: 0,
-        costs: 0
+        costs: 0,
+        counts: {
+          leads: 0,
+          patients: 0,
+          appointments: 0,
+          bookings: 0
+        }
       }
+
+      // Build location filter
+      const locationFilter = locationId ? `, locationId: {_eq: "${locationId}"}` : ''
 
       // Get leads/patients for this period
       try {
         const leadsQuery = `
           query GetPeriodLeads($startDate: timestamptz, $endDate: timestamptz) {
-            patients(where: {createdAt: {_gte: $startDate, _lte: $endDate}}, limit: 50) {
+            patients(where: {createdAt: {_gte: $startDate, _lte: $endDate}${locationFilter}}, limit: 100) {
               id
               person {
                 firstName
                 lastName
+              }
+              location {
+                id
+                name
               }
               createdAt
             }
@@ -376,6 +444,8 @@ export class GreyfinchService {
         `
         const leadsData = await this.makeGraphQLRequest(leadsQuery, { startDate, endDate })
         periodData.leads = leadsData?.patients || []
+        periodData.counts.leads = periodData.leads.length
+        console.log(`Period leads for ${periodData.locationName}:`, periodData.counts.leads)
       } catch (e) {
         console.log('Period leads query failed:', e)
       }
@@ -384,8 +454,12 @@ export class GreyfinchService {
       try {
         const appointmentsQuery = `
           query GetPeriodAppointments($startDate: timestamptz, $endDate: timestamptz) {
-            appointments(where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}}, limit: 50) {
+            appointments(where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}${locationFilter}}, limit: 100) {
               id
+              location {
+                id
+                name
+              }
               bookings {
                 localStartDate
                 localStartTime
@@ -395,19 +469,54 @@ export class GreyfinchService {
         `
         const appointmentsData = await this.makeGraphQLRequest(appointmentsQuery, { startDate, endDate })
         periodData.appointments = appointmentsData?.appointments || []
+        periodData.counts.appointments = periodData.appointments.length
+        console.log(`Period appointments for ${periodData.locationName}:`, periodData.counts.appointments)
       } catch (e) {
         console.log('Period appointments query failed:', e)
+      }
+
+      // Get bookings for this period
+      try {
+        const bookingsQuery = `
+          query GetPeriodBookings($startDate: timestamptz, $endDate: timestamptz) {
+            appointmentBookings(where: {localStartDate: {_gte: $startDate, _lte: $endDate}}, limit: 100) {
+              id
+              localStartDate
+              localStartTime
+              appointment {
+                location {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        `
+        const bookingsData = await this.makeGraphQLRequest(bookingsQuery, { startDate, endDate })
+        periodData.bookings = bookingsData?.appointmentBookings || []
+        periodData.counts.bookings = periodData.bookings.length
+        console.log(`Period bookings for ${periodData.locationName}:`, periodData.counts.bookings)
+      } catch (e) {
+        console.log('Period bookings query failed:', e)
       }
 
       return periodData
     } catch (error) {
       console.error('Error pulling period data:', error)
       return {
+        locationName: 'All Locations',
         leads: [],
         patients: [],
         appointments: [],
+        bookings: [],
         revenue: 0,
-        costs: 0
+        costs: 0,
+        counts: {
+          leads: 0,
+          patients: 0,
+          appointments: 0,
+          bookings: 0
+        }
       }
     }
   }

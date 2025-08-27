@@ -40,16 +40,17 @@ export async function POST(request: NextRequest) {
     if (result.success) {
       return NextResponse.json({
         success: true,
-        message: 'Basic counts pulled successfully',
+        message: 'Comprehensive data pulled successfully',
         data: {
           counts: result.counts,
+          locations: result.locations || [],
           pulledAt: new Date().toISOString()
         }
       })
     } else {
       return NextResponse.json({
         success: false,
-        message: result.message || 'Failed to pull basic counts',
+        message: result.message || 'Failed to pull comprehensive data',
         error: result.message
       }, { status: 500 })
     }
