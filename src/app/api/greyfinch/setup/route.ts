@@ -12,11 +12,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Test the connection with provided credentials
-    const connectionTest = await greyfinchService.testConnection({
-      apiKey,
-      apiUrl: 'https://api.greyfinch.com/graphql' // Default URL
-    })
+    console.log('Setting up Greyfinch connection for user:', userId)
+    
+    // Update the service with the provided credentials
+    greyfinchService.updateCredentials(apiKey)
+    
+    // Test the connection
+    const connectionTest = await greyfinchService.testConnection()
     
     if (!connectionTest.success) {
       return NextResponse.json({ 
@@ -27,16 +29,15 @@ export async function POST(request: NextRequest) {
     }
     
     // Pull basic counts to verify data access
-    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user', {
-      apiKey,
-      apiUrl: 'https://api.greyfinch.com/graphql' // Default URL
-    })
+    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user')
     
     return NextResponse.json({ 
       success: true, 
       message: 'Greyfinch connection successful',
-      connectionTest: connectionTest.data,
-      basicCounts: basicCounts.counts
+      data: {
+        connectionTest: connectionTest.data,
+        basicCounts: basicCounts.counts
+      }
     })
   } catch (error) {
     console.error('Greyfinch setup failed:', error)

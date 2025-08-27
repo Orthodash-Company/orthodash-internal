@@ -7,37 +7,40 @@ export class GreyfinchService {
   constructor() {
     this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/graphql'
     this.apiKey = process.env.GREYFINCH_API_KEY || ''
+  }
+
+  // Update credentials dynamically
+  updateCredentials(apiKey: string, apiUrl?: string) {
+    this.apiKey = apiKey
+    if (apiUrl) {
+      this.apiUrl = apiUrl
+    }
     
-    // Log configuration for debugging (without exposing sensitive data)
-    console.log('Greyfinch service initialized with:', {
+    console.log('Greyfinch credentials updated:', {
       apiUrl: this.apiUrl,
       hasApiKey: !!this.apiKey,
       apiKeyLength: this.apiKey.length
     })
   }
 
-  private async makeGraphQLRequest(query: string, variables: any = {}, credentials?: { apiKey?: string; apiUrl?: string }) {
+  private async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
-      // Use provided credentials or fall back to environment variables
-      const apiKey = credentials?.apiKey || this.apiKey
-      const apiUrl = credentials?.apiUrl || this.apiUrl
-      
       // Validate configuration
-      if (!apiKey) {
-        throw new Error('Greyfinch API key is not configured. Please provide API key or set GREYFINCH_API_KEY environment variable.')
+      if (!this.apiKey) {
+        throw new Error('Greyfinch API key is not configured. Please provide API credentials.')
       }
       
-      if (!apiUrl) {
-        throw new Error('Greyfinch API URL is not configured. Please provide API URL or set GREYFINCH_API_URL environment variable.')
+      if (!this.apiUrl) {
+        throw new Error('Greyfinch API URL is not configured. Please provide API URL.')
       }
 
-      console.log(`Making GraphQL request to: ${apiUrl}`)
+      console.log(`Making GraphQL request to: ${this.apiUrl}`)
       
-      const response = await fetch(apiUrl, {
+      const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
           query,
@@ -66,7 +69,7 @@ export class GreyfinchService {
   }
 
   // Pull basic counts only (fast, safe)
-  async pullBasicCounts(userId: string, credentials?: { apiKey?: string; apiUrl?: string }) {
+  async pullBasicCounts(userId: string) {
     try {
       console.log('Pulling basic counts from Greyfinch...')
       
@@ -89,7 +92,7 @@ export class GreyfinchService {
               id
             }
           }
-        `, {}, credentials)
+        `)
         counts.locations = locationsData?.locations?.length || 0
         console.log('Locations count:', counts.locations)
       } catch (e) {
@@ -104,7 +107,7 @@ export class GreyfinchService {
               id
             }
           }
-        `, {}, credentials)
+        `)
         counts.patients = patientsData?.patients?.length || 0
         console.log('Patients count:', counts.patients)
       } catch (e) {
@@ -119,7 +122,7 @@ export class GreyfinchService {
               id
             }
           }
-        `, {}, credentials)
+        `)
         counts.appointments = appointmentsData?.appointments?.length || 0
         console.log('Appointments count:', counts.appointments)
       } catch (e) {
@@ -323,27 +326,23 @@ export class GreyfinchService {
   }
 
   // Test connection with basic query
-  async testConnection(credentials?: { apiKey?: string; apiUrl?: string }) {
+  async testConnection() {
     try {
       console.log('Testing Greyfinch API connection...')
       
-      // Use provided credentials or fall back to environment variables
-      const apiKey = credentials?.apiKey || this.apiKey
-      const apiUrl = credentials?.apiUrl || this.apiUrl
-      
       // First check if we have the required configuration
-      if (!apiKey) {
+      if (!this.apiKey) {
         return {
           success: false,
-          message: 'Greyfinch API key is not configured. Please provide API key or set GREYFINCH_API_KEY environment variable.',
+          message: 'Greyfinch API key is not configured. Please set GREYFINCH_API_KEY environment variable.',
           error: 'MISSING_API_KEY'
         }
       }
       
-      if (!apiUrl) {
+      if (!this.apiUrl) {
         return {
           success: false,
-          message: 'Greyfinch API URL is not configured. Please provide API URL or set GREYFINCH_API_URL environment variable.',
+          message: 'Greyfinch API URL is not configured. Please set GREYFINCH_API_URL environment variable.',
           error: 'MISSING_API_URL'
         }
       }
@@ -355,7 +354,7 @@ export class GreyfinchService {
             name
           }
         }
-      `, {}, credentials)
+      `)
       
       return {
         success: true,

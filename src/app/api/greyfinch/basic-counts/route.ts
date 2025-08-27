@@ -3,13 +3,18 @@ import { greyfinchService } from '@/lib/services/greyfinch'
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await request.json()
+    const { userId, apiKey } = await request.json()
     
     if (!userId) {
       return NextResponse.json({ 
         success: false, 
         message: 'User ID is required' 
       }, { status: 400 })
+    }
+    
+    // Update credentials if provided
+    if (apiKey) {
+      greyfinchService.updateCredentials(apiKey)
     }
     
     console.log('Pulling basic counts for user:', userId)

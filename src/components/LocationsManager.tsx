@@ -49,6 +49,10 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const checkConnectionAndFetchLocations = async () => {
     setIsLoading(true);
     try {
+      // Get stored credentials
+      const storedCredentials = localStorage.getItem('greyfinch-credentials');
+      const credentials = storedCredentials ? JSON.parse(storedCredentials) : null;
+      
       const response = await fetch('/api/greyfinch/test', {
         method: 'GET',
         headers: {
@@ -131,11 +135,18 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         throw new Error('Database initialization failed');
       }
       
+      // Get stored credentials
+      const storedCredentials = localStorage.getItem('greyfinch-credentials');
+      const credentials = storedCredentials ? JSON.parse(storedCredentials) : null;
+      
       // Pull basic counts first (fast and safe)
       const response = await fetch('/api/greyfinch/basic-counts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ 
+          userId: user.id,
+          apiKey: credentials?.apiKey || null
+        }),
       });
       const data = await response.json();
 
