@@ -17,7 +17,8 @@ export class GreyfinchService {
       hasApiKey: !!this.apiKey,
       apiKeyLength: this.apiKey.length,
       envApiKey: !!process.env.GREYFINCH_API_KEY,
-      envApiUrl: !!process.env.GREYFINCH_API_URL
+      envApiUrl: !!process.env.GREYFINCH_API_URL,
+      apiKeyPrefix: this.apiKey.substring(0, 8) + '...' // Show first 8 chars for debugging
     })
   }
 
@@ -112,18 +113,19 @@ export class GreyfinchService {
 
       console.log(`Making GraphQL request to: ${this.apiUrl}`)
       
-      const response = await fetch(this.apiUrl, {
-          method: 'POST',
+            const response = await fetch(this.apiUrl, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
-          'X-API-Key': this.apiKey, // Try alternative header format
+          'X-API-Key': this.apiKey,
+          'X-API-Secret': process.env.GREYFINCH_API_SECRET || '', // Try adding secret
         },
-          body: JSON.stringify({
-            query,
+        body: JSON.stringify({
+          query,
           variables,
         }),
-        })
+      })
 
         if (!response.ok) {
         const errorText = await response.text()
@@ -618,7 +620,9 @@ export class GreyfinchService {
         this.apiUrl,
         'https://connect-api.greyfinch.com/v1/graphql',
         'https://api.greyfinch.com/graphql',
-        'https://api.greyfinch.com/v1/graphql'
+        'https://api.greyfinch.com/v1/graphql',
+        'https://api.greyfinch.com/v2/graphql', // Try v2
+        'https://connect-api.greyfinch.com/graphql' // Try without v1
       ]
       
       for (const url of possibleUrls) {
