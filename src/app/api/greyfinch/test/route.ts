@@ -45,8 +45,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Test the connection
-    const connectionTest = await greyfinchService.testConnection();
+    // Test the connection with provided credentials
+    const connectionTest = await greyfinchService.testConnection({
+      apiKey,
+      apiUrl: 'https://api.greyfinch.com/graphql' // Default URL
+    });
     
     if (!connectionTest.success) {
       return NextResponse.json({
@@ -57,7 +60,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Pull basic counts to verify data access
-    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user')
+    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user', {
+      apiKey,
+      apiUrl: 'https://api.greyfinch.com/graphql' // Default URL
+    })
     
     return NextResponse.json({
       success: true,

@@ -5,15 +5,18 @@ export async function POST(request: NextRequest) {
   try {
     const { apiKey, apiSecret, userId } = await request.json()
     
-    if (!apiKey || !apiSecret) {
+    if (!apiKey) {
       return NextResponse.json({ 
         success: false, 
-        message: 'API key and secret are required' 
+        message: 'API key is required' 
       }, { status: 400 })
     }
     
-    // Test the connection
-    const connectionTest = await greyfinchService.testConnection()
+    // Test the connection with provided credentials
+    const connectionTest = await greyfinchService.testConnection({
+      apiKey,
+      apiUrl: 'https://api.greyfinch.com/graphql' // Default URL
+    })
     
     if (!connectionTest.success) {
       return NextResponse.json({ 
@@ -24,7 +27,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Pull basic counts to verify data access
-    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user')
+    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user', {
+      apiKey,
+      apiUrl: 'https://api.greyfinch.com/graphql' // Default URL
+    })
     
     return NextResponse.json({ 
       success: true, 
