@@ -10,6 +10,12 @@ export async function GET(request: NextRequest) {
     // If API key is provided, update the service credentials
     if (apiKey) {
       greyfinchService.updateCredentials(apiKey)
+    } else {
+      // Auto-load from environment variables
+      const envApiKey = process.env.GREYFINCH_API_KEY
+      if (envApiKey) {
+        greyfinchService.updateCredentials(envApiKey)
+      }
     }
     
     // Test the connection (will auto-retrieve credentials if userId is provided)

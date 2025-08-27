@@ -12,17 +12,23 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Update credentials if provided, otherwise try to retrieve from database
+    // Update credentials if provided, otherwise use environment variables
     if (apiKey) {
       greyfinchService.updateCredentials(apiKey)
     } else {
-      // Try to retrieve credentials from database
-      const credentials = await greyfinchService.getCredentials(userId)
-      if (!credentials) {
-        return NextResponse.json({ 
-          success: false, 
-          message: 'No API credentials found. Please set up your Greyfinch API credentials in the Connections tab.' 
-        }, { status: 400 })
+      // Auto-load from environment variables
+      const envApiKey = process.env.GREYFINCH_API_KEY
+      if (envApiKey) {
+        greyfinchService.updateCredentials(envApiKey)
+      } else {
+        // Try to retrieve credentials from database as fallback
+        const credentials = await greyfinchService.getCredentials(userId)
+        if (!credentials) {
+          return NextResponse.json({ 
+            success: false, 
+            message: 'No API credentials found. Please check environment variables or set up your Greyfinch API credentials in the Connections tab.' 
+          }, { status: 400 })
+        }
       }
     }
     

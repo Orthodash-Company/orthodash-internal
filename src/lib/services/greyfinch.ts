@@ -9,7 +9,8 @@ export class GreyfinchService {
   constructor() {
     // Use the correct Greyfinch API URL
     this.apiUrl = process.env.GREYFINCH_API_URL || 'https://connect-api.greyfinch.com/v1/graphql'
-    this.apiKey = ''
+    // Auto-load credentials from environment variables
+    this.apiKey = process.env.GREYFINCH_API_KEY || ''
   }
 
   // Update credentials dynamically
@@ -408,16 +409,16 @@ export class GreyfinchService {
     try {
       console.log('Testing Greyfinch API connection...')
       
-      // If no API key is set but userId is provided, try to retrieve from database
+      // Auto-load credentials from environment if not set
+      if (!this.apiKey) {
+        this.apiKey = process.env.GREYFINCH_API_KEY || ''
+      }
+      
+      // If still no API key, try to retrieve from database
       if (!this.apiKey && userId) {
         const credentials = await this.getCredentials(userId)
-        if (!credentials) {
-          return {
-            success: false,
-            message: 'Greyfinch API key is not configured. Please set up your API credentials in the Connections tab.',
-            error: 'MISSING_API_KEY',
-            data: null
-          }
+        if (credentials) {
+          this.apiKey = credentials.apiKey
         }
       }
       
@@ -425,7 +426,7 @@ export class GreyfinchService {
       if (!this.apiKey) {
         return {
           success: false,
-          message: 'Greyfinch API key is not configured. Please set up your API credentials in the Connections tab.',
+          message: 'Greyfinch API key is not configured. Please check environment variables or set up credentials in the Connections tab.',
           error: 'MISSING_API_KEY',
           data: null
         }
