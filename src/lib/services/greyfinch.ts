@@ -226,10 +226,6 @@ export class GreyfinchService {
                 firstName
                 lastName
               }
-              division {
-                id
-                name
-              }
             }
           }
         `)
@@ -256,10 +252,6 @@ export class GreyfinchService {
               email
               phone
               status
-              division {
-                id
-                name
-              }
             }
           }
         `)
@@ -281,10 +273,6 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              division {
-                id
-                name
-              }
               bookings {
                 localStartDate
                 localStartTime
@@ -312,12 +300,6 @@ export class GreyfinchService {
               id
               localStartDate
               localStartTime
-              appointment {
-                division {
-                  id
-                  name
-                }
-              }
             }
           }
         `)
@@ -487,7 +469,7 @@ export class GreyfinchService {
         const leadsQuery = `
           query GetPeriodLeads($startDate: timestamptz, $endDate: timestamptz) {
             leads(
-              where: {createdAt: {_gte: $startDate, _lte: $endDate}${divisionFilter}}
+              where: {createdAt: {_gte: $startDate, _lte: $endDate}}
               limit: 100
               orderBy: {createdAt: DESC}
             ) {
@@ -497,10 +479,6 @@ export class GreyfinchService {
               email
               phone
               status
-              division {
-                id
-                name
-              }
               createdAt
             }
           }
@@ -518,15 +496,11 @@ export class GreyfinchService {
         const appointmentsQuery = `
           query GetPeriodAppointments($startDate: timestamptz, $endDate: timestamptz) {
             appointments(
-              where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}${divisionFilter}}
+              where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}}
               limit: 100
               orderBy: {createdAt: DESC}
             ) {
               id
-              division {
-                id
-                name
-              }
               bookings {
                 localStartDate
                 localStartTime
