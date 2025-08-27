@@ -119,14 +119,21 @@ export class GreyfinchService {
         'X-API-Secret': process.env.GREYFINCH_API_SECRET ? '***' : 'none'
       })
       
+      // Try different authentication formats
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-API-Key': this.apiKey,
+        'X-API-Secret': process.env.GREYFINCH_API_SECRET || '',
+      }
+      
+      // Add Authorization header without Bearer prefix (some APIs prefer this)
+      if (this.apiKey) {
+        headers['Authorization'] = this.apiKey
+      }
+      
       const response = await fetch(this.apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'X-API-Key': this.apiKey,
-          'X-API-Secret': process.env.GREYFINCH_API_SECRET || '',
-        },
+        headers,
         body: JSON.stringify({
           query,
           variables,
