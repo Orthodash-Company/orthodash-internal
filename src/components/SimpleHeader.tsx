@@ -35,9 +35,10 @@ export function SimpleHeader({
 
   return (
     <header className="fixed top-4 left-4 right-4 z-50">
-      <div className="backdrop-blur-xl bg-white/90 border border-[#1C1F4F]/20 rounded-2xl shadow-xl">
-        <div className="max-w-[600px] mx-auto px-4 sm:px-6 py-3 sm:py-4">
+      <div className="backdrop-blur-xl bg-white/90 border border-[#1C1F4F]/20 rounded-2xl shadow-xl mx-auto max-w-[600px]">
+        <div className="px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
+            {/* Logo on the left */}
             <div className="flex items-center">
               <a href="/" className="flex-shrink-0 flex items-center hover:opacity-80 transition-all duration-200 group">
                 <div className="bg-[#1C1F4F] p-1.5 sm:p-2 rounded-xl mr-2 sm:mr-3 shadow-lg group-hover:shadow-xl transition-shadow">
@@ -49,6 +50,7 @@ export function SimpleHeader({
               </a>
             </div>
             
+            {/* Buttons container on the right */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
               {user && (
                 <>

@@ -100,14 +100,6 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
       setCostData(data);
     } catch (error) {
       console.error('Error fetching costs:', error);
-      // Only show error toast for unexpected errors, not for empty periods
-      if (period && error instanceof Error && !error.message.includes('400')) {
-        toast({
-          title: "Error",
-          description: "Failed to load cost data",
-          variant: "destructive"
-        });
-      }
       // Set empty data on error to prevent loading state
       setCostData({
         manual: [],
