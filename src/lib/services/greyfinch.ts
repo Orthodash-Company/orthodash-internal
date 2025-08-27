@@ -176,7 +176,10 @@ export class GreyfinchService {
       try {
         const locationsData = await this.makeGraphQLRequest(`
           query GetLocations {
-            locations {
+            locations(
+              limit: 50
+              orderBy: {name: ASC}
+            ) {
               id
               name
               address
@@ -197,7 +200,10 @@ export class GreyfinchService {
       try {
         const patientsData = await this.makeGraphQLRequest(`
           query GetPatients {
-            patients {
+            patients(
+              limit: 100
+              orderBy: {createdAt: DESC}
+            ) {
               id
               person {
                 firstName
@@ -213,18 +219,53 @@ export class GreyfinchService {
         
         if (patientsData?.patients) {
           data.counts.patients = patientsData.patients.length
-          data.counts.leads = patientsData.patients.length // Using patients as leads
           console.log('Patients loaded:', data.counts.patients)
         }
       } catch (e) {
         console.log('Patients query failed:', e)
       }
 
+      // Get leads count and basic info
+      try {
+        const leadsData = await this.makeGraphQLRequest(`
+          query GetLeads {
+            leads(
+              limit: 100
+              orderBy: {createdAt: DESC}
+            ) {
+              id
+              person {
+                firstName
+                lastName
+              }
+              location {
+                id
+                name
+              }
+              status {
+                type
+                name
+              }
+            }
+          }
+        `)
+        
+        if (leadsData?.leads) {
+          data.counts.leads = leadsData.leads.length
+          console.log('Leads loaded:', data.counts.leads)
+        }
+      } catch (e) {
+        console.log('Leads query failed:', e)
+      }
+
       // Get appointments count
       try {
         const appointmentsData = await this.makeGraphQLRequest(`
           query GetAppointments {
-            appointments {
+            appointments(
+              limit: 100
+              orderBy: {createdAt: DESC}
+            ) {
               id
               location {
                 id
@@ -250,7 +291,10 @@ export class GreyfinchService {
       try {
         const bookingsData = await this.makeGraphQLRequest(`
           query GetBookings {
-            appointmentBookings {
+            appointmentBookings(
+              limit: 100
+              orderBy: {localStartDate: DESC}
+            ) {
               id
               localStartDate
               localStartTime
@@ -424,11 +468,15 @@ export class GreyfinchService {
       // Build location filter
       const locationFilter = locationId ? `, locationId: {_eq: "${locationId}"}` : ''
 
-      // Get leads/patients for this period
+      // Get leads for this period
       try {
         const leadsQuery = `
           query GetPeriodLeads($startDate: timestamptz, $endDate: timestamptz) {
-            patients(where: {createdAt: {_gte: $startDate, _lte: $endDate}${locationFilter}}, limit: 100) {
+            leads(
+              where: {createdAt: {_gte: $startDate, _lte: $endDate}${locationFilter}}
+              limit: 100
+              orderBy: {createdAt: DESC}
+            ) {
               id
               person {
                 firstName
@@ -438,12 +486,16 @@ export class GreyfinchService {
                 id
                 name
               }
+              status {
+                type
+                name
+              }
               createdAt
             }
           }
         `
         const leadsData = await this.makeGraphQLRequest(leadsQuery, { startDate, endDate })
-        periodData.leads = leadsData?.patients || []
+        periodData.leads = leadsData?.leads || []
         periodData.counts.leads = periodData.leads.length
         console.log(`Period leads for ${periodData.locationName}:`, periodData.counts.leads)
       } catch (e) {
@@ -454,7 +506,11 @@ export class GreyfinchService {
       try {
         const appointmentsQuery = `
           query GetPeriodAppointments($startDate: timestamptz, $endDate: timestamptz) {
-            appointments(where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}${locationFilter}}, limit: 100) {
+            appointments(
+              where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}${locationFilter}}
+              limit: 100
+              orderBy: {createdAt: DESC}
+            ) {
               id
               location {
                 id
@@ -479,7 +535,11 @@ export class GreyfinchService {
       try {
         const bookingsQuery = `
           query GetPeriodBookings($startDate: timestamptz, $endDate: timestamptz) {
-            appointmentBookings(where: {localStartDate: {_gte: $startDate, _lte: $endDate}}, limit: 100) {
+            appointmentBookings(
+              where: {localStartDate: {_gte: $startDate, _lte: $endDate}}
+              limit: 100
+              orderBy: {localStartDate: DESC}
+            ) {
               id
               localStartDate
               localStartTime
@@ -656,7 +716,10 @@ export class GreyfinchService {
         body: JSON.stringify({
           query: `
             query TestConnection {
-              locations(limit: 1) {
+              locations(
+                limit: 1
+                orderBy: {name: ASC}
+              ) {
                 id
                 name
               }
