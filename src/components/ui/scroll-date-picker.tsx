@@ -71,7 +71,7 @@ export function ScrollDatePicker({
   const scrollToCenter = (ref: React.RefObject<HTMLDivElement>, index: number) => {
     if (ref.current) {
       const itemHeight = 40; // Height of each scroll item
-      const containerHeight = 120; // Height of visible container
+      const containerHeight = 128; // Updated height of visible container (h-32 = 128px)
       const scrollTop = (index * itemHeight) - (containerHeight / 2) + (itemHeight / 2);
       ref.current.scrollTop = scrollTop;
     }
@@ -117,7 +117,14 @@ export function ScrollDatePicker({
           <ChevronDown className="ml-auto h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent 
+        className="w-auto p-0 z-[9999]" 
+        align="center"
+        side="bottom"
+        sideOffset={8}
+        avoidCollisions={true}
+        collisionPadding={16}
+      >
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium">Select Date</h3>
@@ -141,10 +148,10 @@ export function ScrollDatePicker({
                 <div className="absolute inset-x-0 top-1/2 h-10 bg-blue-50 border-y border-blue-200 -translate-y-1/2 pointer-events-none rounded" />
                 <div 
                   ref={monthRef}
-                  className="h-30 overflow-y-auto scrollbar-hide"
+                  className="h-32 overflow-y-auto scrollbar-hide"
                   style={{ scrollSnapType: 'y mandatory' }}
                 >
-                  <div className="h-20" /> {/* Spacer */}
+                  <div className="h-8" /> {/* Reduced spacer */}
                   {months.map((month, index) => (
                     <div
                       key={month}
@@ -158,7 +165,7 @@ export function ScrollDatePicker({
                       {month}
                     </div>
                   ))}
-                  <div className="h-20" /> {/* Spacer */}
+                  <div className="h-8" /> {/* Reduced spacer */}
                 </div>
               </div>
             </div>
@@ -170,10 +177,10 @@ export function ScrollDatePicker({
                 <div className="absolute inset-x-0 top-1/2 h-10 bg-blue-50 border-y border-blue-200 -translate-y-1/2 pointer-events-none rounded" />
                 <div 
                   ref={dayRef}
-                  className="h-30 overflow-y-auto scrollbar-hide"
+                  className="h-32 overflow-y-auto scrollbar-hide"
                   style={{ scrollSnapType: 'y mandatory' }}
                 >
-                  <div className="h-20" /> {/* Spacer */}
+                  <div className="h-8" /> {/* Reduced spacer */}
                   {generateDays().map((day) => (
                     <div
                       key={day}
@@ -187,7 +194,7 @@ export function ScrollDatePicker({
                       {day}
                     </div>
                   ))}
-                  <div className="h-20" /> {/* Spacer */}
+                  <div className="h-8" /> {/* Reduced spacer */}
                 </div>
               </div>
             </div>
@@ -199,10 +206,10 @@ export function ScrollDatePicker({
                 <div className="absolute inset-x-0 top-1/2 h-10 bg-blue-50 border-y border-blue-200 -translate-y-1/2 pointer-events-none rounded" />
                 <div 
                   ref={yearRef}
-                  className="h-30 overflow-y-auto scrollbar-hide"
+                  className="h-32 overflow-y-auto scrollbar-hide"
                   style={{ scrollSnapType: 'y mandatory' }}
                 >
-                  <div className="h-20" /> {/* Spacer */}
+                  <div className="h-8" /> {/* Reduced spacer */}
                   {years.map((year) => (
                     <div
                       key={year}
@@ -216,7 +223,7 @@ export function ScrollDatePicker({
                       {year}
                     </div>
                   ))}
-                  <div className="h-20" /> {/* Spacer */}
+                  <div className="h-8" /> {/* Reduced spacer */}
                 </div>
               </div>
             </div>
