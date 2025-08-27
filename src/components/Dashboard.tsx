@@ -74,7 +74,7 @@ export default function Dashboard() {
     };
   }, [user?.id]);
 
-  // Handle click outside tabs
+  // Handle click outside tabs and escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (tabsRef.current && !tabsRef.current.contains(event.target as Node)) {
@@ -82,13 +82,21 @@ export default function Dashboard() {
       }
     };
 
-    // Only add listener if a tab is active
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && activeTab) {
+        setActiveTab(null);
+      }
+    };
+
+    // Only add listeners if a tab is active
     if (activeTab) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [activeTab]);
 
@@ -306,7 +314,7 @@ export default function Dashboard() {
         <div className="max-w-4xl mx-auto space-y-6">
 
           {/* Tabs Container */}
-          <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-200 ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
+          <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-300 ease-in-out ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
             <CardHeader className="pb-4">
               <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
