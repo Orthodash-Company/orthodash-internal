@@ -415,7 +415,8 @@ export class GreyfinchService {
           return {
             success: false,
             message: 'Greyfinch API key is not configured. Please set up your API credentials in the Connections tab.',
-            error: 'MISSING_API_KEY'
+            error: 'MISSING_API_KEY',
+            data: null
           }
         }
       }
@@ -425,7 +426,8 @@ export class GreyfinchService {
         return {
           success: false,
           message: 'Greyfinch API key is not configured. Please set up your API credentials in the Connections tab.',
-          error: 'MISSING_API_KEY'
+          error: 'MISSING_API_KEY',
+          data: null
         }
       }
       
@@ -433,7 +435,8 @@ export class GreyfinchService {
         return {
           success: false,
           message: 'Greyfinch API URL is not configured. Please set GREYFINCH_API_URL environment variable.',
-          error: 'MISSING_API_URL'
+          error: 'MISSING_API_URL',
+          data: null
         }
       }
       
@@ -496,39 +499,6 @@ export class GreyfinchService {
         message: errorMessage,
         error: errorType,
         data: null
-      }
-    }
-  }
-    } catch (error) {
-      console.error('Greyfinch API connection test failed:', error)
-      
-      // Provide more specific error messages
-      let errorMessage = 'Unknown error'
-      let errorType = 'UNKNOWN'
-      
-      if (error instanceof Error) {
-        errorMessage = error.message
-        
-        if (errorMessage.includes('API key is not configured')) {
-          errorType = 'MISSING_API_KEY'
-        } else if (errorMessage.includes('API URL is not configured')) {
-          errorType = 'MISSING_API_URL'
-        } else if (errorMessage.includes('401')) {
-          errorType = 'UNAUTHORIZED'
-          errorMessage = 'Invalid API key. Please check your Greyfinch API credentials.'
-        } else if (errorMessage.includes('404')) {
-          errorType = 'NOT_FOUND'
-          errorMessage = 'Greyfinch API endpoint not found. Please check the API URL.'
-        } else if (errorMessage.includes('fetch')) {
-          errorType = 'NETWORK_ERROR'
-          errorMessage = 'Network error. Please check your internet connection and API URL.'
-        }
-      }
-      
-      return {
-        success: false,
-        message: errorMessage,
-        error: errorType
       }
     }
   }
