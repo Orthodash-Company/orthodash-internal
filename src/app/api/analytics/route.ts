@@ -5,9 +5,10 @@ import { eq, and } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
   try {
-    const locationId = request.nextUrl.searchParams.get('locationId')
-    const startDate = request.nextUrl.searchParams.get('startDate')
-    const endDate = request.nextUrl.searchParams.get('endDate')
+    const { searchParams } = new URL(request.url)
+    const locationId = searchParams.get('locationId')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
     
     if (!startDate || !endDate) {
       return NextResponse.json({ error: "Start date and end date are required" }, { status: 400 })
