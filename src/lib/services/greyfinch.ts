@@ -7,8 +7,8 @@ export class GreyfinchService {
   private apiKey: string
 
   constructor() {
-    // Use the correct Greyfinch API URL
-    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/v1/graphql'
+    // Use the correct Greyfinch API URL (user confirmed working URL)
+    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://connect-api.greyfinch.com/v1/graphql'
     // Auto-load credentials from environment variables
     this.apiKey = process.env.GREYFINCH_API_KEY || ''
     
@@ -111,15 +111,21 @@ export class GreyfinchService {
         throw new Error('Greyfinch API URL is not configured. Please provide API URL.')
       }
 
-      console.log(`Making GraphQL request to: ${this.apiUrl}`)
+            console.log(`Making GraphQL request to: ${this.apiUrl}`)
+      console.log('Request headers:', {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey ? '***' : 'none'}`,
+        'X-API-Key': this.apiKey ? '***' : 'none',
+        'X-API-Secret': process.env.GREYFINCH_API_SECRET ? '***' : 'none'
+      })
       
-            const response = await fetch(this.apiUrl, {
+      const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
           'X-API-Key': this.apiKey,
-          'X-API-Secret': process.env.GREYFINCH_API_SECRET || '', // Try adding secret
+          'X-API-Secret': process.env.GREYFINCH_API_SECRET || '',
         },
         body: JSON.stringify({
           query,
@@ -480,7 +486,7 @@ export class GreyfinchService {
               lastName
               email
               phone
-              status
+                status
               createdAt
             }
           }
@@ -618,8 +624,8 @@ export class GreyfinchService {
       // Try different API URLs if the default one fails
       const possibleUrls = [
         this.apiUrl,
-        'https://api.greyfinch.com/v1/graphql', // Primary working URL
-        'https://connect-api.greyfinch.com/v1/graphql',
+        'https://connect-api.greyfinch.com/v1/graphql', // User confirmed working URL
+        'https://api.greyfinch.com/v1/graphql',
         'https://api.greyfinch.com/graphql',
         'https://api.greyfinch.com/v2/graphql'
       ]
