@@ -309,27 +309,30 @@ export default function Dashboard() {
           <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-200 ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
             <CardHeader className="pb-4">
               <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
+                <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
                   <TabsTrigger 
                     value="locations" 
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10"
+                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
                   >
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Locations
+                    <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Locations</span>
+                    <span className="xs:hidden">Loc</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="connections" 
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10"
+                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
                   >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Connections
+                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Connections</span>
+                    <span className="xs:hidden">Conn</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="export" 
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10"
+                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
                   >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Export PDF
+                    <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Export PDF</span>
+                    <span className="xs:hidden">Export</span>
                   </TabsTrigger>
                 </TabsList>
 

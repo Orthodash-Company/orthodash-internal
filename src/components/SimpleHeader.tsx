@@ -36,20 +36,20 @@ export function SimpleHeader({
   return (
     <header className="fixed top-4 left-4 right-4 z-50">
       <div className="backdrop-blur-xl bg-white/90 border border-[#1C1F4F]/20 rounded-2xl shadow-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-[600px] mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <a href="/" className="flex-shrink-0 flex items-center hover:opacity-80 transition-all duration-200 group">
-                <div className="bg-[#1C1F4F] p-2 rounded-xl mr-3 shadow-lg group-hover:shadow-xl transition-shadow">
-                  <ChartLine className="text-white" size={24} />
+                <div className="bg-[#1C1F4F] p-1.5 sm:p-2 rounded-xl mr-2 sm:mr-3 shadow-lg group-hover:shadow-xl transition-shadow">
+                  <ChartLine className="text-white sm:w-6 sm:h-6" size={20} />
                 </div>
-                <h1 className="text-xl font-bold text-[#1C1F4F]">
+                <h1 className="text-lg sm:text-xl font-bold text-[#1C1F4F]">
                   ORTHODASH
                 </h1>
               </a>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
               {user && (
                 <>
                   <SessionHistoryManager
@@ -57,10 +57,10 @@ export function SimpleHeader({
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl"
+                        className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl px-2 sm:px-3"
                       >
-                        <History className="h-4 w-4" />
-                        <span className="hidden sm:inline ml-2 font-medium">Session History</span>
+                        <History className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden md:inline ml-1 sm:ml-2 text-xs sm:text-sm font-medium">Session History</span>
                       </Button>
                     }
                     onRestoreSession={onRestoreSession}
@@ -73,10 +73,10 @@ export function SimpleHeader({
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl"
+                        className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl px-2 sm:px-3"
                       >
-                        <History className="h-4 w-4" />
-                        <span className="hidden sm:inline ml-2 font-medium">Report History</span>
+                        <History className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden md:inline ml-1 sm:ml-2 text-xs sm:text-sm font-medium">Report History</span>
                       </Button>
                     } 
                   />
@@ -89,12 +89,12 @@ export function SimpleHeader({
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="flex items-center gap-2 hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl"
+                      className="flex items-center gap-1 sm:gap-2 hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl px-2 sm:px-3"
                     >
-                      <div className="w-8 h-8 bg-[#1C1F4F] rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-white" />
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#1C1F4F] rounded-full flex items-center justify-center">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                       </div>
-                      <span className="hidden sm:inline text-sm font-medium text-[#1C1F4F]">
+                      <span className="hidden lg:inline text-xs sm:text-sm font-medium text-[#1C1F4F]">
                         {user.email}
                       </span>
                     </Button>
