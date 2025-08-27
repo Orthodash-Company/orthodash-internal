@@ -723,6 +723,8 @@ export class GreyfinchService {
       
       try {
         const data = JSON.parse(responseText)
+        console.log('Full response data:', JSON.stringify(data, null, 2))
+        
         if (data.errors) {
           return { 
             success: false, 
