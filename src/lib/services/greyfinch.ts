@@ -494,23 +494,11 @@ export class GreyfinchService {
       return {
         success: false,
         message: errorMessage,
-        error: errorType
+        error: errorType,
+        data: null
       }
-      
-      const result = await this.makeGraphQLRequest(`
-        query TestConnection {
-          locations(limit: 1) {
-            id
-            name
-          }
-        }
-      `)
-      
-      return {
-        success: true,
-        message: 'Greyfinch API connection successful',
-        data: result
-      }
+    }
+  }
     } catch (error) {
       console.error('Greyfinch API connection test failed:', error)
       
