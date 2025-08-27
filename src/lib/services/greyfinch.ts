@@ -7,7 +7,8 @@ export class GreyfinchService {
   private apiKey: string
 
   constructor() {
-    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/graphql'
+    // Try the most common Greyfinch API URL
+    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/v1/graphql'
     this.apiKey = ''
   }
 
@@ -107,6 +108,7 @@ export class GreyfinchService {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
+          'X-API-Key': this.apiKey, // Try alternative header format
         },
         body: JSON.stringify({
           query,
@@ -120,7 +122,17 @@ export class GreyfinchService {
         throw new Error(`GraphQL request failed: ${response.status} - ${errorText}`)
       }
 
-      const data = await response.json()
+      const responseText = await response.text()
+      console.log('Raw response:', responseText.substring(0, 200) + '...')
+      
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError)
+        console.error('Response was:', responseText)
+        throw new Error(`Invalid JSON response from Greyfinch API: ${responseText.substring(0, 100)}`)
+      }
       
       if (data.errors) {
         console.error('GraphQL errors:', data.errors)
@@ -425,6 +437,34 @@ export class GreyfinchService {
         }
       }
       
+      // Try different API URLs if the default one fails
+      const possibleUrls = [
+        this.apiUrl,
+        'https://api.greyfinch.com/graphql',
+        'https://api.greyfinch.com/v1/graphql',
+        'https://app.greyfinch.com/api/graphql'
+      ]
+      
+      for (const url of possibleUrls) {
+        try {
+          console.log(`Trying API URL: ${url}`)
+          const testResult = await this.testUrl(url)
+          if (testResult.success) {
+            this.apiUrl = url
+            console.log(`Successfully connected using URL: ${url}`)
+            return testResult
+          }
+        } catch (error) {
+          console.log(`Failed with URL ${url}:`, error)
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Could not connect to Greyfinch API with any known URL. Please check your API credentials.',
+        error: 'CONNECTION_FAILED'
+      }
+      
       const result = await this.makeGraphQLRequest(`
         query TestConnection {
           locations(limit: 1) {
@@ -470,6 +510,48 @@ export class GreyfinchService {
         message: errorMessage,
         error: errorType
       }
+    }
+  }
+
+  // Test a specific URL
+  async testUrl(url: string) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'X-API-Key': this.apiKey,
+        },
+        body: JSON.stringify({
+          query: `
+            query TestConnection {
+              locations(limit: 1) {
+                id
+                name
+              }
+            }
+          `
+        }),
+      })
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` }
+      }
+
+      const responseText = await response.text()
+      
+      try {
+        const data = JSON.parse(responseText)
+        if (data.errors) {
+          return { success: false, error: 'GraphQL errors' }
+        }
+        return { success: true, data }
+      } catch (parseError) {
+        return { success: false, error: 'Invalid JSON response' }
+      }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 
