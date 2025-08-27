@@ -119,10 +119,9 @@ export class GreyfinchService {
         'X-API-Secret': process.env.GREYFINCH_API_SECRET ? '***' : 'none'
       })
       
-      // Use standard Bearer token authentication as shown in Greyfinch docs
+      // Use API key authentication (not JWT Bearer token)
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
         'X-API-Key': this.apiKey,
         'X-API-Secret': process.env.GREYFINCH_API_SECRET || '',
       }
@@ -241,10 +240,10 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              firstName
-              lastName
-              email
-              phone
+              person {
+                firstName
+                lastName
+              }
               status
             }
           }
@@ -458,7 +457,7 @@ export class GreyfinchService {
       // Build division filter
       const divisionFilter = locationId ? `, divisionId: {_eq: "${locationId}"}` : ''
 
-      // Get leads for this period
+            // Get leads for this period
       try {
         const leadsQuery = `
           query GetPeriodLeads($startDate: timestamptz, $endDate: timestamptz) {
@@ -468,11 +467,11 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              firstName
-              lastName
-              email
-              phone
-                status
+              person {
+                firstName
+                lastName
+              }
+              status
               createdAt
             }
           }
