@@ -131,60 +131,49 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         throw new Error('Database initialization failed');
       }
       
-      // Run complete data flow
-      const response = await fetch('/api/greyfinch/complete-flow', {
+      // Pull basic counts first (fast and safe)
+      const response = await fetch('/api/greyfinch/basic-counts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: user.id,
-          acquisitionCosts: {}, // Will be populated from other components
-          periods: [] // Will be populated from other components
-        }),
+        body: JSON.stringify({ userId: user.id }),
       });
       const data = await response.json();
 
       if (data.success) {
-        // Update data counts with actual Greyfinch data
+        // Update data counts with basic Greyfinch data
         setDataCounts({
-          patients: data.data.greyfinchData?.counts?.leads || 0,
-          locations: data.data.greyfinchData?.counts?.locations || 0,
-          appointments: data.data.greyfinchData?.counts?.appointments || 0,
-          leads: data.data.greyfinchData?.counts?.leads || 0
+          patients: data.data.counts.patients || 0,
+          locations: data.data.counts.locations || 0,
+          appointments: data.data.counts.appointments || 0,
+          leads: data.data.counts.leads || 0
         });
-        
-        // Update locations with actual Greyfinch location data
-        if (data.data.greyfinchData?.data?.locations) {
-          const greyfinchLocations = data.data.greyfinchData.data.locations.map((loc: any) => ({
-            id: loc.id,
-            name: loc.name,
-            address: loc.address || ''
-          }));
-          setLocations(greyfinchLocations);
-        }
         
         setLastPullTime(new Date().toLocaleString());
         
-        // Pass the full data to parent component
+        // Pass the basic data to parent component
         if (onGreyfinchDataUpdate) {
-          onGreyfinchDataUpdate(data.data);
+          onGreyfinchDataUpdate({
+            counts: data.data.counts,
+            pulledAt: data.data.pulledAt
+          });
         }
         
         toast({
-          title: "Complete Analysis Successful",
-          description: `Successfully pulled Greyfinch data, generated AI analysis, saved to session history, and created report. Found ${data.data.greyfinchData?.counts?.locations || 0} locations, ${data.data.greyfinchData?.counts?.appointments || 0} appointments, and ${data.data.greyfinchData?.counts?.leads || 0} leads.`,
+          title: "Basic Data Pull Successful",
+          description: `Successfully pulled basic counts from Greyfinch. Found ${data.data.counts.locations || 0} locations, ${data.data.counts.appointments || 0} appointments, and ${data.data.counts.leads || 0} leads. Detailed data will be pulled in the background while you set up analysis periods.`,
         });
       } else {
         toast({
-          title: "Analysis Failed",
-          description: data.message || "Failed to complete data analysis pipeline.",
+          title: "Data Pull Failed",
+          description: data.message || "Failed to pull basic data from Greyfinch.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Error in complete data flow:', error);
+      console.error('Error pulling basic data:', error);
       toast({
         title: "Data Pull Failed",
-        description: "Failed to complete data analysis pipeline. Please try again.",
+        description: "Failed to pull basic data from Greyfinch. Please try again.",
         variant: "destructive",
       });
     } finally {
