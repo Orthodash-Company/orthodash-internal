@@ -41,7 +41,15 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
 
   useEffect(() => {
+    // Always check connection on mount, regardless of user state
+    // This will use environment variables automatically
+    checkConnectionAndFetchLocations();
+  }, []);
+
+  // Also check when user changes
+  useEffect(() => {
     if (user?.id) {
+      // Re-check connection when user is available
       checkConnectionAndFetchLocations();
     }
   }, [user?.id]);
@@ -49,14 +57,9 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const checkConnectionAndFetchLocations = async () => {
     setIsLoading(true);
     try {
-      // Get stored credentials
-      const storedCredentials = localStorage.getItem('greyfinch-credentials');
-      const credentials = storedCredentials ? JSON.parse(storedCredentials) : null;
-      
-      // Build URL with API key if available
-      const url = credentials?.apiKey 
-        ? `/api/greyfinch/test?apiKey=${encodeURIComponent(credentials.apiKey)}`
-        : '/api/greyfinch/test';
+      // Always try to connect using environment variables first
+      // The API will automatically use GREYFINCH_API_KEY from environment
+      const url = '/api/greyfinch/test';
       
       const response = await fetch(url, {
         method: 'GET',
@@ -140,17 +143,13 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         throw new Error('Database initialization failed');
       }
       
-      // Get stored credentials
-      const storedCredentials = localStorage.getItem('greyfinch-credentials');
-      const credentials = storedCredentials ? JSON.parse(storedCredentials) : null;
-      
-      // Pull basic counts first (fast and safe)
+      // Pull basic counts using environment variables
       const response = await fetch('/api/greyfinch/basic-counts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          userId: user.id,
-          apiKey: credentials?.apiKey || null
+          userId: user.id
+          // API key will be automatically loaded from environment variables
         }),
       });
       const data = await response.json();

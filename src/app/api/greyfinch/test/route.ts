@@ -3,18 +3,27 @@ import { greyfinchService } from '@/lib/services/greyfinch'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('Greyfinch test endpoint called')
+    
     // Get API key from query parameters or headers
     const url = new URL(request.url)
     const apiKey = url.searchParams.get('apiKey') || request.headers.get('x-api-key')
     
+    console.log('API key from request:', apiKey ? 'provided' : 'not provided')
+    console.log('Environment API key available:', !!process.env.GREYFINCH_API_KEY)
+    
     // If API key is provided, update the service credentials
     if (apiKey) {
       greyfinchService.updateCredentials(apiKey)
+      console.log('Updated service with provided API key')
     } else {
       // Auto-load from environment variables
       const envApiKey = process.env.GREYFINCH_API_KEY
       if (envApiKey) {
         greyfinchService.updateCredentials(envApiKey)
+        console.log('Updated service with environment API key')
+      } else {
+        console.log('No API key available from request or environment')
       }
     }
     

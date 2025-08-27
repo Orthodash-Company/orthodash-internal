@@ -113,19 +113,19 @@ export class GreyfinchService {
       console.log(`Making GraphQL request to: ${this.apiUrl}`)
       
       const response = await fetch(this.apiUrl, {
-        method: 'POST',
+          method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
           'X-API-Key': this.apiKey, // Try alternative header format
         },
-        body: JSON.stringify({
-          query,
+          body: JSON.stringify({
+            query,
           variables,
         }),
-      })
+        })
 
-      if (!response.ok) {
+        if (!response.ok) {
         const errorText = await response.text()
         console.error('HTTP error response:', response.status, errorText)
         throw new Error(`GraphQL request failed: ${response.status} - ${errorText}`)
@@ -400,7 +400,7 @@ export class GreyfinchService {
               }
               treatments(limit: 5) {
                 id
-                name
+                      name
                 status {
                   type
                   name
