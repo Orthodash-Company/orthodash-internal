@@ -7,8 +7,8 @@ export class GreyfinchService {
   private apiKey: string
 
   constructor() {
-    // Try the most common Greyfinch API URL
-    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/v1/graphql'
+    // Use the correct Greyfinch API URL
+    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://connect-api.greyfinch.com/v1/graphql'
     this.apiKey = ''
   }
 
@@ -440,9 +440,9 @@ export class GreyfinchService {
       // Try different API URLs if the default one fails
       const possibleUrls = [
         this.apiUrl,
+        'https://connect-api.greyfinch.com/v1/graphql',
         'https://api.greyfinch.com/graphql',
-        'https://api.greyfinch.com/v1/graphql',
-        'https://app.greyfinch.com/api/graphql'
+        'https://api.greyfinch.com/v1/graphql'
       ]
       
       for (const url of possibleUrls) {
@@ -462,7 +462,39 @@ export class GreyfinchService {
       return {
         success: false,
         message: 'Could not connect to Greyfinch API with any known URL. Please check your API credentials.',
-        error: 'CONNECTION_FAILED'
+        error: 'CONNECTION_FAILED',
+        data: null
+      }
+    } catch (error) {
+      console.error('Greyfinch API connection test failed:', error)
+      
+      // Provide more specific error messages
+      let errorMessage = 'Unknown error'
+      let errorType = 'UNKNOWN'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        if (errorMessage.includes('API key is not configured')) {
+          errorType = 'MISSING_API_KEY'
+        } else if (errorMessage.includes('API URL is not configured')) {
+          errorType = 'MISSING_API_URL'
+        } else if (errorMessage.includes('401')) {
+          errorType = 'UNAUTHORIZED'
+          errorMessage = 'Invalid API key. Please check your Greyfinch API credentials.'
+        } else if (errorMessage.includes('404')) {
+          errorType = 'NOT_FOUND'
+          errorMessage = 'Greyfinch API endpoint not found. Please check the API URL.'
+        } else if (errorMessage.includes('fetch')) {
+          errorType = 'NETWORK_ERROR'
+          errorMessage = 'Network error. Please check your internet connection and API URL.'
+        }
+      }
+      
+      return {
+        success: false,
+        message: errorMessage,
+        error: errorType
       }
       
       const result = await this.makeGraphQLRequest(`
@@ -536,7 +568,12 @@ export class GreyfinchService {
       })
 
       if (!response.ok) {
-        return { success: false, error: `HTTP ${response.status}` }
+        return { 
+          success: false, 
+          error: `HTTP ${response.status}`,
+          message: `HTTP ${response.status} error`,
+          data: null
+        }
       }
 
       const responseText = await response.text()
@@ -544,14 +581,34 @@ export class GreyfinchService {
       try {
         const data = JSON.parse(responseText)
         if (data.errors) {
-          return { success: false, error: 'GraphQL errors' }
+          return { 
+            success: false, 
+            error: 'GraphQL errors',
+            message: 'GraphQL errors in response',
+            data: null
+          }
         }
-        return { success: true, data }
+        return { 
+          success: true, 
+          data,
+          message: 'Connection successful',
+          error: null
+        }
       } catch (parseError) {
-        return { success: false, error: 'Invalid JSON response' }
+        return { 
+          success: false, 
+          error: 'Invalid JSON response',
+          message: 'Invalid JSON response from API',
+          data: null
+        }
       }
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        data: null
+      }
     }
   }
 
