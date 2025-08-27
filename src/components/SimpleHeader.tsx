@@ -36,34 +36,34 @@ export function SimpleHeader({
   return (
     <header className="fixed top-4 left-4 right-4 z-50">
       <div className="backdrop-blur-xl bg-white/90 border border-[#1C1F4F]/20 rounded-2xl shadow-xl mx-auto max-w-[600px]">
-        <div className="px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
+        <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">
+          <div className="flex items-center justify-between min-w-0">
             {/* Logo on the left */}
-            <div className="flex items-center">
-              <a href="/" className="flex-shrink-0 flex items-center hover:opacity-80 transition-all duration-200 group">
-                <div className="bg-[#1C1F4F] p-1.5 sm:p-2 rounded-xl mr-2 sm:mr-3 shadow-lg group-hover:shadow-xl transition-shadow">
-                  <ChartLine className="text-white sm:w-6 sm:h-6" size={20} />
+            <div className="flex items-center flex-shrink-0">
+              <a href="/" className="flex items-center hover:opacity-80 transition-all duration-200 group">
+                <div className="bg-[#1C1F4F] p-1 sm:p-1.5 md:p-2 rounded-lg md:rounded-xl mr-1.5 sm:mr-2 md:mr-3 shadow-lg group-hover:shadow-xl transition-shadow">
+                  <ChartLine className="text-white w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </div>
-                <h1 className="text-lg sm:text-xl font-bold text-[#1C1F4F]">
+                <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-[#1C1F4F] truncate">
                   ORTHODASH
                 </h1>
               </a>
             </div>
             
             {/* Buttons container on the right */}
-            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
+            <div className="flex items-center space-x-0.5 sm:space-x-1 md:space-x-2 lg:space-x-3 flex-shrink-0">
               {user && (
                 <>
                   <SessionHistoryManager
                     trigger={
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl px-2 sm:px-3"
-                      >
-                        <List className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span className="hidden md:inline ml-1 sm:ml-2 text-xs sm:text-sm font-medium">Session History</span>
-                      </Button>
+                                               <Button
+                           variant="ghost"
+                           size="sm"
+                           className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-lg md:rounded-xl px-1.5 sm:px-2 md:px-3"
+                         >
+                           <List className="h-3 w-3 sm:h-4 sm:w-4" />
+                           <span className="hidden lg:inline ml-1 sm:ml-2 text-xs sm:text-sm font-medium">Session History</span>
+                         </Button>
                     }
                     onRestoreSession={onRestoreSession}
                     onPreviewSession={onPreviewSession}
@@ -72,14 +72,14 @@ export function SimpleHeader({
                   />
                   <ReportsManager 
                     trigger={
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl px-2 sm:px-3"
-                      >
-                        <History className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span className="hidden md:inline ml-1 sm:ml-2 text-xs sm:text-sm font-medium">Report History</span>
-                      </Button>
+                                               <Button
+                           variant="ghost"
+                           size="sm"
+                           className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-lg md:rounded-xl px-1.5 sm:px-2 md:px-3"
+                         >
+                           <History className="h-3 w-3 sm:h-4 sm:w-4" />
+                           <span className="hidden lg:inline ml-1 sm:ml-2 text-xs sm:text-sm font-medium">Report History</span>
+                         </Button>
                     } 
                   />
                 </>
@@ -88,18 +88,15 @@ export function SimpleHeader({
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="flex items-center gap-1 sm:gap-2 hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl px-2 sm:px-3"
-                    >
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#1C1F4F] rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                      </div>
-                      <span className="hidden lg:inline text-xs sm:text-sm font-medium text-[#1C1F4F]">
-                        {user.email}
-                      </span>
-                    </Button>
+                                               <Button
+                             variant="ghost"
+                             size="sm"
+                             className="flex items-center hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-lg md:rounded-xl px-1.5 sm:px-2 md:px-3"
+                           >
+                             <div className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 bg-[#1C1F4F] rounded-full flex items-center justify-center">
+                               <User className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-white" />
+                             </div>
+                           </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent 
                     align="end" 
