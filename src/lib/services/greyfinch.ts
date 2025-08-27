@@ -8,7 +8,7 @@ export class GreyfinchService {
 
   constructor() {
     // Use the correct Greyfinch API URL
-    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://connect-api.greyfinch.com/v1/graphql'
+    this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/v1/graphql'
     // Auto-load credentials from environment variables
     this.apiKey = process.env.GREYFINCH_API_KEY || ''
     
@@ -618,11 +618,10 @@ export class GreyfinchService {
       // Try different API URLs if the default one fails
       const possibleUrls = [
         this.apiUrl,
+        'https://api.greyfinch.com/v1/graphql', // Primary working URL
         'https://connect-api.greyfinch.com/v1/graphql',
         'https://api.greyfinch.com/graphql',
-        'https://api.greyfinch.com/v1/graphql',
-        'https://api.greyfinch.com/v2/graphql', // Try v2
-        'https://connect-api.greyfinch.com/graphql' // Try without v1
+        'https://api.greyfinch.com/v2/graphql'
       ]
       
       for (const url of possibleUrls) {
