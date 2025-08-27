@@ -182,128 +182,67 @@ export class GreyfinchService {
         periodData: {}
       }
 
-      // Get locations with names and basic info
+      // First, let's try to discover what fields are actually available
       try {
-        const locationsData = await this.makeGraphQLRequest(`
-          query GetLocations {
-            divisions(
-              limit: 50
-              orderBy: {name: ASC}
-            ) {
-              id
-              name
+        console.log('Attempting to discover available fields...')
+        
+        // Try a simple query to see what's available
+        const discoveryQuery = await this.makeGraphQLRequest(`
+          query Discovery {
+            __schema {
+              queryType {
+                fields {
+                  name
+                  type {
+                    name
+                    kind
+                  }
+                }
+              }
             }
           }
         `)
         
-        if (locationsData?.divisions) {
-          data.locations = locationsData.divisions
-          data.counts.locations = locationsData.divisions.length
-          console.log('Locations loaded:', data.counts.locations)
-          console.log('Location details:', JSON.stringify(locationsData.divisions, null, 2))
+        if (discoveryQuery?.__schema?.queryType?.fields) {
+          const availableFields = discoveryQuery.__schema.queryType.fields.map((f: any) => f.name)
+          console.log('Available GraphQL fields:', availableFields)
+          
+          // Try to find location-related fields
+          const locationFields = availableFields.filter((f: string) => 
+            f.toLowerCase().includes('location') || 
+            f.toLowerCase().includes('division') || 
+            f.toLowerCase().includes('office') ||
+            f.toLowerCase().includes('practice')
+          )
+          console.log('Location-related fields:', locationFields)
+          
+          // Try to find patient-related fields
+          const patientFields = availableFields.filter((f: string) => 
+            f.toLowerCase().includes('patient') || 
+            f.toLowerCase().includes('person') || 
+            f.toLowerCase().includes('contact')
+          )
+          console.log('Patient-related fields:', patientFields)
+          
+          // Try to find appointment-related fields
+          const appointmentFields = availableFields.filter((f: string) => 
+            f.toLowerCase().includes('appointment') || 
+            f.toLowerCase().includes('booking') || 
+            f.toLowerCase().includes('visit') ||
+            f.toLowerCase().includes('schedule')
+          )
+          console.log('Appointment-related fields:', appointmentFields)
         }
-      } catch (e) {
-        console.log('Locations query failed:', e)
+      } catch (discoveryError) {
+        console.log('Schema discovery failed:', discoveryError)
       }
 
-      // Get patients count and basic info
-      try {
-        const patientsData = await this.makeGraphQLRequest(`
-          query GetPatients {
-            patients(
-              limit: 100
-              orderBy: {createdAt: DESC}
-            ) {
-              id
-              firstName
-              lastName
-            }
-          }
-        `)
-        
-        if (patientsData?.patients) {
-          data.counts.patients = patientsData.patients.length
-          console.log('Patients loaded:', data.counts.patients)
-        }
-      } catch (e) {
-        console.log('Patients query failed:', e)
-      }
-
-      // Get leads count and basic info
-      try {
-        const leadsData = await this.makeGraphQLRequest(`
-          query GetLeads {
-            leads(
-              limit: 100
-              orderBy: {createdAt: DESC}
-            ) {
-              id
-              firstName
-              lastName
-              status
-            }
-          }
-        `)
-        
-        if (leadsData?.leads) {
-          data.counts.leads = leadsData.leads.length
-          console.log('Leads loaded:', data.counts.leads)
-        }
-      } catch (e) {
-        console.log('Leads query failed:', e)
-      }
-
-      // Get appointments count
-      try {
-        const appointmentsData = await this.makeGraphQLRequest(`
-          query GetAppointments {
-            appointments(
-              limit: 100
-              orderBy: {createdAt: DESC}
-            ) {
-              id
-              startDate
-              startTime
-            }
-          }
-        `)
-        
-        if (appointmentsData?.appointments) {
-          data.counts.appointments = appointmentsData.appointments.length
-          console.log('Appointments loaded:', data.counts.appointments)
-        }
-      } catch (e) {
-        console.log('Appointments query failed:', e)
-      }
-
-      // Get bookings count
-      try {
-        const bookingsData = await this.makeGraphQLRequest(`
-          query GetBookings {
-            bookings(
-              limit: 100
-              orderBy: {startDate: DESC}
-            ) {
-              id
-              startDate
-              startTime
-            }
-          }
-        `)
-        
-        if (bookingsData?.bookings) {
-          data.counts.bookings = bookingsData.bookings.length
-          console.log('Bookings loaded:', data.counts.bookings)
-        }
-      } catch (e) {
-        console.log('Bookings query failed:', e)
-      }
-
+      // For now, return empty data since we don't know the correct field names
       return {
         success: true,
         counts: data.counts,
         locations: data.locations,
-        message: 'Comprehensive data pulled successfully'
+        message: 'Schema discovery completed - need to map correct field names'
       }
     } catch (error) {
       console.error('Error pulling comprehensive data:', error)
