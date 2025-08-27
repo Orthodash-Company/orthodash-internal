@@ -182,7 +182,23 @@ export class GreyfinchService {
             ) {
               id
               name
-              address
+              address {
+                street
+                city
+                state
+                zipCode
+              }
+              division {
+                id
+                name
+              }
+              organization {
+                id
+                name
+              }
+              isActive
+              createdAt
+              updatedAt
             }
           }
         `)
@@ -191,6 +207,7 @@ export class GreyfinchService {
           data.locations = locationsData.locations
           data.counts.locations = locationsData.locations.length
           console.log('Locations loaded:', data.counts.locations)
+          console.log('Location details:', JSON.stringify(locationsData.locations, null, 2))
         }
       } catch (e) {
         console.log('Locations query failed:', e)
@@ -209,7 +226,7 @@ export class GreyfinchService {
                 firstName
                 lastName
               }
-              location {
+              division {
                 id
                 name
               }
@@ -234,16 +251,13 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              person {
-                firstName
-                lastName
-              }
-              location {
+              firstName
+              lastName
+              email
+              phone
+              status
+              division {
                 id
-                name
-              }
-              status {
-                type
                 name
               }
             }
@@ -267,7 +281,7 @@ export class GreyfinchService {
               orderBy: {createdAt: DESC}
             ) {
               id
-              location {
+              division {
                 id
                 name
               }
@@ -299,7 +313,7 @@ export class GreyfinchService {
               localStartDate
               localStartTime
               appointment {
-                location {
+                division {
                   id
                   name
                 }
@@ -465,29 +479,26 @@ export class GreyfinchService {
         }
       }
 
-      // Build location filter
-      const locationFilter = locationId ? `, locationId: {_eq: "${locationId}"}` : ''
+      // Build division filter
+      const divisionFilter = locationId ? `, divisionId: {_eq: "${locationId}"}` : ''
 
       // Get leads for this period
       try {
         const leadsQuery = `
           query GetPeriodLeads($startDate: timestamptz, $endDate: timestamptz) {
             leads(
-              where: {createdAt: {_gte: $startDate, _lte: $endDate}${locationFilter}}
+              where: {createdAt: {_gte: $startDate, _lte: $endDate}${divisionFilter}}
               limit: 100
               orderBy: {createdAt: DESC}
             ) {
               id
-              person {
-                firstName
-                lastName
-              }
-              location {
+              firstName
+              lastName
+              email
+              phone
+              status
+              division {
                 id
-                name
-              }
-              status {
-                type
                 name
               }
               createdAt
@@ -507,12 +518,12 @@ export class GreyfinchService {
         const appointmentsQuery = `
           query GetPeriodAppointments($startDate: timestamptz, $endDate: timestamptz) {
             appointments(
-              where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}${locationFilter}}
+              where: {bookings: {localStartDate: {_gte: $startDate, _lte: $endDate}}${divisionFilter}}
               limit: 100
               orderBy: {createdAt: DESC}
             ) {
               id
-              location {
+              division {
                 id
                 name
               }
