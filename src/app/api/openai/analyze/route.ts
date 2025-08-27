@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  organization: process.env.OPENAI_ORG_ID,
-})
+// Initialize OpenAI client only if API key is available
+const getOpenAI = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    organization: process.env.OPENAI_ORG_ID,
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +25,7 @@ export async function POST(request: NextRequest) {
     
     console.log('Generating AI analysis for user:', userId)
     
+    const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Complete data flow executed successfully',
-        data: result.data
+        data: 'data' in result ? result.data : result
       })
     } else {
       return NextResponse.json({
