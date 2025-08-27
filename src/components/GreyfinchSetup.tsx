@@ -39,10 +39,10 @@ export function GreyfinchSetup() {
   }, []);
 
   const handleSaveCredentials = async () => {
-    if (!credentials.apiKey || !credentials.apiSecret) {
+    if (!credentials.apiKey) {
       toast({
         title: "Missing Credentials",
-        description: "Please enter both API key and secret.",
+        description: "Please enter your API key.",
         variant: "destructive"
       });
       return;
@@ -51,12 +51,16 @@ export function GreyfinchSetup() {
     setIsLoading(true);
     try {
       // Test the connection first
-      const testResponse = await fetch('/api/greyfinch/test', {
+      const testResponse = await fetch('/api/greyfinch/setup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({
+          apiKey: credentials.apiKey,
+          apiSecret: credentials.apiSecret || '',
+          userId: 'test-user'
+        }),
       });
 
       const testData = await testResponse.json();
@@ -88,10 +92,10 @@ export function GreyfinchSetup() {
   };
 
   const handleTestConnection = async () => {
-    if (!credentials.apiKey || !credentials.apiSecret) {
+    if (!credentials.apiKey) {
       toast({
         title: "Missing Credentials",
-        description: "Please enter API credentials first.",
+        description: "Please enter API key first.",
         variant: "destructive"
       });
       return;
@@ -104,7 +108,11 @@ export function GreyfinchSetup() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({
+          apiKey: credentials.apiKey,
+          apiSecret: credentials.apiSecret || '',
+          userId: 'test-user'
+        }),
       });
 
       const data = await response.json();
@@ -275,7 +283,8 @@ export function GreyfinchSetup() {
 
       {/* Help Text */}
       <div className="text-xs text-gray-500">
-        <p>• API Key and Secret are required for basic authentication</p>
+        <p>• API Key is required for authentication</p>
+        <p>• API Secret is optional (only if required by your Greyfinch setup)</p>
         <p>• Resource ID and Token are only needed for Hasura GraphQL endpoints</p>
         <p>• Credentials are stored locally in your browser</p>
       </div>

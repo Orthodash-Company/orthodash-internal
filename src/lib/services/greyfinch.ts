@@ -7,10 +7,28 @@ export class GreyfinchService {
   constructor() {
     this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/graphql'
     this.apiKey = process.env.GREYFINCH_API_KEY || ''
+    
+    // Log configuration for debugging (without exposing sensitive data)
+    console.log('Greyfinch service initialized with:', {
+      apiUrl: this.apiUrl,
+      hasApiKey: !!this.apiKey,
+      apiKeyLength: this.apiKey.length
+    })
   }
 
   private async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
+      // Validate configuration
+      if (!this.apiKey) {
+        throw new Error('Greyfinch API key is not configured. Please set GREYFINCH_API_KEY environment variable.')
+      }
+      
+      if (!this.apiUrl) {
+        throw new Error('Greyfinch API URL is not configured. Please set GREYFINCH_API_URL environment variable.')
+      }
+
+      console.log(`Making GraphQL request to: ${this.apiUrl}`)
+      
       const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
@@ -24,7 +42,9 @@ export class GreyfinchService {
       })
 
       if (!response.ok) {
-        throw new Error(`GraphQL request failed: ${response.status}`)
+        const errorText = await response.text()
+        console.error('HTTP error response:', response.status, errorText)
+        throw new Error(`GraphQL request failed: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
@@ -303,6 +323,23 @@ export class GreyfinchService {
     try {
       console.log('Testing Greyfinch API connection...')
       
+      // First check if we have the required configuration
+      if (!this.apiKey) {
+        return {
+          success: false,
+          message: 'Greyfinch API key is not configured. Please set GREYFINCH_API_KEY environment variable.',
+          error: 'MISSING_API_KEY'
+        }
+      }
+      
+      if (!this.apiUrl) {
+        return {
+          success: false,
+          message: 'Greyfinch API URL is not configured. Please set GREYFINCH_API_URL environment variable.',
+          error: 'MISSING_API_URL'
+        }
+      }
+      
       const result = await this.makeGraphQLRequest(`
         query TestConnection {
           locations(limit: 1) {
@@ -319,9 +356,34 @@ export class GreyfinchService {
       }
     } catch (error) {
       console.error('Greyfinch API connection test failed:', error)
+      
+      // Provide more specific error messages
+      let errorMessage = 'Unknown error'
+      let errorType = 'UNKNOWN'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        if (errorMessage.includes('API key is not configured')) {
+          errorType = 'MISSING_API_KEY'
+        } else if (errorMessage.includes('API URL is not configured')) {
+          errorType = 'MISSING_API_URL'
+        } else if (errorMessage.includes('401')) {
+          errorType = 'UNAUTHORIZED'
+          errorMessage = 'Invalid API key. Please check your Greyfinch API credentials.'
+        } else if (errorMessage.includes('404')) {
+          errorType = 'NOT_FOUND'
+          errorMessage = 'Greyfinch API endpoint not found. Please check the API URL.'
+        } else if (errorMessage.includes('fetch')) {
+          errorType = 'NETWORK_ERROR'
+          errorMessage = 'Network error. Please check your internet connection and API URL.'
+        }
+      }
+      
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: errorMessage,
+        error: errorType
       }
     }
   }

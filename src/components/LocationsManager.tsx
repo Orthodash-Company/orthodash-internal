@@ -256,51 +256,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
             {isLoading ? 'Pulling Data...' : 'Pull All Data'}
           </Button>
 
-          {/* Schema Discovery Button */}
-          <Button
-            onClick={async () => {
-              if (!user?.id) return;
-              setIsLoading(true);
-              try {
-                const response = await fetch('/api/greyfinch/test-simple', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ userId: user.id }),
-                });
-                const data = await response.json();
-                console.log('Schema discovery result:', data);
-                
-                if (data.success) {
-                  toast({
-                    title: "Schema Discovery Complete",
-                    description: "Check console for detailed schema information",
-                  });
-                } else {
-                  toast({
-                    title: "Schema Discovery Failed",
-                    description: data.error || "Failed to discover schema",
-                    variant: "destructive",
-                  });
-                }
-              } catch (error) {
-                console.error('Schema discovery error:', error);
-                toast({
-                  title: "Schema Discovery Error",
-                  description: "Failed to run schema discovery",
-                  variant: "destructive",
-                });
-              } finally {
-                setIsLoading(false);
-              }
-            }}
-            disabled={isLoading || !isConnected}
-            variant="outline"
-            className="w-full border-[#1C1F4F] text-[#1C1F4F] hover:bg-[#1C1F4F]/10"
-          >
-            🔍 Discover Schema
-          </Button>
+
 
           {lastPullTime && (
             <p className="text-xs text-gray-500 text-center">
