@@ -1,4 +1,4 @@
-import { User, ChartLine, LogOut, Menu, History } from "lucide-react";
+import { User, ChartLine, LogOut, Menu, History, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { ReportsManager } from "./ReportsManager";
@@ -37,7 +37,7 @@ export function Header() {
             <SessionHistoryManager
               trigger={
                 <Button variant="ghost" size="sm" className="text-gray-600 hover:text-[#1d1d52] hover:bg-gray-100 px-2 sm:px-3">
-                  <History className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <List className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="ml-1 sm:ml-2 hidden xl:inline text-xs sm:text-sm">Sessions</span>
                 </Button>
               }
@@ -138,7 +138,7 @@ export function Header() {
                     <SessionHistoryManager
                       trigger={
                         <button className="flex items-center space-x-3 text-gray-700 hover:text-[#1d1d52] w-full text-left">
-                          <History className="h-4 w-4 sm:h-5 sm:w-5" />
+                          <List className="h-4 w-4 sm:h-5 sm:w-5" />
                           <span className="hidden sm:inline text-sm">Sessions</span>
                         </button>
                       }

@@ -1,63 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { reports } from '@/shared/schema'
-import { eq, and } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Reports API called');
-    console.log('Database object:', typeof db);
-    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-    
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     
     if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
-
-    console.log('Fetching reports for userId:', userId);
-
-    const userReports = await db.select().from(reports).where(
-      eq(reports.userId, userId)
-    ).orderBy(reports.createdAt);
-
-    return NextResponse.json(userReports)
+    
+    const reports = await db.execute(sql`
+      SELECT * FROM reports 
+      WHERE user_id = ${userId} 
+      ORDER BY generated_at DESC
+    `)
+    
+    return NextResponse.json(reports)
   } catch (error) {
     console.error('Error fetching reports:', error)
-    return NextResponse.json({ 
-      error: "Failed to fetch reports", 
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, name, content, metadata } = body
-
-    if (!userId || !name || !content) {
-      return NextResponse.json({ 
-        error: "userId, name, and content are required" 
-      }, { status: 400 })
+    const { userId, title, content } = body
+    
+    if (!userId || !title) {
+      return NextResponse.json({ error: "User ID and title required" }, { status: 400 })
     }
-
-    const report = await db.insert(reports).values({
-      userId,
-      name,
-      periodConfigs: JSON.stringify(content),
-      description: metadata?.description || null
-    }).returning();
-
-    return NextResponse.json({
-      success: true,
-      data: report[0],
-      message: "Report created successfully"
+    
+    const reportData = {
+      user_id: userId,
+      title,
+      content: JSON.stringify(content),
+      generated_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    }
+    
+    const result = await db.execute(sql`
+      INSERT INTO reports (user_id, title, content, generated_at, created_at)
+      VALUES (${reportData.user_id}, ${reportData.title}, ${reportData.content}, ${reportData.generated_at}, ${reportData.created_at})
+      RETURNING id
+    `)
+    
+    return NextResponse.json({ 
+      success: true, 
+      id: result[0]?.id,
+      message: 'Report saved successfully' 
     })
   } catch (error) {
-    console.error('Error creating report:', error)
-    return NextResponse.json({ error: "Failed to create report" }, { status: 500 })
+    console.error('Error saving report:', error)
+    return NextResponse.json({ error: "Failed to save report" }, { status: 500 })
   }
 }

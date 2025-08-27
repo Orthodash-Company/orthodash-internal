@@ -1,6 +1,6 @@
 'use client'
 
-import { ChartLine, User, LogOut, History } from "lucide-react";
+import { ChartLine, User, LogOut, History, List } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,7 +59,7 @@ export function SimpleHeader({
                         size="sm" 
                         className="text-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 backdrop-blur-sm transition-all duration-200 rounded-xl px-2 sm:px-3"
                       >
-                        <History className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <List className="h-3 w-3 sm:h-4 sm:w-4" />
                         <span className="hidden md:inline ml-1 sm:ml-2 text-xs sm:text-sm font-medium">Session History</span>
                       </Button>
                     }
