@@ -694,13 +694,18 @@ export class GreyfinchService {
         },
         body: JSON.stringify({
           query: `
-            query TestConnection {
-              locations(
-                limit: 1
-                orderBy: {name: ASC}
-              ) {
-                id
-                name
+            query IntrospectSchema {
+              __schema {
+                queryType {
+                  name
+                  fields {
+                    name
+                    type {
+                      name
+                      kind
+                    }
+                  }
+                }
               }
             }
           `
@@ -731,6 +736,12 @@ export class GreyfinchService {
             data: null
           }
         }
+        
+        // If this is a schema introspection, log the available fields
+        if (data.data?.__schema?.queryType?.fields) {
+          console.log('Available GraphQL fields:', data.data.__schema.queryType.fields.map((f: any) => f.name))
+        }
+        
         return { 
           success: true, 
           data,
