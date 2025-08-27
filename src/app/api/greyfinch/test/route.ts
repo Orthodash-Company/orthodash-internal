@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
       success: true,
       message: 'Greyfinch API connection successful',
       connectionTest: connectionTest.data,
-      basicCounts: basicCounts.counts
+      basicCounts: basicCounts.counts,
+      locations: basicCounts.locations || []
     })
   } catch (error) {
     console.error('Greyfinch test failed:', error)
@@ -90,7 +91,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Greyfinch API connection successful',
       connectionTest: connectionTest.data,
-      basicCounts: basicCounts.counts
+      basicCounts: basicCounts.counts,
+      locations: basicCounts.locations || []
     })
   } catch (error) {
     console.error('Greyfinch test failed:', error)

@@ -68,22 +68,20 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         },
       });
       const data = await response.json();
+      console.log('Greyfinch test response:', data);
 
       if (data.success) {
         setIsConnected(true);
         setLocations(data.locations || []);
         
         // Update data counts from the connection test
-        if (data.connectionTest) {
+        if (data.basicCounts) {
           const newDataCounts = {
-            patients: data.connectionTest.patients || 0,
-            locations: data.connectionTest.locations || 0,
-            appointments: data.connectionTest.appointments || 0,
-            treatments: data.connectionTest.treatments || 0,
-            companies: data.connectionTest.companies || 0,
-            leads: data.connectionTest.leads || 0,
-            apps: data.connectionTest.apps || 0,
-            appointmentBookings: data.connectionTest.appointmentBookings || 0
+            patients: data.basicCounts.patients || 0,
+            locations: data.basicCounts.locations || 0,
+            appointments: data.basicCounts.appointments || 0,
+            leads: data.basicCounts.leads || 0,
+            bookings: data.basicCounts.bookings || 0
           };
           setDataCounts(newDataCounts);
           
