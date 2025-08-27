@@ -301,6 +301,19 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Setup comprehensive RLS policies
+    console.log('Setting up RLS policies...')
+    try {
+      const rlsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/db/rls-policies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const rlsResult = await rlsResponse.json()
+      console.log('RLS policies setup result:', rlsResult)
+    } catch (error) {
+      console.log('RLS policies setup failed:', error)
+    }
+    
     // Insert sample data if no locations exist
     const existingLocations = await db.execute(sql`SELECT COUNT(*) FROM locations`)
     if (existingLocations[0]?.count === '0') {
