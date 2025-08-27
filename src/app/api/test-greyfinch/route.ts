@@ -55,8 +55,7 @@ export async function POST(request: NextRequest) {
       data: {
         connection: connectionTest,
         greyfinchData: {
-          counts: greyfinchData.counts,
-          availableData: greyfinchData.data
+          counts: greyfinchData.counts
         },
         syncedAt: new Date().toISOString()
       }

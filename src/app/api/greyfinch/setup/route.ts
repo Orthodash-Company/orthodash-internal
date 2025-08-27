@@ -3,7 +3,7 @@ import { greyfinchService } from '@/lib/services/greyfinch'
 
 export async function POST(request: NextRequest) {
   try {
-    const { apiKey, apiSecret } = await request.json()
+    const { apiKey, apiSecret, userId } = await request.json()
     
     if (!apiKey || !apiSecret) {
       return NextResponse.json({ 
@@ -12,21 +12,31 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    greyfinchService.updateCredentials(apiKey, apiSecret)
-    
     // Test the connection
-    const locations = await greyfinchService.getLocations()
+    const connectionTest = await greyfinchService.testConnection()
+    
+    if (!connectionTest.success) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Failed to connect to Greyfinch API',
+        error: connectionTest.message
+      }, { status: 400 })
+    }
+    
+    // Pull basic counts to verify data access
+    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user')
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Greyfinch credentials updated successfully',
-      locations 
+      message: 'Greyfinch connection successful',
+      connectionTest: connectionTest.data,
+      basicCounts: basicCounts.counts
     })
   } catch (error) {
     console.error('Greyfinch setup failed:', error)
     return NextResponse.json({ 
       success: false, 
-      message: 'Failed to update Greyfinch credentials',
+      message: 'Failed to connect to Greyfinch API',
       error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }

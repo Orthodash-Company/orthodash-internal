@@ -46,8 +46,14 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
 
     setIsGenerating(true);
     try {
-      // Get any available Greyfinch data
-      const greyfinchAnalytics = greyfinchService.generateAnalyticsFromGreyfinchData();
+      // Get any available Greyfinch data from localStorage
+      let greyfinchAnalytics = null;
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('greyfinchData');
+        if (stored) {
+          greyfinchAnalytics = JSON.parse(stored);
+        }
+      }
       
       // Fetch any available acquisition cost data for periods
       const acquisitionCostPromises = (periods || []).map(async (period) => {

@@ -134,7 +134,7 @@ export class GreyfinchService {
     try {
       console.log('Pulling detailed data from Greyfinch for analysis...')
       
-      const detailedData = {
+      const detailedData: any = {
         locations: [],
         patients: [],
         appointments: [],

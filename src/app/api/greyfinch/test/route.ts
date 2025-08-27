@@ -10,20 +10,18 @@ export async function GET() {
       return NextResponse.json({
         success: false,
         message: connectionTest.message,
-        error: 'Connection failed',
-        errors: connectionTest.errors
+        error: 'Connection failed'
       }, { status: 500 })
     }
 
-    // Get locations (which will now work with the actual API)
-    const locations = await greyfinchService.getLocations()
+    // Pull basic counts to verify data access
+    const basicCounts = await greyfinchService.pullBasicCounts('test-user')
     
     return NextResponse.json({
       success: true,
       message: 'Greyfinch API connection successful',
-      connectionTest: connectionTest.availableData,
-      errors: connectionTest.errors,
-      locations
+      connectionTest: connectionTest.data,
+      basicCounts: basicCounts.counts
     })
   } catch (error) {
     console.error('Greyfinch test failed:', error)
@@ -38,7 +36,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { apiKey, apiSecret, resourceId, resourceToken } = body;
+    const { apiKey, apiSecret, userId } = body;
 
     if (!apiKey || !apiSecret) {
       return NextResponse.json({
@@ -47,10 +45,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Update the service with the provided credentials
-    greyfinchService.updateCredentials(apiKey, apiSecret, resourceId, resourceToken);
-
-    // Test the connection with the new credentials
+    // Test the connection
     const connectionTest = await greyfinchService.testConnection();
     
     if (!connectionTest.success) {
@@ -61,14 +56,14 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Get locations with the new credentials
-    const locations = await greyfinchService.getLocations()
+    // Pull basic counts to verify data access
+    const basicCounts = await greyfinchService.pullBasicCounts(userId || 'test-user')
     
     return NextResponse.json({
       success: true,
       message: 'Greyfinch API connection successful',
-      connectionTest: connectionTest.availableData,
-      locations
+      connectionTest: connectionTest.data,
+      basicCounts: basicCounts.counts
     })
   } catch (error) {
     console.error('Greyfinch test failed:', error)
