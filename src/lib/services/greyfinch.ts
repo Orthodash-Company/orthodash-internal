@@ -179,70 +179,136 @@ export class GreyfinchService {
           bookings: 0
         },
         locations: [],
-        periodData: {}
+        periodData: {},
+        conversions: {
+          leadToPatient: 0,
+          conversionRate: 0
+        }
       }
 
-      // First, let's try to discover what fields are actually available
+      // Try simple count queries without sensitive data
       try {
-        console.log('Attempting to discover available fields...')
+        console.log('Attempting to get basic counts...')
         
-        // Try a simple query to see what's available
-        const discoveryQuery = await this.makeGraphQLRequest(`
-          query Discovery {
-            __schema {
-              queryType {
+        // Try to get location count
+        try {
+          const locationCountQuery = await this.makeGraphQLRequest(`
+            query GetLocationCount {
+              __type(name: "query_root") {
                 fields {
                   name
-                  type {
-                    name
-                    kind
-                  }
                 }
               }
             }
-          }
-        `)
-        
-        if (discoveryQuery?.__schema?.queryType?.fields) {
-          const availableFields = discoveryQuery.__schema.queryType.fields.map((f: any) => f.name)
-          console.log('Available GraphQL fields:', availableFields)
-          
-          // Try to find location-related fields
-          const locationFields = availableFields.filter((f: string) => 
-            f.toLowerCase().includes('location') || 
-            f.toLowerCase().includes('division') || 
-            f.toLowerCase().includes('office') ||
-            f.toLowerCase().includes('practice')
-          )
-          console.log('Location-related fields:', locationFields)
-          
-          // Try to find patient-related fields
-          const patientFields = availableFields.filter((f: string) => 
-            f.toLowerCase().includes('patient') || 
-            f.toLowerCase().includes('person') || 
-            f.toLowerCase().includes('contact')
-          )
-          console.log('Patient-related fields:', patientFields)
-          
-          // Try to find appointment-related fields
-          const appointmentFields = availableFields.filter((f: string) => 
-            f.toLowerCase().includes('appointment') || 
-            f.toLowerCase().includes('booking') || 
-            f.toLowerCase().includes('visit') ||
-            f.toLowerCase().includes('schedule')
-          )
-          console.log('Appointment-related fields:', appointmentFields)
+          `)
+          console.log('Available root fields:', locationCountQuery?.__type?.fields?.map((f: any) => f.name))
+        } catch (e) {
+          console.log('Location count query failed:', e)
         }
-      } catch (discoveryError) {
-        console.log('Schema discovery failed:', discoveryError)
+
+        // Try to get patient count (just count, no personal data)
+        try {
+          const patientCountQuery = await this.makeGraphQLRequest(`
+            query GetPatientCount {
+              patients {
+                id
+              }
+            }
+          `)
+          if (patientCountQuery?.patients) {
+            data.counts.patients = patientCountQuery.patients.length
+            console.log('Patient count loaded:', data.counts.patients)
+          }
+        } catch (e) {
+          console.log('Patient count query failed:', e)
+        }
+
+        // Try to get lead count (just count, no personal data)
+        try {
+          const leadCountQuery = await this.makeGraphQLRequest(`
+            query GetLeadCount {
+              leads {
+                id
+              }
+            }
+          `)
+          if (leadCountQuery?.leads) {
+            data.counts.leads = leadCountQuery.leads.length
+            console.log('Lead count loaded:', data.counts.leads)
+          }
+        } catch (e) {
+          console.log('Lead count query failed:', e)
+        }
+
+        // Try to get appointment count (just count, no personal data)
+        try {
+          const appointmentCountQuery = await this.makeGraphQLRequest(`
+            query GetAppointmentCount {
+              appointments {
+                id
+              }
+            }
+          `)
+          if (appointmentCountQuery?.appointments) {
+            data.counts.appointments = appointmentCountQuery.appointments.length
+            console.log('Appointment count loaded:', data.counts.appointments)
+          }
+        } catch (e) {
+          console.log('Appointment count query failed:', e)
+        }
+
+        // Try to get booking count (just count, no personal data)
+        try {
+          const bookingCountQuery = await this.makeGraphQLRequest(`
+            query GetBookingCount {
+              appointmentBookings {
+                id
+              }
+            }
+          `)
+          if (bookingCountQuery?.appointmentBookings) {
+            data.counts.bookings = bookingCountQuery.appointmentBookings.length
+            console.log('Booking count loaded:', data.counts.bookings)
+          }
+        } catch (e) {
+          console.log('Booking count query failed:', e)
+        }
+
+        // Calculate lead-to-patient conversion rate
+        if (data.counts.leads > 0 && data.counts.patients > 0) {
+          data.conversions.leadToPatient = data.counts.patients
+          data.conversions.conversionRate = Math.round((data.counts.patients / data.counts.leads) * 100)
+          console.log('Conversion rate:', data.conversions.conversionRate + '%')
+        }
+
+        // Try to get location names (just names, no sensitive data)
+        try {
+          const locationQuery = await this.makeGraphQLRequest(`
+            query GetLocations {
+              locations {
+                id
+                name
+              }
+            }
+          `)
+          if (locationQuery?.locations) {
+            data.locations = locationQuery.locations
+            data.counts.locations = locationQuery.locations.length
+            console.log('Locations loaded:', data.counts.locations)
+          }
+        } catch (e) {
+          console.log('Location query failed:', e)
+        }
+
+      } catch (error) {
+        console.log('Count queries failed:', error)
       }
 
-      // For now, return empty data since we don't know the correct field names
       return {
         success: true,
         counts: data.counts,
         locations: data.locations,
-        message: 'Schema discovery completed - need to map correct field names'
+        message: 'Basic counts retrieved successfully'
       }
     } catch (error) {
       console.error('Error pulling comprehensive data:', error)
