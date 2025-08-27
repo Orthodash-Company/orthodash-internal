@@ -50,7 +50,7 @@ export function GreyfinchSetup() {
 
     setIsLoading(true);
     try {
-      // Test the connection first
+      // Test the connection and store in database
       const testResponse = await fetch('/api/greyfinch/setup', {
         method: 'POST',
         headers: {
@@ -66,12 +66,12 @@ export function GreyfinchSetup() {
       const testData = await testResponse.json();
 
       if (testData.success) {
-        // Save credentials to localStorage
+        // Save credentials to localStorage for UI state
         localStorage.setItem('greyfinch-credentials', JSON.stringify(credentials));
         setIsConnected(true);
         toast({
           title: "Success",
-          description: "Greyfinch API credentials saved and connection verified!",
+          description: "Greyfinch API credentials saved to database and connection verified!",
         });
       } else {
         toast({

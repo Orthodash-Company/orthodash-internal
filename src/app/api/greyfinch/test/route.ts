@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { greyfinchService } from '@/lib/services/greyfinch'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Test the connection first (without credentials - will return "not configured" status)
-    const connectionTest = await greyfinchService.testConnection();
+    // Get API key from query parameters or headers
+    const url = new URL(request.url)
+    const apiKey = url.searchParams.get('apiKey') || request.headers.get('x-api-key')
+    
+    // If API key is provided, update the service credentials
+    if (apiKey) {
+      greyfinchService.updateCredentials(apiKey)
+    }
+    
+    // Test the connection (will auto-retrieve credentials if userId is provided)
+    const connectionTest = await greyfinchService.testConnection('test-user');
     
     if (!connectionTest.success) {
       return NextResponse.json({
@@ -48,8 +57,8 @@ export async function POST(request: NextRequest) {
     // Update the service with the provided credentials
     greyfinchService.updateCredentials(apiKey)
 
-    // Test the connection
-    const connectionTest = await greyfinchService.testConnection();
+    // Test the connection (will auto-retrieve credentials if userId is provided)
+    const connectionTest = await greyfinchService.testConnection(userId || 'test-user');
     
     if (!connectionTest.success) {
       return NextResponse.json({

@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
+import { db } from '@/lib/db'
+import { sql } from 'drizzle-orm'
 
 export class GreyfinchService {
   private apiUrl: string
@@ -6,7 +8,7 @@ export class GreyfinchService {
 
   constructor() {
     this.apiUrl = process.env.GREYFINCH_API_URL || 'https://api.greyfinch.com/graphql'
-    this.apiKey = process.env.GREYFINCH_API_KEY || ''
+    this.apiKey = ''
   }
 
   // Update credentials dynamically
@@ -21,6 +23,70 @@ export class GreyfinchService {
       hasApiKey: !!this.apiKey,
       apiKeyLength: this.apiKey.length
     })
+  }
+
+  // Store credentials in database
+  async storeCredentials(userId: string, apiKey: string, apiSecret?: string) {
+    try {
+      // Check if configuration already exists
+      const existing = await db.execute(sql`
+        SELECT id FROM api_configurations 
+        WHERE user_id = ${userId} AND type = 'greyfinch'
+      `)
+      
+      if (existing.length > 0) {
+        // Update existing configuration
+        await db.execute(sql`
+          UPDATE api_configurations 
+          SET api_key = ${apiKey}, 
+              api_secret = ${apiSecret || null},
+              updated_at = NOW()
+          WHERE user_id = ${userId} AND type = 'greyfinch'
+        `)
+      } else {
+        // Insert new configuration
+        await db.execute(sql`
+          INSERT INTO api_configurations (user_id, name, type, api_key, api_secret, is_active)
+          VALUES (${userId}, 'Greyfinch API', 'greyfinch', ${apiKey}, ${apiSecret || null}, true)
+        `)
+      }
+      
+      console.log('Greyfinch credentials stored in database for user:', userId)
+      return true
+    } catch (error) {
+      console.error('Failed to store Greyfinch credentials:', error)
+      return false
+    }
+  }
+
+  // Retrieve credentials from database
+  async getCredentials(userId: string) {
+    try {
+      const result = await db.execute(sql`
+        SELECT api_key, api_secret 
+        FROM api_configurations 
+        WHERE user_id = ${userId} AND type = 'greyfinch' AND is_active = true
+      `)
+      
+      if (result.length > 0) {
+        const config = result[0]
+        this.apiKey = config.api_key
+        if (config.api_secret) {
+          // Store secret if needed
+        }
+        
+        console.log('Greyfinch credentials retrieved from database for user:', userId)
+        return {
+          apiKey: config.api_key,
+          apiSecret: config.api_secret
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Failed to retrieve Greyfinch credentials:', error)
+      return null
+    }
   }
 
   private async makeGraphQLRequest(query: string, variables: any = {}) {
@@ -326,15 +392,27 @@ export class GreyfinchService {
   }
 
   // Test connection with basic query
-  async testConnection() {
+  async testConnection(userId?: string) {
     try {
       console.log('Testing Greyfinch API connection...')
       
-      // First check if we have the required configuration
+      // If no API key is set but userId is provided, try to retrieve from database
+      if (!this.apiKey && userId) {
+        const credentials = await this.getCredentials(userId)
+        if (!credentials) {
+          return {
+            success: false,
+            message: 'Greyfinch API key is not configured. Please set up your API credentials in the Connections tab.',
+            error: 'MISSING_API_KEY'
+          }
+        }
+      }
+      
+      // Check if we have the required configuration
       if (!this.apiKey) {
         return {
           success: false,
-          message: 'Greyfinch API key is not configured. Please set GREYFINCH_API_KEY environment variable.',
+          message: 'Greyfinch API key is not configured. Please set up your API credentials in the Connections tab.',
           error: 'MISSING_API_KEY'
         }
       }

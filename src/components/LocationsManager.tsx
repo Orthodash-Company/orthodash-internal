@@ -53,7 +53,12 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       const storedCredentials = localStorage.getItem('greyfinch-credentials');
       const credentials = storedCredentials ? JSON.parse(storedCredentials) : null;
       
-      const response = await fetch('/api/greyfinch/test', {
+      // Build URL with API key if available
+      const url = credentials?.apiKey 
+        ? `/api/greyfinch/test?apiKey=${encodeURIComponent(credentials.apiKey)}`
+        : '/api/greyfinch/test';
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

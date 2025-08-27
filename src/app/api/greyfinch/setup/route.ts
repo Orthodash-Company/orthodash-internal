@@ -14,11 +14,20 @@ export async function POST(request: NextRequest) {
     
     console.log('Setting up Greyfinch connection for user:', userId)
     
+    // Store credentials in database
+    const stored = await greyfinchService.storeCredentials(userId || 'test-user', apiKey, apiSecret)
+    if (!stored) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Failed to store API credentials'
+      }, { status: 500 })
+    }
+    
     // Update the service with the provided credentials
     greyfinchService.updateCredentials(apiKey)
     
     // Test the connection
-    const connectionTest = await greyfinchService.testConnection()
+    const connectionTest = await greyfinchService.testConnection(userId || 'test-user')
     
     if (!connectionTest.success) {
       return NextResponse.json({ 
