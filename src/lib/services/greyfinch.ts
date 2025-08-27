@@ -193,23 +193,6 @@ export class GreyfinchService {
             ) {
               id
               name
-              address {
-                street
-                city
-                state
-                zipCode
-              }
-              division {
-                id
-                name
-              }
-              organization {
-                id
-                name
-              }
-              isActive
-              createdAt
-              updatedAt
             }
           }
         `)

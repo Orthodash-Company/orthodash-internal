@@ -7,7 +7,7 @@ import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
-import { GreyfinchSetup } from './GreyfinchSetup';
+
 import { PDFReportGenerator } from './PDFReportGenerator';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -436,7 +436,7 @@ export default function Dashboard() {
 
                     <Separator className="bg-[#1C1F4F]/20" />
 
-                    <GreyfinchSetup />
+                    {/* Greyfinch API is automatically connected using environment variables */}
                   </div>
                 </TabsContent>
 

@@ -93,30 +93,19 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           }
         }
         
-        toast({
-          title: "Greyfinch Connected",
-          description: "Successfully connected to Greyfinch API.",
-        });
+        // Auto-connect success - no toast needed
       } else {
         setIsConnected(false);
         setLocations([]);
         setDataCounts({});
-        toast({
-          title: "Greyfinch Not Connected",
-          description: data.error || "Failed to connect to Greyfinch API. Please check credentials in Connections tab.",
-          variant: "destructive",
-        });
+        // Remove connection error toast - auto-connect silently
       }
     } catch (error) {
       console.error('Error checking Greyfinch connection:', error);
       setIsConnected(false);
       setLocations([]);
       setDataCounts({});
-      toast({
-        title: "Connection Error",
-        description: "Could not reach Greyfinch API. Please check your network and credentials.",
-        variant: "destructive",
-      });
+      // Remove connection error toast - auto-connect silently
     } finally {
       setIsLoading(false);
     }
@@ -236,6 +225,18 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
               Refresh
             </Button>
           </div>
+
+          {/* Green confirmation when connected */}
+          {isConnected && !isLoading && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  Greyfinch API is connected and ready
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Data Counts */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
