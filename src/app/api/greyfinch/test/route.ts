@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Test the connection (will auto-retrieve credentials if userId is provided)
+    // Test the connection with schema introspection
     const connectionTest = await greyfinchService.testConnection('test-user');
     
     if (!connectionTest.success) {

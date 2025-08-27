@@ -694,16 +694,11 @@ export class GreyfinchService {
         },
         body: JSON.stringify({
           query: `
-            query IntrospectSchema {
+            query {
               __schema {
                 queryType {
-                  name
                   fields {
                     name
-                    type {
-                      name
-                      kind
-                    }
                   }
                 }
               }
