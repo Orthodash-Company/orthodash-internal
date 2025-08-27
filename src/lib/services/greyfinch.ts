@@ -11,6 +11,14 @@ export class GreyfinchService {
     this.apiUrl = process.env.GREYFINCH_API_URL || 'https://connect-api.greyfinch.com/v1/graphql'
     // Auto-load credentials from environment variables
     this.apiKey = process.env.GREYFINCH_API_KEY || ''
+    
+    console.log('GreyfinchService initialized:', {
+      apiUrl: this.apiUrl,
+      hasApiKey: !!this.apiKey,
+      apiKeyLength: this.apiKey.length,
+      envApiKey: !!process.env.GREYFINCH_API_KEY,
+      envApiUrl: !!process.env.GREYFINCH_API_URL
+    })
   }
 
   // Update credentials dynamically
@@ -408,10 +416,20 @@ export class GreyfinchService {
   async testConnection(userId?: string) {
     try {
       console.log('Testing Greyfinch API connection...')
+      console.log('Initial state:', {
+        hasApiKey: !!this.apiKey,
+        apiKeyLength: this.apiKey.length,
+        apiUrl: this.apiUrl,
+        envApiKey: !!process.env.GREYFINCH_API_KEY
+      })
       
       // Auto-load credentials from environment if not set
       if (!this.apiKey) {
         this.apiKey = process.env.GREYFINCH_API_KEY || ''
+        console.log('Loaded API key from environment:', {
+          hasApiKey: !!this.apiKey,
+          apiKeyLength: this.apiKey.length
+        })
       }
       
       // If still no API key, try to retrieve from database
@@ -507,6 +525,18 @@ export class GreyfinchService {
   // Test a specific URL
   async testUrl(url: string) {
     try {
+      console.log(`Testing URL: ${url}`)
+      console.log('Request details:', {
+        method: 'POST',
+        hasApiKey: !!this.apiKey,
+        apiKeyLength: this.apiKey.length,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey ? '***' : 'none'}`,
+          'X-API-Key': this.apiKey ? '***' : 'none'
+        }
+      })
+      
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -525,6 +555,9 @@ export class GreyfinchService {
           `
         }),
       })
+      
+      console.log(`Response status: ${response.status}`)
+      console.log(`Response headers:`, Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         return { 
