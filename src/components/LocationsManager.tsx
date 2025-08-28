@@ -89,6 +89,12 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         setIsConnected(true)
         setConnectionChecked(true)
         
+        // Force a re-render by updating state immediately
+        setTimeout(() => {
+          console.log('🔄 Forcing re-render with connected state')
+          setIsConnected(true)
+        }, 0)
+        
         // Update counts from analytics data
         if (data.data) {
           const newCounts = {
@@ -225,6 +231,9 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
                  isConnected ? 'Connected to Greyfinch API' : 
                  'Not connected to Greyfinch API'}
               </span>
+            </div>
+            <div className="text-xs text-gray-500">
+              State: {isConnected ? 'true' : 'false'} | Checked: {connectionChecked ? 'true' : 'false'}
             </div>
             <Button
               onClick={checkConnectionAndFetchLocations}
