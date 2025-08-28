@@ -35,25 +35,25 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(true); // Hardcoded to true
+  const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [dataCounts, setDataCounts] = useState<DataCounts>({});
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
-  const [connectionChecked, setConnectionChecked] = useState(true); // Hardcoded to true
+  const [connectionChecked, setConnectionChecked] = useState(false);
 
-  // useEffect(() => {
-  //   // Always check connection on mount, regardless of user state
-  //   // This will use environment variables automatically
-  //   checkConnectionAndFetchLocations();
-  // }, []);
+  useEffect(() => {
+    // Always check connection on mount, regardless of user state
+    // This will use environment variables automatically
+    checkConnectionAndFetchLocations();
+  }, []);
 
-  // // Also check when user changes
-  // useEffect(() => {
-  //   if (user?.id) {
-  //     // Re-check connection when user is available
-  //     checkConnectionAndFetchLocations();
-  //   }
-  // }, [user?.id]);
+  // Also check when user changes
+  useEffect(() => {
+    if (user?.id) {
+      // Re-check connection when user is available
+      checkConnectionAndFetchLocations();
+    }
+  }, [user?.id]);
 
   // Debug connection status changes
   useEffect(() => {
@@ -218,13 +218,14 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           {/* Connection Status */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              {isConnected ? (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-red-500" />
+              )}
               <span className="text-sm font-medium">
-                Connected to Greyfinch API (v2.0 - {new Date().toLocaleTimeString()})
+                {isConnected ? 'Connected to Greyfinch API' : 'Not connected to Greyfinch API'}
               </span>
-            </div>
-            <div className="text-xs text-gray-500">
-              State: {isConnected ? 'true' : 'false'} | Checked: {connectionChecked ? 'true' : 'false'}
             </div>
             <Button
               onClick={checkConnectionAndFetchLocations}
@@ -237,28 +238,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
             </Button>
           </div>
 
-          {/* Green confirmation when connected */}
-          {isConnected && !isLoading && connectionChecked && (
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">
-                  Greyfinch API is connected and ready
-                </span>
-              </div>
-            </div>
-          )}
 
-          {/* Connection status info */}
-          {connectionChecked && !isLoading && (
-            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-blue-800">
-                  Connection Status: {isConnected ? '✅ Connected' : '❌ Not Connected'}
-                </span>
-              </div>
-            </div>
-          )}
 
           {/* Data Counts */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
