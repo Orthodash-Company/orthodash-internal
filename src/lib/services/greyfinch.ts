@@ -20,6 +20,15 @@ export class GreyfinchService {
     })
   }
 
+  // Update credentials (for backward compatibility)
+  updateCredentials(apiKey: string, apiSecret?: string) {
+    this.apiKey = apiKey
+    if (apiSecret) {
+      this.apiSecret = apiSecret
+    }
+    console.log('Greyfinch credentials updated')
+  }
+
   // Simple GraphQL request - just use API key as Bearer token
   private async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
