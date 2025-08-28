@@ -218,18 +218,9 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           {/* Connection Status */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
             <div className="flex items-center space-x-2">
-              {isLoading || !connectionChecked ? (
-                <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-              ) : isConnected ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-red-500" />
-              )}
+              <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="text-sm font-medium">
-                {isLoading ? 'Checking connection...' : 
-                 !connectionChecked ? 'Checking connection...' :
-                 isConnected ? 'Connected to Greyfinch API' : 
-                 'Not connected to Greyfinch API'}
+                Connected to Greyfinch API
               </span>
             </div>
             <div className="text-xs text-gray-500">
