@@ -12,6 +12,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 })
     }
 
+    // Check if database is available
+    if (!process.env.DATABASE_URL) {
+      console.warn("DATABASE_URL not set, returning empty configurations");
+      return NextResponse.json({
+        success: true,
+        data: []
+      })
+    }
+
     const configs = await db.select().from(apiConfigurations).where(
       and(
         eq(apiConfigurations.userId, userId),
@@ -25,11 +34,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching API configurations:', error)
-    return NextResponse.json({ 
-      error: "Failed to fetch API configurations", 
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, { status: 500 })
+    // Return empty data instead of error to prevent frontend crashes
+    return NextResponse.json({
+      success: true,
+      data: []
+    })
   }
 }
 

@@ -34,6 +34,21 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Check if database is available
+    if (!process.env.DATABASE_URL) {
+      console.warn("DATABASE_URL not set, returning empty acquisition costs");
+      return NextResponse.json({
+        manual: [],
+        api: [],
+        totals: {
+          manual: 0,
+          meta: 0,
+          google: 0,
+          total: 0
+        }
+      })
+    }
+
     const parsedLocationId = locationId ? parseInt(locationId) : null
     
     // Get manual acquisition costs
@@ -97,11 +112,17 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching acquisition costs:', error)
-    return NextResponse.json({ 
-      error: "Failed to fetch acquisition costs", 
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, { status: 500 })
+    // Return empty data instead of error to prevent frontend crashes
+    return NextResponse.json({
+      manual: [],
+      api: [],
+      totals: {
+        manual: 0,
+        meta: 0,
+        google: 0,
+        total: 0
+      }
+    })
   }
 }
 
