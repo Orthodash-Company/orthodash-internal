@@ -18,7 +18,9 @@ export class GreyfinchService {
       apiKeyLength: this.apiKey.length,
       envApiKey: !!process.env.GREYFINCH_API_KEY,
       envApiUrl: !!process.env.GREYFINCH_API_URL,
-      apiKeyPrefix: this.apiKey.substring(0, 8) + '...' // Show first 8 chars for debugging
+      apiKeyPrefix: this.apiKey ? this.apiKey.substring(0, 8) + '...' : 'none',
+      rawEnvKey: process.env.GREYFINCH_API_KEY ? 'present' : 'missing',
+      nodeEnv: process.env.NODE_ENV
     })
   }
 

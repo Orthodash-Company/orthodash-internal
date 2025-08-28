@@ -5,26 +5,19 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Greyfinch test endpoint called')
     
-    // Get API key from query parameters or headers
-    const url = new URL(request.url)
-    const apiKey = url.searchParams.get('apiKey') || request.headers.get('x-api-key')
+    // Always use environment variables for automatic connection
+    const envApiKey = process.env.GREYFINCH_API_KEY
+    const envApiSecret = process.env.GREYFINCH_API_SECRET
     
-    console.log('API key from request:', apiKey ? 'provided' : 'not provided')
-    console.log('Environment API key available:', !!process.env.GREYFINCH_API_KEY)
+    console.log('Environment API key available:', !!envApiKey)
+    console.log('Environment API secret available:', !!envApiSecret)
     
-    // If API key is provided, update the service credentials
-    if (apiKey) {
-      greyfinchService.updateCredentials(apiKey)
-      console.log('Updated service with provided API key')
+    // Update service with environment credentials
+    if (envApiKey) {
+      greyfinchService.updateCredentials(envApiKey)
+      console.log('Updated service with environment API key')
     } else {
-      // Auto-load from environment variables
-      const envApiKey = process.env.GREYFINCH_API_KEY
-      if (envApiKey) {
-        greyfinchService.updateCredentials(envApiKey)
-        console.log('Updated service with environment API key')
-      } else {
-        console.log('No API key available from request or environment')
-      }
+      console.log('No API key available in environment variables')
     }
     
     // Test the connection with schema introspection
