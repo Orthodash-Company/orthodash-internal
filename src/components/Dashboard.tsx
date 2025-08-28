@@ -119,52 +119,22 @@ export default function Dashboard() {
   // Load Greyfinch data from localStorage and API
   const loadGreyfinchData = async () => {
     try {
-      // First try to get data from localStorage
-      if (typeof window !== 'undefined') {
-        const storedData = localStorage.getItem('greyfinchData');
-        if (storedData) {
-          const parsedData = JSON.parse(storedData);
-          setGreyfinchData(parsedData);
-          console.log('Loaded Greyfinch data from localStorage:', parsedData);
-        }
-      }
-
-      // Then try to pull fresh data from the enhanced API
-      const response = await fetch('/api/greyfinch/dashboard-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          userId: user?.id,
-          periodConfigs: periods.map(p => ({
-            id: p.id,
-            startDate: p.startDate,
-            endDate: p.endDate,
-            locationId: p.locationId
-          }))
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setGreyfinchData(data);
-          
-          // Store in localStorage for caching
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('greyfinchData', JSON.stringify(data));
-          }
-          
-          console.log('Pulled fresh Greyfinch data with proper field naming:', data);
-        }
+      console.log('🔄 Fetching Greyfinch analytics data...')
+      const response = await fetch('/api/greyfinch/analytics')
+      const data = await response.json()
+      
+      if (data.success) {
+        console.log('✅ Greyfinch analytics data loaded:', data.data)
+        
+        // Update dashboard with analytics data
+        setGreyfinchData(data.data)
       } else {
-        console.error('Failed to fetch Greyfinch data:', response.status, response.statusText);
+        console.error('❌ Failed to load Greyfinch analytics data:', data.message)
       }
     } catch (error) {
-      console.error('Error loading Greyfinch data:', error);
+      console.error('❌ Error fetching Greyfinch analytics data:', error)
     }
-  };
+  }
 
   // Create data queries for each period
   const createPeriodQueries = (periods: PeriodConfig[], greyfinchData: any) => {

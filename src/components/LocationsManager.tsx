@@ -61,78 +61,57 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   }, [isConnected]);
 
   const checkConnectionAndFetchLocations = async () => {
-    setIsLoading(true);
+    setIsLoading(true)
+    console.log('🔄 Checking Greyfinch connection...')
+    
     try {
-      console.log('🔄 Checking Greyfinch connection...');
-      // Always try to connect using environment variables first
-      // The API will automatically use GREYFINCH_API_KEY from environment
-      const url = '/api/greyfinch/test';
+      const url = '/api/greyfinch/analytics'
+      console.log('📡 Making request to:', url)
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-      });
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
+      })
       
-      const data = await response.json();
-      console.log('📦 Greyfinch test response:', data);
-
+      console.log('📡 Response status:', response.status)
+      console.log('📡 Response ok:', response.ok)
+      
+      const data = await response.json()
+      console.log('📦 Greyfinch analytics response:', data)
+      
       if (data.success) {
-        console.log('✅ Setting connection to true');
-        setIsConnected(true);
-        setConnectionChecked(true);
-        setLocations(data.locations || []);
+        console.log('✅ Setting connection to true')
+        setIsConnected(true)
+        setConnectionChecked(true)
         
-        // Update data counts from the connection test
-        if (data.basicCounts) {
-          const newDataCounts = {
-            patients: data.basicCounts.patients || 0,
-            locations: data.basicCounts.locations || 0,
-            appointments: data.basicCounts.appointments || 0,
-            leads: data.basicCounts.leads || 0,
-            bookings: data.basicCounts.bookings || 0
-          };
-          setDataCounts(newDataCounts);
-          
-          // Pass data to parent component
-          if (onGreyfinchDataUpdate) {
-            onGreyfinchDataUpdate(newDataCounts);
-          }
+        // Update counts from analytics data
+        if (data.data) {
+          setDataCounts({
+            patients: data.data.patients.count || 0,
+            locations: (data.data.locations.gilbert.count || 0) + (data.data.locations.scottsdale.count || 0),
+            appointments: data.data.appointments.count || 0,
+            leads: data.data.leads.count || 0
+          })
         }
         
-        console.log('✅ Greyfinch API connected successfully with data:', data);
-        // Force a re-render to update the UI
-        setTimeout(() => {
-          console.log('🔄 Forcing re-render, connection status:', true);
-        }, 100);
-        // Auto-connect success - no toast needed
+        console.log('✅ Greyfinch API connected successfully with analytics data:', data.data)
       } else {
-        console.log('❌ Setting connection to false');
-        setIsConnected(false);
-        setConnectionChecked(true);
-        setLocations([]);
-        setDataCounts({});
-        console.log('❌ Greyfinch API connection failed:', data.message);
-        // Force a re-render to update the UI
-        setTimeout(() => {
-          console.log('🔄 Forcing re-render, connection status:', false);
-        }, 100);
-        // Remove connection error toast - auto-connect silently
+        console.log('❌ Setting connection to false')
+        setIsConnected(false)
+        setConnectionChecked(true)
+        console.log('❌ Greyfinch API connection failed:', data.message)
       }
     } catch (error) {
-      console.error('Error checking Greyfinch connection:', error);
-      setIsConnected(false);
-      setLocations([]);
-      setDataCounts({});
-      console.log('Greyfinch API connection error:', error);
-      // Remove connection error toast - auto-connect silently
+      console.log('❌ Setting connection to false due to error')
+      setIsConnected(false)
+      setConnectionChecked(true)
+      console.error('❌ Error checking Greyfinch connection:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handlePullAllData = async () => {
     if (!user?.id) {
