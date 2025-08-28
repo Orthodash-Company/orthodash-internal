@@ -35,8 +35,8 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const { user } = useAuth();
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([
-    { id: 'gilbert', name: 'Gilbert', address: 'Gilbert, AZ' },
-    { id: 'scottsdale', name: 'Scottsdale', address: 'Scottsdale, AZ' }
+    { id: 1, name: 'Gilbert', greyfinchId: 'gilbert' },
+    { id: 2, name: 'Scottsdale', greyfinchId: 'scottsdale' }
   ]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
