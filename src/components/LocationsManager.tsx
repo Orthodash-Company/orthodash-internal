@@ -220,7 +220,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="text-sm font-medium">
-                Connected to Greyfinch API
+                Connected to Greyfinch API (v2.0 - {new Date().toLocaleTimeString()})
               </span>
             </div>
             <div className="text-xs text-gray-500">
