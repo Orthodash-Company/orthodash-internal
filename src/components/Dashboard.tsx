@@ -120,7 +120,13 @@ export default function Dashboard() {
   const loadGreyfinchData = async () => {
     try {
       console.log('🔄 Fetching Greyfinch analytics data...')
-      const response = await fetch('/api/greyfinch/analytics')
+              const response = await fetch('/api/greyfinch/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        })
       const data = await response.json()
       
       if (data.success) {

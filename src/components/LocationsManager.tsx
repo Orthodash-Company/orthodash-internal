@@ -69,14 +69,15 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     console.log('🔄 Checking Greyfinch connection...')
     
     try {
-      const url = '/api/greyfinch/analytics'
+      const url = '/api/greyfinch/sync'
       console.log('📡 Making request to:', url)
       
       const response = await fetch(url, {
-        method: 'GET',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({}),
       })
       
       console.log('📡 Response status:', response.status)
