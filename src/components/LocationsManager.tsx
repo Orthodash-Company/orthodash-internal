@@ -30,6 +30,7 @@ interface LocationsManagerProps {
   onGreyfinchDataUpdate?: (data: any) => void;
 }
 
+// Dynamic connection status component - updated for production deployment
 export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
