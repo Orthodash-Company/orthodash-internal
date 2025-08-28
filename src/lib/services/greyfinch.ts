@@ -192,23 +192,7 @@ export class GreyfinchService {
       try {
         console.log('Attempting to get basic counts...')
         
-        // Try to get location count
-        try {
-          const locationCountQuery = await this.makeGraphQLRequest(`
-            query GetLocationCount {
-              __type(name: "query_root") {
-                fields {
-                  name
-                }
-              }
-            }
-          `)
-          console.log('Available root fields:', locationCountQuery?.__type?.fields?.map((f: any) => f.name))
-        } catch (e) {
-          console.log('Location count query failed:', e)
-        }
-
-        // Try to get patient count (just count, no personal data)
+        // Get patient count (just count, no personal data)
         try {
           const patientCountQuery = await this.makeGraphQLRequest(`
             query GetPatientCount {
@@ -225,7 +209,7 @@ export class GreyfinchService {
           console.log('Patient count query failed:', e)
         }
 
-        // Try to get lead count (just count, no personal data)
+        // Get lead count (just count, no personal data)
         try {
           const leadCountQuery = await this.makeGraphQLRequest(`
             query GetLeadCount {
@@ -242,7 +226,7 @@ export class GreyfinchService {
           console.log('Lead count query failed:', e)
         }
 
-        // Try to get appointment count (just count, no personal data)
+        // Get appointment count (just count, no personal data)
         try {
           const appointmentCountQuery = await this.makeGraphQLRequest(`
             query GetAppointmentCount {
@@ -259,7 +243,7 @@ export class GreyfinchService {
           console.log('Appointment count query failed:', e)
         }
 
-        // Try to get booking count (just count, no personal data)
+        // Get booking count (just count, no personal data)
         try {
           const bookingCountQuery = await this.makeGraphQLRequest(`
             query GetBookingCount {
@@ -283,7 +267,7 @@ export class GreyfinchService {
           console.log('Conversion rate:', data.conversions.conversionRate + '%')
         }
 
-        // Try to get location names (just names, no sensitive data)
+        // Get location names (just names, no sensitive data)
         try {
           const locationQuery = await this.makeGraphQLRequest(`
             query GetLocations {
@@ -681,13 +665,9 @@ export class GreyfinchService {
         },
         body: JSON.stringify({
           query: `
-            query {
-              __schema {
-                queryType {
-                  fields {
-                    name
-                  }
-                }
+            query TestConnection {
+              patients {
+                id
               }
             }
           `
@@ -719,11 +699,6 @@ export class GreyfinchService {
             message: 'GraphQL errors in response',
             data: null
           }
-        }
-        
-        // If this is a schema introspection, log the available fields
-        if (data.data?.__schema?.queryType?.fields) {
-          console.log('Available GraphQL fields:', data.data.__schema.queryType.fields.map((f: any) => f.name))
         }
         
         return { 
