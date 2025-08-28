@@ -398,7 +398,7 @@ export class GreyfinchService {
       } catch (e) {
         console.log('Lead count query failed:', e)
         // Try alternative table names
-        const tableNames = ['lead', 'lead_table', 'lead_records', 'lead_data']
+        const tableNames = ['lead', 'lead_table', 'lead_records']
         for (const tableName of tableNames) {
           try {
             const countQuery = await this.makeGraphQLRequest(`
