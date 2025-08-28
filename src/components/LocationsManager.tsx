@@ -39,6 +39,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const [isLoading, setIsLoading] = useState(false);
   const [dataCounts, setDataCounts] = useState<DataCounts>({});
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
+  const [connectionChecked, setConnectionChecked] = useState(false);
 
   useEffect(() => {
     // Always check connection on mount, regardless of user state
@@ -54,9 +55,15 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     }
   }, [user?.id]);
 
+  // Debug connection status changes
+  useEffect(() => {
+    console.log('🔍 Connection status changed:', isConnected);
+  }, [isConnected]);
+
   const checkConnectionAndFetchLocations = async () => {
     setIsLoading(true);
     try {
+      console.log('🔄 Checking Greyfinch connection...');
       // Always try to connect using environment variables first
       // The API will automatically use GREYFINCH_API_KEY from environment
       const url = '/api/greyfinch/test';
@@ -67,11 +74,16 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           'Content-Type': 'application/json',
         },
       });
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+      
       const data = await response.json();
-      console.log('Greyfinch test response:', data);
+      console.log('📦 Greyfinch test response:', data);
 
       if (data.success) {
+        console.log('✅ Setting connection to true');
         setIsConnected(true);
+        setConnectionChecked(true);
         setLocations(data.locations || []);
         
         // Update data counts from the connection test
@@ -91,11 +103,23 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           }
         }
         
+        console.log('✅ Greyfinch API connected successfully with data:', data);
+        // Force a re-render to update the UI
+        setTimeout(() => {
+          console.log('🔄 Forcing re-render, connection status:', true);
+        }, 100);
         // Auto-connect success - no toast needed
       } else {
+        console.log('❌ Setting connection to false');
         setIsConnected(false);
+        setConnectionChecked(true);
         setLocations([]);
         setDataCounts({});
+        console.log('❌ Greyfinch API connection failed:', data.message);
+        // Force a re-render to update the UI
+        setTimeout(() => {
+          console.log('🔄 Forcing re-render, connection status:', false);
+        }, 100);
         // Remove connection error toast - auto-connect silently
       }
     } catch (error) {
@@ -103,6 +127,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       setIsConnected(false);
       setLocations([]);
       setDataCounts({});
+      console.log('Greyfinch API connection error:', error);
       // Remove connection error toast - auto-connect silently
     } finally {
       setIsLoading(false);
@@ -200,7 +225,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           {/* Connection Status */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
             <div className="flex items-center space-x-2">
-              {isLoading ? (
+              {isLoading || !connectionChecked ? (
                 <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
               ) : isConnected ? (
                 <CheckCircle className="h-4 w-4 text-green-500" />
@@ -209,6 +234,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
               )}
               <span className="text-sm font-medium">
                 {isLoading ? 'Checking connection...' : 
+                 !connectionChecked ? 'Checking connection...' :
                  isConnected ? 'Connected to Greyfinch API' : 
                  'Not connected to Greyfinch API'}
               </span>
@@ -225,12 +251,23 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           </div>
 
           {/* Green confirmation when connected */}
-          {isConnected && !isLoading && (
+          {isConnected && !isLoading && connectionChecked && (
             <div className="p-3 rounded-lg bg-green-50 border border-green-200">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <span className="text-sm font-medium text-green-800">
                   Greyfinch API is connected and ready
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Connection status info */}
+          {connectionChecked && !isLoading && (
+            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-blue-800">
+                  Connection Status: {isConnected ? '✅ Connected' : '❌ Not Connected'}
                 </span>
               </div>
             </div>

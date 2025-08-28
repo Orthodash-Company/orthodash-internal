@@ -340,75 +340,129 @@ export class GreyfinchService {
         locations: []
       }
 
-      // Get patient count with proper field naming
+      // Get patient count - query the patients table and count rows
       try {
-        const patientCountQuery = await this.makeGraphQLRequest(`
-          query GetPatientCount {
+        const patientQuery = await this.makeGraphQLRequest(`
+          query GetPatients {
             patients {
               id
             }
           }
         `)
-        if (patientCountQuery?.patients) {
-          data.counts.patients = patientCountQuery.patients.length
-          console.log('Patient count loaded:', data.counts.patients)
+        if (patientQuery?.patients) {
+          data.counts.patients = patientQuery.patients.length
+          console.log('Patient count loaded from patients table:', data.counts.patients)
         }
       } catch (e) {
         console.log('Patient count query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+        // Try alternative table names
+        const tableNames = ['patient', 'patient_table', 'patient_records', 'patient_data']
+        for (const tableName of tableNames) {
+          try {
+            const countQuery = await this.makeGraphQLRequest(`
+              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
+                ${tableName} {
+                  id
+                }
+              }
+            `)
+            if (countQuery?.[tableName]) {
+              data.counts.patients = countQuery[tableName].length
+              console.log(`Patient count loaded from ${tableName}:`, data.counts.patients)
+              break
+            }
+          } catch (e2) {
+            console.log(`${tableName} query failed:`, e2)
           }
+        }
+        // If all failed, set to 0
+        if (data.counts.patients === 0) {
+          console.log('All patient count queries failed, setting to 0')
+          data.counts.patients = 0
         }
       }
 
-      // Get lead count with proper field naming
+      // Get lead count - query the leads table and count rows
       try {
-        const leadCountQuery = await this.makeGraphQLRequest(`
-          query GetLeadCount {
+        const leadQuery = await this.makeGraphQLRequest(`
+          query GetLeads {
             leads {
               id
             }
           }
         `)
-        if (leadCountQuery?.leads) {
-          data.counts.leads = leadCountQuery.leads.length
-          console.log('Lead count loaded:', data.counts.leads)
+        if (leadQuery?.leads) {
+          data.counts.leads = leadQuery.leads.length
+          console.log('Lead count loaded from leads table:', data.counts.leads)
         }
       } catch (e) {
         console.log('Lead count query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+        // Try alternative table names
+        const tableNames = ['lead', 'lead_table', 'lead_records', 'lead_data']
+        for (const tableName of tableNames) {
+          try {
+            const countQuery = await this.makeGraphQLRequest(`
+              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
+                ${tableName} {
+                  id
+                }
+              }
+            `)
+            if (countQuery?.[tableName]) {
+              data.counts.leads = countQuery[tableName].length
+              console.log(`Lead count loaded from ${tableName}:`, data.counts.leads)
+              break
+            }
+          } catch (e2) {
+            console.log(`${tableName} query failed:`, e2)
           }
+        }
+        // If all failed, set to 0
+        if (data.counts.leads === 0) {
+          console.log('All lead count queries failed, setting to 0')
+          data.counts.leads = 0
         }
       }
 
-      // Get appointment count with proper field naming
+      // Get appointment count - query the appointments table and count rows
       try {
-        const appointmentCountQuery = await this.makeGraphQLRequest(`
-          query GetAppointmentCount {
+        const appointmentQuery = await this.makeGraphQLRequest(`
+          query GetAppointments {
             appointments {
               id
             }
           }
         `)
-        if (appointmentCountQuery?.appointments) {
-          data.counts.appointments = appointmentCountQuery.appointments.length
-          console.log('Appointment count loaded:', data.counts.appointments)
+        if (appointmentQuery?.appointments) {
+          data.counts.appointments = appointmentQuery.appointments.length
+          console.log('Appointment count loaded from appointments table:', data.counts.appointments)
         }
       } catch (e) {
         console.log('Appointment count query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+        // Try alternative table names
+        const tableNames = ['appointment', 'appointment_table', 'appointment_records', 'appointment_data']
+        for (const tableName of tableNames) {
+          try {
+            const countQuery = await this.makeGraphQLRequest(`
+              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
+                ${tableName} {
+                  id
+                }
+              }
+            `)
+            if (countQuery?.[tableName]) {
+              data.counts.appointments = countQuery[tableName].length
+              console.log(`Appointment count loaded from ${tableName}:`, data.counts.appointments)
+              break
+            }
+          } catch (e2) {
+            console.log(`${tableName} query failed:`, e2)
           }
+        }
+        // If all failed, set to 0
+        if (data.counts.appointments === 0) {
+          console.log('All appointment count queries failed, setting to 0')
+          data.counts.appointments = 0
         }
       }
 
@@ -436,22 +490,50 @@ export class GreyfinchService {
         }
       }
 
-      // Get locations with proper field naming
+      // Get locations - query the locations table and count rows
       try {
-        const locationQuery = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LOCATIONS)
+        const locationQuery = await this.makeGraphQLRequest(`
+          query GetLocations {
+            locations {
+              id
+              name
+            }
+          }
+        `)
         if (locationQuery?.locations) {
-          data.locations = locationQuery.locations
           data.counts.locations = locationQuery.locations.length
-          console.log('Locations loaded:', data.counts.locations)
+          data.locations = locationQuery.locations
+          console.log('Locations loaded from locations table:', data.counts.locations)
         }
       } catch (e) {
         console.log('Location query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+        // Try alternative table names
+        const tableNames = ['location', 'location_table', 'location_records', 'location_data']
+        for (const tableName of tableNames) {
+          try {
+            const countQuery = await this.makeGraphQLRequest(`
+              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
+                ${tableName} {
+                  id
+                  name
+                }
+              }
+            `)
+            if (countQuery?.[tableName]) {
+              data.counts.locations = countQuery[tableName].length
+              data.locations = countQuery[tableName]
+              console.log(`Locations loaded from ${tableName}:`, data.counts.locations)
+              break
+            }
+          } catch (e2) {
+            console.log(`${tableName} query failed:`, e2)
           }
+        }
+        // If all failed, set to 0
+        if (data.counts.locations === 0) {
+          console.log('All location count queries failed, setting to 0')
+          data.counts.locations = 0
+          data.locations = []
         }
       }
 
@@ -492,15 +574,10 @@ export class GreyfinchService {
         }
       }
       
-      // Test with correct field structure using camelCase
+      // Test with a simple query to see what's available
       const testResult = await this.makeGraphQLRequest(`
         query TestConnection {
-          patients {
-            id
-            primaryLocation {
-              id
-            }
-          }
+          __typename
         }
       `)
       
