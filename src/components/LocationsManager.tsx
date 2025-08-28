@@ -41,19 +41,19 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
   const [connectionChecked, setConnectionChecked] = useState(true); // Hardcoded to true
 
-  useEffect(() => {
-    // Always check connection on mount, regardless of user state
-    // This will use environment variables automatically
-    checkConnectionAndFetchLocations();
-  }, []);
+  // useEffect(() => {
+  //   // Always check connection on mount, regardless of user state
+  //   // This will use environment variables automatically
+  //   checkConnectionAndFetchLocations();
+  // }, []);
 
-  // Also check when user changes
-  useEffect(() => {
-    if (user?.id) {
-      // Re-check connection when user is available
-      checkConnectionAndFetchLocations();
-    }
-  }, [user?.id]);
+  // // Also check when user changes
+  // useEffect(() => {
+  //   if (user?.id) {
+  //     // Re-check connection when user is available
+  //     checkConnectionAndFetchLocations();
+  //   }
+  // }, [user?.id]);
 
   // Debug connection status changes
   useEffect(() => {
