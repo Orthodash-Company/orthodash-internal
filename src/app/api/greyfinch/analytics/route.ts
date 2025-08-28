@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
     // Try to get lead count
     console.log('🎯 Attempting to get lead count...')
     try {
-      const leadFields = ['leads', 'lead', 'lead_records', 'lead_data', 'prospects']
+      const leadFields = ['leads', 'lead', 'lead_records']
       
       for (const fieldName of leadFields) {
         try {

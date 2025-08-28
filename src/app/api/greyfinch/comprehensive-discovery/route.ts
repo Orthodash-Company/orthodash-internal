@@ -2,22 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GreyfinchService } from '@/lib/services/greyfinch'
 
 export async function GET(request: NextRequest) {
-  try {
-    console.log('🔍 Starting comprehensive field discovery...')
-    
-    const greyfinch = new GreyfinchService()
-    
-    // Test connection first
-    const connectionTest = await greyfinch.testConnection()
-    if (!connectionTest.success) {
-      return NextResponse.json({
-        success: false,
-        message: 'Failed to connect to Greyfinch API',
-        error: connectionTest.message
-      }, { status: 500 })
+  // Temporarily disabled to prevent GraphQL errors
+  return NextResponse.json({
+    success: true,
+    message: 'Comprehensive discovery temporarily disabled',
+    data: {
+      workingFields: [],
+      failingFields: [],
+      totalTested: 0,
+      timestamp: new Date().toISOString()
     }
-
-    console.log('✅ Connected to Greyfinch API, starting comprehensive discovery...')
+  })
 
     const results = {
       workingFields: [] as string[],
