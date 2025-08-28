@@ -21,24 +21,36 @@ export class GreyfinchService {
     })
   }
 
-  // Get JWT token by logging in with API key and secret
+  // Get JWT token by logging in with API key and secret using GraphQL mutation
   private async getJWTToken(): Promise<string | null> {
     try {
-      console.log('Getting JWT token from Greyfinch...')
+      console.log('Getting JWT token from Greyfinch using GraphQL mutation...')
       console.log('API Key length:', this.apiKey.length)
       console.log('API Secret length:', this.apiSecret.length)
       console.log('API Key prefix:', this.apiKey.substring(0, 8) + '...')
       
-      const loginUrl = 'https://connect-api.greyfinch.com/v1/login'
+      // Use the correct GraphQL mutation for login
+      const loginMutation = `
+        mutation docsApiLogin($key: String!, $secret: String!) {
+          apiLogin(key: $key, secret: $secret) {
+            status
+            accessToken
+            accessTokenExpiresIn
+          }
+        }
+      `
       
-      const response = await fetch(loginUrl, {
+      const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          api_key: this.apiKey,
-          api_secret: this.apiSecret
+          query: loginMutation,
+          variables: {
+            key: this.apiKey,
+            secret: this.apiSecret
+          }
         }),
       })
 
@@ -53,19 +65,14 @@ export class GreyfinchService {
 
       const data = await response.json()
       console.log('Login response:', JSON.stringify(data, null, 2))
-      console.log('Login response keys:', Object.keys(data))
 
-      if (data.token) {
-        this.jwtToken = data.token
-        console.log('Successfully obtained JWT token')
-        return data.token
-      } else if (data.access_token) {
-        this.jwtToken = data.access_token
+      if (data.data?.apiLogin?.accessToken) {
+        this.jwtToken = data.data.apiLogin.accessToken
         console.log('Successfully obtained access token')
-        return data.access_token
+        return data.data.apiLogin.accessToken
       }
 
-      console.log('No token found in login response')
+      console.log('No access token found in login response')
       return null
     } catch (error) {
       console.error('Error getting JWT token:', error)
@@ -459,7 +466,7 @@ export class GreyfinchService {
       // Try to find the correct field names
       const testResult = await this.makeGraphQLRequest(`
         query TestConnection {
-          booking {
+          leads {
             id
           }
         }
