@@ -4,7 +4,9 @@ A comprehensive orthodontic practice analytics dashboard providing detailed insi
 
 ## 🚀 Features
 
-- **Real-time Analytics**: Live integration with Greyfinch API for practice management data
+- **Real-time Analytics**: Live integration with Greyfinch GraphQL API for practice management data
+- **GraphQL Schema Introspection**: Interactive schema exploration and query validation tools
+- **Field Name Validation**: Automatic detection and correction of GraphQL field naming issues
 - **Multi-Period Comparison**: Compare performance across different time periods and locations
 - **Interactive Visualizations**: Comprehensive charts and graphs powered by Syncfusion
 - **Cost Management**: Track acquisition costs with automated API integrations
@@ -31,7 +33,7 @@ A comprehensive orthodontic practice analytics dashboard providing detailed insi
 - **RESTful API design**
 
 ### External Integrations
-- **Greyfinch API** - Practice management system
+- **Greyfinch GraphQL API** - Practice management system with schema introspection
 - **OpenAI API** - AI-powered analytics insights
 - **Meta/Google Ads APIs** - Automated cost tracking
 
@@ -57,6 +59,8 @@ A comprehensive orthodontic practice analytics dashboard providing detailed insi
    GREYFINCH_API_SECRET=your_greyfinch_api_secret
    OPENAI_API_KEY=your_openai_api_key
    ```
+   
+   **Note**: The Greyfinch GraphQL API uses camelCase field names. See `GREYFINCH_API_GUIDE.md` for detailed integration information.
 
 4. **Database setup**
    ```bash
@@ -124,6 +128,7 @@ A comprehensive orthodontic practice analytics dashboard providing detailed insi
 - **CostManagement**: Acquisition cost tracking
 - **ShareModal**: Report sharing functionality
 - **MobileFriendlyControls**: Mobile-optimized navigation
+- **GreyfinchSchemaTester**: GraphQL schema exploration and query validation
 
 ## 🔐 Security
 

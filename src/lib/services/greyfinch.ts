@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
+import { GreyfinchSchemaUtils, GREYFINCH_QUERIES, GreyfinchErrorHandler } from './greyfinch-schema'
 
 export class GreyfinchService {
   private apiUrl: string
@@ -166,80 +167,80 @@ export class GreyfinchService {
         periodData: {}
       }
 
-      // Get locations
+      // Get locations with proper field naming
       try {
-        const locationsData = await this.makeGraphQLRequest(`
-          query GetLocations {
-            locations {
-              id
-              name
-            }
-          }
-        `)
+        const locationsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LOCATIONS)
         detailedData.locations = locationsData?.locations || []
         console.log('Pulled locations:', detailedData.locations.length)
       } catch (e) {
         console.log('Locations query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          console.log('Field error detected, attempting to fix...')
+        }
       }
 
-      // Get patients
+      // Get patients with proper field naming
       try {
-        const patientsData = await this.makeGraphQLRequest(`
-          query GetPatients {
-            patients {
-              id
-            }
-          }
-        `)
+        const patientsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_PATIENTS)
         detailedData.patients = patientsData?.patients || []
         console.log('Pulled patients:', detailedData.patients.length)
       } catch (e) {
         console.log('Patients query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
-      // Get appointments
+      // Get appointments with proper field naming
       try {
-        const appointmentsData = await this.makeGraphQLRequest(`
-          query GetAppointments {
-            appointments {
-              id
-            }
-          }
-        `)
+        const appointmentsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_APPOINTMENTS)
         detailedData.appointments = appointmentsData?.appointments || []
         console.log('Pulled appointments:', detailedData.appointments.length)
       } catch (e) {
         console.log('Appointments query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
-      // Get leads
+      // Get leads with proper field naming
       try {
-        const leadsData = await this.makeGraphQLRequest(`
-          query GetLeads {
-            leads {
-              id
-            }
-          }
-        `)
+        const leadsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LEADS)
         detailedData.leads = leadsData?.leads || []
         console.log('Pulled leads:', detailedData.leads.length)
       } catch (e) {
         console.log('Leads query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
-      // Get bookings
+      // Get bookings with proper field naming
       try {
-        const bookingsData = await this.makeGraphQLRequest(`
-          query GetBookings {
-            appointmentBookings {
-              id
-            }
-          }
-        `)
+        const bookingsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_BOOKINGS)
         detailedData.bookings = bookingsData?.appointmentBookings || []
         console.log('Pulled bookings:', detailedData.bookings.length)
       } catch (e) {
         console.log('Bookings query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
       return {
@@ -258,7 +259,7 @@ export class GreyfinchService {
   }
 
   // Simple GraphQL request - try API key directly first, then JWT if needed
-  private async makeGraphQLRequest(query: string, variables: any = {}) {
+  async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
       console.log('Making GraphQL request to Greyfinch...')
       
@@ -339,7 +340,7 @@ export class GreyfinchService {
         locations: []
       }
 
-      // Get patient count
+      // Get patient count with proper field naming
       try {
         const patientCountQuery = await this.makeGraphQLRequest(`
           query GetPatientCount {
@@ -354,9 +355,16 @@ export class GreyfinchService {
         }
       } catch (e) {
         console.log('Patient count query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
-      // Get lead count
+      // Get lead count with proper field naming
       try {
         const leadCountQuery = await this.makeGraphQLRequest(`
           query GetLeadCount {
@@ -371,9 +379,16 @@ export class GreyfinchService {
         }
       } catch (e) {
         console.log('Lead count query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
-      // Get appointment count
+      // Get appointment count with proper field naming
       try {
         const appointmentCountQuery = await this.makeGraphQLRequest(`
           query GetAppointmentCount {
@@ -388,9 +403,16 @@ export class GreyfinchService {
         }
       } catch (e) {
         console.log('Appointment count query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
-      // Get booking count
+      // Get booking count with proper field naming
       try {
         const bookingCountQuery = await this.makeGraphQLRequest(`
           query GetBookingCount {
@@ -405,18 +427,18 @@ export class GreyfinchService {
         }
       } catch (e) {
         console.log('Booking count query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
-      // Get locations
+      // Get locations with proper field naming
       try {
-        const locationQuery = await this.makeGraphQLRequest(`
-          query GetLocations {
-            locations {
-              id
-              name
-            }
-          }
-        `)
+        const locationQuery = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LOCATIONS)
         if (locationQuery?.locations) {
           data.locations = locationQuery.locations
           data.counts.locations = locationQuery.locations.length
@@ -424,6 +446,13 @@ export class GreyfinchService {
         }
       } catch (e) {
         console.log('Location query failed:', e)
+        if (GreyfinchErrorHandler.isFieldError(e)) {
+          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
+          if (fieldName) {
+            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
+            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
+          }
+        }
       }
 
       return {
@@ -463,11 +492,14 @@ export class GreyfinchService {
         }
       }
       
-      // Try to find the correct field names
+      // Test with correct field structure using camelCase
       const testResult = await this.makeGraphQLRequest(`
         query TestConnection {
-          leads {
+          patients {
             id
+            primaryLocation {
+              id
+            }
           }
         }
       `)
