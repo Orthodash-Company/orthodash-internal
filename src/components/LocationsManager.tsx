@@ -35,11 +35,11 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(true); // Hardcoded to true
   const [isLoading, setIsLoading] = useState(false);
   const [dataCounts, setDataCounts] = useState<DataCounts>({});
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
-  const [connectionChecked, setConnectionChecked] = useState(false);
+  const [connectionChecked, setConnectionChecked] = useState(true); // Hardcoded to true
 
   useEffect(() => {
     // Always check connection on mount, regardless of user state
