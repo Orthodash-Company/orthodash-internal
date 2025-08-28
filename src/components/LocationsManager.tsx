@@ -35,20 +35,8 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const { user } = useAuth();
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([
-    {
-      id: 'gilbert',
-      name: 'Gilbert',
-      address: 'Gilbert, AZ',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'scottsdale',
-      name: 'Scottsdale', 
-      address: 'Scottsdale, AZ',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+    { id: 'gilbert', name: 'Gilbert', address: 'Gilbert, AZ' },
+    { id: 'scottsdale', name: 'Scottsdale', address: 'Scottsdale, AZ' }
   ]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -115,7 +103,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         if (data.data) {
           const newCounts = {
             patients: data.data.patients.count || 0,
-            locations: (data.data.locations.gilbert.count || 0) + (data.data.locations.scottsdale.count || 0),
+            locations: 2, // Gilbert and Scottsdale locations
             appointments: data.data.appointments.count || 0,
             leads: data.data.leads.count || 0
           }
