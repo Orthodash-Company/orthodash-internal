@@ -188,76 +188,92 @@ export class GreyfinchService {
         }
       }
 
-      // Try simple count queries without sensitive data
+      // Try different field name patterns since documentation URLs don't match actual field names
       try {
-        console.log('Attempting to get basic counts...')
+        console.log('Attempting to get basic counts with different field patterns...')
         
-        // Get patient count (just count, no personal data)
-        try {
-          const patientCountQuery = await this.makeGraphQLRequest(`
-            query GetPatientCount {
-              patients {
-                id
+        // Try common field name variations for patients
+        const patientFieldNames = ['patients', 'patient', 'Patient', 'Patients', 'user', 'User', 'users', 'Users']
+        for (const fieldName of patientFieldNames) {
+          try {
+            const patientCountQuery = await this.makeGraphQLRequest(`
+              query GetPatientCount {
+                ${fieldName} {
+                  id
+                }
               }
+            `)
+            if (patientCountQuery?.[fieldName]) {
+              data.counts.patients = patientCountQuery[fieldName].length
+              console.log(`Patient count loaded using field '${fieldName}':`, data.counts.patients)
+              break
             }
-          `)
-          if (patientCountQuery?.patients) {
-            data.counts.patients = patientCountQuery.patients.length
-            console.log('Patient count loaded:', data.counts.patients)
+          } catch (e) {
+            console.log(`Patient count query failed with field '${fieldName}':`, e)
           }
-        } catch (e) {
-          console.log('Patient count query failed:', e)
         }
 
-        // Get lead count (just count, no personal data)
-        try {
-          const leadCountQuery = await this.makeGraphQLRequest(`
-            query GetLeadCount {
-              leads {
-                id
+        // Try common field name variations for leads
+        const leadFieldNames = ['leads', 'lead', 'Lead', 'Leads', 'prospect', 'Prospect', 'prospects', 'Prospects']
+        for (const fieldName of leadFieldNames) {
+          try {
+            const leadCountQuery = await this.makeGraphQLRequest(`
+              query GetLeadCount {
+                ${fieldName} {
+                  id
+                }
               }
+            `)
+            if (leadCountQuery?.[fieldName]) {
+              data.counts.leads = leadCountQuery[fieldName].length
+              console.log(`Lead count loaded using field '${fieldName}':`, data.counts.leads)
+              break
             }
-          `)
-          if (leadCountQuery?.leads) {
-            data.counts.leads = leadCountQuery.leads.length
-            console.log('Lead count loaded:', data.counts.leads)
+          } catch (e) {
+            console.log(`Lead count query failed with field '${fieldName}':`, e)
           }
-        } catch (e) {
-          console.log('Lead count query failed:', e)
         }
 
-        // Get appointment count (just count, no personal data)
-        try {
-          const appointmentCountQuery = await this.makeGraphQLRequest(`
-            query GetAppointmentCount {
-              appointments {
-                id
+        // Try common field name variations for appointments
+        const appointmentFieldNames = ['appointments', 'appointment', 'Appointment', 'Appointments', 'visit', 'Visit', 'visits', 'Visits']
+        for (const fieldName of appointmentFieldNames) {
+          try {
+            const appointmentCountQuery = await this.makeGraphQLRequest(`
+              query GetAppointmentCount {
+                ${fieldName} {
+                  id
+                }
               }
+            `)
+            if (appointmentCountQuery?.[fieldName]) {
+              data.counts.appointments = appointmentCountQuery[fieldName].length
+              console.log(`Appointment count loaded using field '${fieldName}':`, data.counts.appointments)
+              break
             }
-          `)
-          if (appointmentCountQuery?.appointments) {
-            data.counts.appointments = appointmentCountQuery.appointments.length
-            console.log('Appointment count loaded:', data.counts.appointments)
+          } catch (e) {
+            console.log(`Appointment count query failed with field '${fieldName}':`, e)
           }
-        } catch (e) {
-          console.log('Appointment count query failed:', e)
         }
 
-        // Get booking count (just count, no personal data)
-        try {
-          const bookingCountQuery = await this.makeGraphQLRequest(`
-            query GetBookingCount {
-              appointmentBookings {
-                id
+        // Try common field name variations for bookings
+        const bookingFieldNames = ['appointmentBookings', 'appointment_booking', 'appointment_booking', 'booking', 'Booking', 'bookings', 'Bookings']
+        for (const fieldName of bookingFieldNames) {
+          try {
+            const bookingCountQuery = await this.makeGraphQLRequest(`
+              query GetBookingCount {
+                ${fieldName} {
+                  id
+                }
               }
+            `)
+            if (bookingCountQuery?.[fieldName]) {
+              data.counts.bookings = bookingCountQuery[fieldName].length
+              console.log(`Booking count loaded using field '${fieldName}':`, data.counts.bookings)
+              break
             }
-          `)
-          if (bookingCountQuery?.appointmentBookings) {
-            data.counts.bookings = bookingCountQuery.appointmentBookings.length
-            console.log('Booking count loaded:', data.counts.bookings)
+          } catch (e) {
+            console.log(`Booking count query failed with field '${fieldName}':`, e)
           }
-        } catch (e) {
-          console.log('Booking count query failed:', e)
         }
 
         // Calculate lead-to-patient conversion rate
@@ -267,23 +283,27 @@ export class GreyfinchService {
           console.log('Conversion rate:', data.conversions.conversionRate + '%')
         }
 
-        // Get location names (just names, no sensitive data)
-        try {
-          const locationQuery = await this.makeGraphQLRequest(`
-            query GetLocations {
-              locations {
-                id
-                name
+        // Try common field name variations for locations
+        const locationFieldNames = ['locations', 'location', 'Location', 'Locations', 'office', 'Office', 'offices', 'Offices', 'site', 'Site', 'sites', 'Sites']
+        for (const fieldName of locationFieldNames) {
+          try {
+            const locationQuery = await this.makeGraphQLRequest(`
+              query GetLocations {
+                ${fieldName} {
+                  id
+                  name
+                }
               }
+            `)
+            if (locationQuery?.[fieldName]) {
+              data.locations = locationQuery[fieldName]
+              data.counts.locations = locationQuery[fieldName].length
+              console.log(`Locations loaded using field '${fieldName}':`, data.counts.locations)
+              break
             }
-          `)
-          if (locationQuery?.locations) {
-            data.locations = locationQuery.locations
-            data.counts.locations = locationQuery.locations.length
-            console.log('Locations loaded:', data.counts.locations)
+          } catch (e) {
+            console.log(`Location query failed with field '${fieldName}':`, e)
           }
-        } catch (e) {
-          console.log('Location query failed:', e)
         }
 
       } catch (error) {
@@ -656,64 +676,71 @@ export class GreyfinchService {
         }
       })
       
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'X-API-Key': this.apiKey,
-        },
-        body: JSON.stringify({
-          query: `
-            query TestConnection {
-              patients {
-                id
-              }
-            }
-          `
-        }),
-      })
+      // Try different field names to test connection
+      const testFieldNames = ['patients', 'patient', 'Patient', 'users', 'user', 'User']
       
-      console.log(`Response status: ${response.status}`)
-      console.log(`Response headers:`, Object.fromEntries(response.headers.entries()))
+      for (const fieldName of testFieldNames) {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.apiKey}`,
+              'X-API-Key': this.apiKey,
+            },
+            body: JSON.stringify({
+              query: `
+                query TestConnection {
+                  ${fieldName} {
+                    id
+                  }
+                }
+              `
+            }),
+          })
+          
+          console.log(`Response status for field '${fieldName}': ${response.status}`)
+          console.log(`Response headers:`, Object.fromEntries(response.headers.entries()))
 
-      if (!response.ok) {
-        return { 
-          success: false, 
-          error: `HTTP ${response.status}`,
-          message: `HTTP ${response.status} error`,
-          data: null
+          if (!response.ok) {
+            continue // Try next field name
+          }
+
+          const responseText = await response.text()
+          
+          try {
+            const data = JSON.parse(responseText)
+            console.log(`Full response data for field '${fieldName}':`, JSON.stringify(data, null, 2))
+            
+            if (data.errors) {
+              console.log(`GraphQL errors for field '${fieldName}':`, data.errors)
+              continue // Try next field name
+            }
+            
+            // If we get here, we found a working field
+            console.log(`Successfully connected using field '${fieldName}'`)
+            return { 
+              success: true, 
+              data,
+              message: `Connection successful using field '${fieldName}'`,
+              error: null
+            }
+          } catch (parseError) {
+            console.log(`Invalid JSON response for field '${fieldName}':`, parseError)
+            continue // Try next field name
+          }
+        } catch (error) {
+          console.log(`Error testing field '${fieldName}':`, error)
+          continue // Try next field name
         }
       }
-
-      const responseText = await response.text()
       
-      try {
-        const data = JSON.parse(responseText)
-        console.log('Full response data:', JSON.stringify(data, null, 2))
-        
-        if (data.errors) {
-          return { 
-            success: false, 
-            error: 'GraphQL errors',
-            message: 'GraphQL errors in response',
-            data: null
-          }
-        }
-        
-        return { 
-          success: true, 
-          data,
-          message: 'Connection successful',
-          error: null
-        }
-      } catch (parseError) {
-        return { 
-          success: false, 
-          error: 'Invalid JSON response',
-          message: 'Invalid JSON response from API',
-          data: null
-        }
+      // If we get here, none of the field names worked
+      return { 
+        success: false, 
+        error: 'No working field names found',
+        message: 'Could not find any working GraphQL field names',
+        data: null
       }
     } catch (error) {
       return { 
