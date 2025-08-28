@@ -83,6 +83,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       console.log('📦 Response success:', data.success)
       console.log('📦 Response message:', data.message)
       
+      // The API is connected successfully if we get a response with success: true
       if (data.success) {
         console.log('✅ Setting connection to true')
         setIsConnected(true)
