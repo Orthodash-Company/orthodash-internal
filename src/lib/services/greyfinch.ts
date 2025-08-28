@@ -29,6 +29,173 @@ export class GreyfinchService {
     console.log('Greyfinch credentials updated')
   }
 
+  // Store credentials in database (for backward compatibility)
+  async storeCredentials(userId: string, apiKey: string, apiSecret?: string) {
+    try {
+      // Check if configuration already exists
+      const existing = await db.execute(sql`
+        SELECT id FROM api_configurations 
+        WHERE user_id = ${userId} AND type = 'greyfinch'
+      `)
+      
+      if (existing.length > 0) {
+        // Update existing configuration
+        await db.execute(sql`
+          UPDATE api_configurations 
+          SET api_key = ${apiKey}, 
+              api_secret = ${apiSecret || null},
+              updated_at = NOW()
+          WHERE user_id = ${userId} AND type = 'greyfinch'
+        `)
+      } else {
+        // Insert new configuration
+        await db.execute(sql`
+          INSERT INTO api_configurations (user_id, name, type, api_key, api_secret, is_active)
+          VALUES (${userId}, 'Greyfinch API', 'greyfinch', ${apiKey}, ${apiSecret || null}, true)
+        `)
+      }
+      
+      console.log('Greyfinch credentials stored in database for user:', userId)
+      return true
+    } catch (error) {
+      console.error('Failed to store Greyfinch credentials:', error)
+      return false
+    }
+  }
+
+  // Retrieve credentials from database (for backward compatibility)
+  async getCredentials(userId: string) {
+    try {
+      const result = await db.execute(sql`
+        SELECT api_key, api_secret 
+        FROM api_configurations 
+        WHERE user_id = ${userId} AND type = 'greyfinch' AND is_active = true
+      `)
+      
+      if (result.length > 0) {
+        const config = result[0]
+        this.apiKey = config.api_key
+        this.apiSecret = config.api_secret
+        
+        console.log('Greyfinch credentials retrieved from database for user:', userId)
+        return {
+          apiKey: config.api_key,
+          apiSecret: config.api_secret
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Failed to retrieve Greyfinch credentials:', error)
+      return null
+    }
+  }
+
+  // Pull detailed data (for backward compatibility)
+  async pullDetailedData(userId: string, periodConfigs: any[] = []) {
+    try {
+      console.log('Pulling detailed data from Greyfinch...')
+      
+      const detailedData: any = {
+        locations: [],
+        patients: [],
+        appointments: [],
+        leads: [],
+        bookings: [],
+        periodData: {}
+      }
+
+      // Get locations
+      try {
+        const locationsData = await this.makeGraphQLRequest(`
+          query GetLocations {
+            locations {
+              id
+              name
+            }
+          }
+        `)
+        detailedData.locations = locationsData?.locations || []
+        console.log('Pulled locations:', detailedData.locations.length)
+      } catch (e) {
+        console.log('Locations query failed:', e)
+      }
+
+      // Get patients
+      try {
+        const patientsData = await this.makeGraphQLRequest(`
+          query GetPatients {
+            patients {
+              id
+            }
+          }
+        `)
+        detailedData.patients = patientsData?.patients || []
+        console.log('Pulled patients:', detailedData.patients.length)
+      } catch (e) {
+        console.log('Patients query failed:', e)
+      }
+
+      // Get appointments
+      try {
+        const appointmentsData = await this.makeGraphQLRequest(`
+          query GetAppointments {
+            appointments {
+              id
+            }
+          }
+        `)
+        detailedData.appointments = appointmentsData?.appointments || []
+        console.log('Pulled appointments:', detailedData.appointments.length)
+      } catch (e) {
+        console.log('Appointments query failed:', e)
+      }
+
+      // Get leads
+      try {
+        const leadsData = await this.makeGraphQLRequest(`
+          query GetLeads {
+            leads {
+              id
+            }
+          }
+        `)
+        detailedData.leads = leadsData?.leads || []
+        console.log('Pulled leads:', detailedData.leads.length)
+      } catch (e) {
+        console.log('Leads query failed:', e)
+      }
+
+      // Get bookings
+      try {
+        const bookingsData = await this.makeGraphQLRequest(`
+          query GetBookings {
+            appointmentBookings {
+              id
+            }
+          }
+        `)
+        detailedData.bookings = bookingsData?.appointmentBookings || []
+        console.log('Pulled bookings:', detailedData.bookings.length)
+      } catch (e) {
+        console.log('Bookings query failed:', e)
+      }
+
+      return {
+        success: true,
+        data: detailedData,
+        message: 'Detailed data pulled successfully'
+      }
+    } catch (error) {
+      console.error('Error pulling detailed data:', error)
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        data: {}
+      }
+    }
+  }
+
   // Simple GraphQL request - just use API key as Bearer token
   private async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
