@@ -6,6 +6,7 @@ export class GreyfinchService {
   private apiUrl: string
   private apiKey: string
   private apiSecret: string
+  private jwtToken: string | null = null
 
   constructor() {
     this.apiUrl = 'https://connect-api.greyfinch.com/v1/graphql'
@@ -20,12 +21,65 @@ export class GreyfinchService {
     })
   }
 
+  // Get JWT token by logging in with API key and secret
+  private async getJWTToken(): Promise<string | null> {
+    try {
+      console.log('Getting JWT token from Greyfinch...')
+      console.log('API Key length:', this.apiKey.length)
+      console.log('API Secret length:', this.apiSecret.length)
+      console.log('API Key prefix:', this.apiKey.substring(0, 8) + '...')
+      
+      const loginUrl = 'https://connect-api.greyfinch.com/v1/login'
+      
+      const response = await fetch(loginUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_key: this.apiKey,
+          api_secret: this.apiSecret
+        }),
+      })
+
+      console.log(`Login response status: ${response.status}`)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Login failed:', response.status, errorText)
+        console.error('Response headers:', Object.fromEntries(response.headers.entries()))
+        return null
+      }
+
+      const data = await response.json()
+      console.log('Login response:', JSON.stringify(data, null, 2))
+      console.log('Login response keys:', Object.keys(data))
+
+      if (data.token) {
+        this.jwtToken = data.token
+        console.log('Successfully obtained JWT token')
+        return data.token
+      } else if (data.access_token) {
+        this.jwtToken = data.access_token
+        console.log('Successfully obtained access token')
+        return data.access_token
+      }
+
+      console.log('No token found in login response')
+      return null
+    } catch (error) {
+      console.error('Error getting JWT token:', error)
+      return null
+    }
+  }
+
   // Update credentials (for backward compatibility)
   updateCredentials(apiKey: string, apiSecret?: string) {
     this.apiKey = apiKey
     if (apiSecret) {
       this.apiSecret = apiSecret
     }
+    this.jwtToken = null // Clear existing token
     console.log('Greyfinch credentials updated')
   }
 
@@ -196,22 +250,46 @@ export class GreyfinchService {
     }
   }
 
-  // Simple GraphQL request - just use API key as Bearer token
+  // Simple GraphQL request - try API key directly first, then JWT if needed
   private async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
       console.log('Making GraphQL request to Greyfinch...')
       
-      const response = await fetch(this.apiUrl, {
+      // Try with API key in X-API-Key header
+      let response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          'X-API-Key': this.apiKey,
         },
         body: JSON.stringify({
           query,
           variables,
         }),
       })
+
+      // If that fails, try to get JWT token
+      if (!response.ok && response.status === 401) {
+        console.log('API key failed, trying JWT token...')
+        if (!this.jwtToken) {
+          this.jwtToken = await this.getJWTToken()
+          if (!this.jwtToken) {
+            throw new Error('Failed to obtain JWT token')
+          }
+        }
+        
+        response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.jwtToken}`,
+          },
+          body: JSON.stringify({
+            query,
+            variables,
+          }),
+        })
+      }
 
       console.log(`Response status: ${response.status}`)
 
@@ -378,10 +456,10 @@ export class GreyfinchService {
         }
       }
       
-      // Simple test query
+      // Try to find the correct field names
       const testResult = await this.makeGraphQLRequest(`
         query TestConnection {
-          patients {
+          booking {
             id
           }
         }
