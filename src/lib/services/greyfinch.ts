@@ -5,12 +5,16 @@ import { sql } from 'drizzle-orm'
 export class GreyfinchService {
   private apiUrl: string
   private apiKey: string
+  private apiSecret: string
+  private accessToken: string | null = null
+  private tokenExpiry: number | null = null
 
   constructor() {
     // Use the correct Greyfinch API URL (user confirmed working URL)
     this.apiUrl = process.env.GREYFINCH_API_URL || 'https://connect-api.greyfinch.com/v1/graphql'
     // Auto-load credentials from environment variables
     this.apiKey = process.env.GREYFINCH_API_KEY || ''
+    this.apiSecret = process.env.GREYFINCH_API_SECRET || ''
     
     console.log('GreyfinchService initialized:', {
       apiUrl: this.apiUrl,
@@ -24,17 +28,105 @@ export class GreyfinchService {
     })
   }
 
+  // Login to get access token
+  private async login(): Promise<boolean> {
+    try {
+      console.log('Logging in to Greyfinch API to get access token...')
+      
+      if (!this.apiKey || !this.apiSecret) {
+        console.log('Missing API key or secret for login')
+        return false
+      }
+
+      // Try different login endpoints
+      const loginEndpoints = [
+        `${this.apiUrl.replace('/graphql', '/auth/login')}`,
+        `${this.apiUrl.replace('/graphql', '/login')}`,
+        `${this.apiUrl.replace('/graphql', '/oauth/token')}`,
+        `${this.apiUrl.replace('/graphql', '/token')}`,
+        'https://connect-api.greyfinch.com/v1/auth/login',
+        'https://connect-api.greyfinch.com/v1/login',
+        'https://connect-api.greyfinch.com/v1/oauth/token'
+      ]
+
+      for (const endpoint of loginEndpoints) {
+        try {
+          console.log(`Trying login endpoint: ${endpoint}`)
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              api_key: this.apiKey,
+              api_secret: this.apiSecret,
+              grant_type: 'client_credentials'
+            }),
+          })
+
+          console.log(`Login response status: ${response.status}`)
+          
+          if (response.ok) {
+            const data = await response.json()
+            console.log('Login response data:', JSON.stringify(data, null, 2))
+            
+            // Extract access token from response
+            if (data.access_token) {
+              this.accessToken = data.access_token
+              this.tokenExpiry = Date.now() + (data.expires_in * 1000) // Convert seconds to milliseconds
+              console.log('Successfully obtained access token')
+              return true
+            } else if (data.token) {
+              this.accessToken = data.token
+              this.tokenExpiry = Date.now() + (3600 * 1000) // Default 1 hour expiry
+              console.log('Successfully obtained token')
+              return true
+            }
+          }
+        } catch (error) {
+          console.log(`Login failed for endpoint ${endpoint}:`, error)
+        }
+      }
+
+      console.log('All login endpoints failed')
+      return false
+    } catch (error) {
+      console.error('Login error:', error)
+      return false
+    }
+  }
+
+  // Check if we have a valid access token
+  private async ensureValidToken(): Promise<boolean> {
+    // If we have a token and it's not expired, we're good
+    if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+      return true
+    }
+
+    // Otherwise, try to login to get a new token
+    return await this.login()
+  }
+
   // Update credentials dynamically
-  updateCredentials(apiKey: string, apiUrl?: string) {
+  updateCredentials(apiKey: string, apiSecret?: string, apiUrl?: string) {
     this.apiKey = apiKey
+    if (apiSecret) {
+      this.apiSecret = apiSecret
+    }
     if (apiUrl) {
       this.apiUrl = apiUrl
     }
     
+    // Clear any existing token since credentials changed
+    this.accessToken = null
+    this.tokenExpiry = null
+    
     console.log('Greyfinch credentials updated:', {
       apiUrl: this.apiUrl,
       hasApiKey: !!this.apiKey,
-      apiKeyLength: this.apiKey.length
+      apiKeyLength: this.apiKey.length,
+      hasApiSecret: !!this.apiSecret
     })
   }
 
@@ -84,6 +176,7 @@ export class GreyfinchService {
       if (result.length > 0) {
         const config = result[0]
         this.apiKey = config.api_key
+        this.apiSecret = config.api_secret
         if (config.api_secret) {
           // Store secret if needed
         }
@@ -104,40 +197,35 @@ export class GreyfinchService {
 
   private async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
-      // Validate configuration
-      if (!this.apiKey) {
-        throw new Error('Greyfinch API key is not configured. Please provide API credentials.')
-      }
-      
-      if (!this.apiUrl) {
-        throw new Error('Greyfinch API URL is not configured. Please provide API URL.')
+      // Ensure we have a valid access token
+      const hasValidToken = await this.ensureValidToken()
+      if (!hasValidToken) {
+        throw new Error('Failed to obtain valid access token')
       }
 
-            console.log(`Making GraphQL request to: ${this.apiUrl}`)
+      console.log(`Making GraphQL request to: ${this.apiUrl}`)
       console.log('Request headers:', {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey ? '***' : 'none'}`,
-        'X-API-Key': this.apiKey ? '***' : 'none',
-        'X-API-Secret': process.env.GREYFINCH_API_SECRET ? '***' : 'none'
+        'Authorization': `Bearer ***`,
+        'X-API-Key': '***',
+        'X-API-Secret': '***'
       })
-      
-      // Use API key authentication (not JWT Bearer token)
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'X-API-Key': this.apiKey,
-        'X-API-Secret': process.env.GREYFINCH_API_SECRET || '',
-      }
       
       const response = await fetch(this.apiUrl, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.accessToken}`,
+          'X-API-Key': this.apiKey,
+          'X-API-Secret': this.apiSecret,
+        },
         body: JSON.stringify({
           query,
           variables,
         }),
       })
 
-        if (!response.ok) {
+      if (!response.ok) {
         const errorText = await response.text()
         console.error('HTTP error response:', response.status, errorText)
         throw new Error(`GraphQL request failed: ${response.status} - ${errorText}`)
