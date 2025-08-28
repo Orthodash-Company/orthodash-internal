@@ -34,11 +34,26 @@ interface LocationsManagerProps {
 export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [locations, setLocations] = useState<Location[]>([]);
+  const [locations, setLocations] = useState<Location[]>([
+    {
+      id: 'gilbert',
+      name: 'Gilbert',
+      address: 'Gilbert, AZ',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'scottsdale',
+      name: 'Scottsdale', 
+      address: 'Scottsdale, AZ',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  ]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [dataCounts, setDataCounts] = useState<DataCounts>({});
+  const [dataCounts, setDataCounts] = useState<DataCounts>({ locations: 2 });
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
   const [connectionChecked, setConnectionChecked] = useState(false);
 
