@@ -80,6 +80,8 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       
       const data = await response.json()
       console.log('📦 Greyfinch analytics response:', data)
+      console.log('📦 Response success:', data.success)
+      console.log('📦 Response message:', data.message)
       
       if (data.success) {
         console.log('✅ Setting connection to true')
@@ -88,28 +90,33 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         
         // Update counts from analytics data
         if (data.data) {
-          setDataCounts({
+          const newCounts = {
             patients: data.data.patients.count || 0,
             locations: (data.data.locations.gilbert.count || 0) + (data.data.locations.scottsdale.count || 0),
             appointments: data.data.appointments.count || 0,
             leads: data.data.leads.count || 0
-          })
+          }
+          console.log('📊 Setting new counts:', newCounts)
+          setDataCounts(newCounts)
         }
         
         console.log('✅ Greyfinch API connected successfully with analytics data:', data.data)
       } else {
         console.log('❌ Setting connection to false')
+        console.log('❌ Failure reason:', data.message)
         setIsConnected(false)
         setConnectionChecked(true)
         console.log('❌ Greyfinch API connection failed:', data.message)
       }
     } catch (error) {
       console.log('❌ Setting connection to false due to error')
+      console.log('❌ Error details:', error)
       setIsConnected(false)
       setConnectionChecked(true)
       console.error('❌ Error checking Greyfinch connection:', error)
     } finally {
       setIsLoading(false)
+      console.log('🏁 Connection check completed. Final state:', { isConnected, connectionChecked })
     }
   }
 
