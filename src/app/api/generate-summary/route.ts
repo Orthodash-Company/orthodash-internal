@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const prompt = `
-You are an expert orthodontic practice analyst. Analyze the following data and provide comprehensive insights:
+You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Analyze the following data and provide comprehensive insights with national benchmarking and marketing spend optimization strategies.
 
 AVAILABLE DATA:
 ${dataDescription}
@@ -78,29 +78,44 @@ ${dataDescription}
 PRACTICE DATA:
 ${JSON.stringify(analysisData, null, 2)}
 
-Please provide:
+Please provide a comprehensive analysis in the following JSON format:
 
-1. EXECUTIVE SUMMARY (2-3 paragraphs): A high-level overview of practice performance, key trends, and overall health. If limited data is available, focus on general best practices and recommendations for data collection.
-
-2. KEY INSIGHTS (5-7 bullet points): Specific observations about performance, trends, and opportunities. If data is limited, provide insights about what data would be valuable to collect.
-
-3. STRATEGIC RECOMMENDATIONS (5-7 actionable recommendations): Specific, actionable advice for improving practice performance, marketing efficiency, and patient acquisition.
-
-4. KPI ANALYSIS: Analyze the provided KPIs (ROAS, ROI, Acquisition Cost, Lifetime Value, Conversion Rate) and provide insights on:
-   - Marketing efficiency
-   - Cost optimization opportunities
-   - Revenue growth potential
-   - Patient acquisition strategies
-
-5. DATA RECOMMENDATIONS: If data is limited, provide specific recommendations for what data to collect and how to use it for better analysis.
-
-Focus on practical, actionable insights that can help improve the practice's financial performance and patient acquisition efficiency.
-
-Format your response as JSON with the following structure:
 {
-  "summary": "executive summary text",
-  "insights": ["insight 1", "insight 2", ...],
-  "recommendations": ["recommendation 1", "recommendation 2", ...],
+  "summary": "EXECUTIVE SUMMARY (2-3 paragraphs): A high-level overview of practice performance, key trends, and overall health. Include specific metrics and comparisons to national orthodontic practice averages when possible.",
+  
+  "insights": [
+    "KEY INSIGHT 1: Specific observation about performance, trends, or opportunities",
+    "KEY INSIGHT 2: Another specific observation",
+    "KEY INSIGHT 3: Third observation",
+    "KEY INSIGHT 4: Fourth observation",
+    "KEY INSIGHT 5: Fifth observation"
+  ],
+  
+  "nationalComparison": {
+    "patientVolume": "How the practice's patient volume compares to national averages (typically 800-1200 patients per practice)",
+    "appointmentUtilization": "Appointment utilization rate vs. national average (typically 85-92%)",
+    "noShowRate": "No-show rate comparison (national average is 8-12%)",
+    "acquisitionCost": "Patient acquisition cost vs. national average ($800-1500 per new patient)",
+    "conversionRate": "Lead to appointment conversion vs. national average (15-25%)"
+  },
+  
+  "marketingOptimization": {
+    "currentEfficiency": "Analysis of current marketing spend efficiency",
+    "digitalMarketing": "Specific recommendations for digital marketing optimization",
+    "referralPrograms": "Professional referral program optimization strategies",
+    "localMarketing": "Local market penetration and community outreach strategies",
+    "budgetAllocation": "Recommended budget allocation across marketing channels",
+    "roiImprovement": "Specific tactics to improve marketing ROI"
+  },
+  
+  "strategicRecommendations": [
+    "STRATEGIC RECOMMENDATION 1: Specific, actionable advice for improving practice performance",
+    "STRATEGIC RECOMMENDATION 2: Marketing efficiency improvement",
+    "STRATEGIC RECOMMENDATION 3: Patient acquisition strategy",
+    "STRATEGIC RECOMMENDATION 4: Cost optimization",
+    "STRATEGIC RECOMMENDATION 5: Revenue growth strategy"
+  ],
+  
   "kpis": {
     "roas": ${kpis.roas},
     "roi": ${kpis.roi},
@@ -108,9 +123,24 @@ Format your response as JSON with the following structure:
     "lifetimeValue": ${kpis.lifetimeValue},
     "conversionRate": ${kpis.conversionRate}
   },
+  
   "acquisitionCosts": ${JSON.stringify(analysisData.acquisitionCosts)},
-  "dataRecommendations": ["data recommendation 1", "data recommendation 2", ...]
+  
+  "dataRecommendations": [
+    "DATA RECOMMENDATION 1: Specific data to collect for better analysis",
+    "DATA RECOMMENDATION 2: How to use the data for optimization",
+    "DATA RECOMMENDATION 3: Additional metrics to track"
+  ]
 }
+
+IMPORTANT GUIDELINES:
+1. Always provide specific, actionable insights based on the available data
+2. Include national orthodontic practice benchmarks when relevant
+3. Focus heavily on marketing spend optimization and ROI improvement
+4. Provide concrete, measurable recommendations
+5. If data is limited, provide general best practices and specific data collection recommendations
+6. Ensure all recommendations are practical and implementable
+7. Always respond with valid JSON format
 `;
 
     console.log('Sending request to OpenAI...');
@@ -124,7 +154,7 @@ Format your response as JSON with the following structure:
         messages: [
           {
             role: "system",
-            content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Provide clear, actionable insights. Always respond with valid JSON. If limited data is available, provide general best practices and recommendations for data collection."
+            content: "You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. You have deep knowledge of national orthodontic practice benchmarks and marketing optimization strategies. Always provide specific, actionable insights with national comparisons and concrete marketing spend optimization recommendations. Always respond with valid JSON. If limited data is available, provide general best practices and specific data collection recommendations."
           },
           {
             role: "user",
@@ -160,7 +190,22 @@ Format your response as JSON with the following structure:
       parsedResponse = {
         summary: response,
         insights: ["Analysis completed successfully"],
-        recommendations: ["Review the generated summary for specific recommendations"],
+        nationalComparison: {
+          patientVolume: "Data insufficient for national comparison",
+          appointmentUtilization: "Data insufficient for national comparison",
+          noShowRate: "Data insufficient for national comparison",
+          acquisitionCost: "Data insufficient for national comparison",
+          conversionRate: "Data insufficient for national comparison"
+        },
+        marketingOptimization: {
+          currentEfficiency: "Data insufficient for marketing analysis",
+          digitalMarketing: "Focus on collecting marketing spend data",
+          referralPrograms: "Implement referral tracking systems",
+          localMarketing: "Develop local market presence",
+          budgetAllocation: "Establish baseline marketing metrics",
+          roiImprovement: "Track all marketing costs and conversions"
+        },
+        strategicRecommendations: ["Review the generated summary for specific recommendations"],
         kpis: kpis,
         acquisitionCosts: analysisData.acquisitionCosts,
         dataRecommendations: ["Consider collecting more data for better analysis"]
@@ -213,6 +258,25 @@ function calculateKPIs(periods: any[], greyfinchData: any) {
     // Estimate revenue based on patients and average treatment value
     const avgTreatmentValue = 5200; // Default average treatment value
     totalRevenue = totalPatients * avgTreatmentValue;
+    
+    // Extract additional metrics for better analysis
+    const appointments = greyfinchData.appointments || 0;
+    const bookings = greyfinchData.bookings || 0;
+    const locations = greyfinchData.locations || 0;
+    
+    // Calculate appointment utilization rate
+    const appointmentUtilization = appointments > 0 ? (bookings / appointments) * 100 : 0;
+    
+    // Calculate no-show rate (if available)
+    const noShowRate = greyfinchData.noShowRate || 0;
+    
+    // Store additional metrics for the analysis
+    greyfinchData.additionalMetrics = {
+      appointmentUtilization: Math.round(appointmentUtilization * 10) / 10,
+      noShowRate: Math.round(noShowRate * 10) / 10,
+      totalLocations: locations,
+      avgPatientsPerLocation: locations > 0 ? Math.round(totalPatients / locations) : 0
+    };
   }
 
   // Calculate KPIs
