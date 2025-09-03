@@ -124,11 +124,13 @@ export const GREYFINCH_FIELD_PATTERNS = {
 }
 
 // Comprehensive GraphQL queries for real data extraction
+// Following Apollo GraphQL best practices with proper field selection and filtering
 export const GREYFINCH_QUERIES = {
-  // Gilbert-only analytics data query
+  // Gilbert-only analytics data query with proper field selection
   GET_ANALYTICS_DATA: `
-    query GetGilbertData {
-      locations(where: { name: { _eq: "Gilbert" } }) {
+    query GetGilbertData($locationName: String = "Gilbert") {
+      # Get Gilbert location details
+      locations(where: { name: { _eq: $locationName } }) {
         id
         name
         address
@@ -136,7 +138,9 @@ export const GREYFINCH_QUERIES = {
         createdAt
         updatedAt
       }
-      patients(where: { primaryLocation: { name: { _eq: "Gilbert" } } }) {
+      
+      # Get patients for Gilbert location
+      patients(where: { primaryLocation: { name: { _eq: $locationName } } }) {
         id
         firstName
         lastName
@@ -147,10 +151,19 @@ export const GREYFINCH_QUERIES = {
         createdAt
         updatedAt
       }
-      appointments(where: { locationId: { _eq: "gilbert-1" } }) {
+      
+      # Get appointments for Gilbert location
+      appointments(where: { location: { name: { _eq: $locationName } } }) {
         id
-        patientId
-        locationId
+        patient {
+          id
+          firstName
+          lastName
+        }
+        location {
+          id
+          name
+        }
         appointmentType
         status
         scheduledDate
@@ -160,7 +173,9 @@ export const GREYFINCH_QUERIES = {
         createdAt
         updatedAt
       }
-      leads(where: { locationId: { _eq: "gilbert-1" } }) {
+      
+      # Get leads for Gilbert location
+      leads(where: { location: { name: { _eq: $locationName } } }) {
         id
         firstName
         lastName
@@ -168,13 +183,23 @@ export const GREYFINCH_QUERIES = {
         phone
         source
         status
-        locationId
+        location {
+          id
+          name
+        }
         createdAt
         updatedAt
       }
-      appointmentBookings(where: { appointmentId: { _in: ["gilbert-appointments"] } }) {
+      
+      # Get appointment bookings for Gilbert appointments
+      appointmentBookings(where: { appointment: { location: { name: { _eq: $locationName } } } }) {
         id
-        appointmentId
+        appointment {
+          id
+          location {
+            name
+          }
+        }
         startTime
         endTime
         localStartDate
@@ -186,32 +211,42 @@ export const GREYFINCH_QUERIES = {
     }
   `,
 
-  // Gilbert-only basic counts query
+  // Gilbert-only basic counts query with proper aggregation
   GET_BASIC_COUNTS: `
-    query GetGilbertBasicCounts {
-      locations(where: { name: { _eq: "Gilbert" } }) {
+    query GetGilbertBasicCounts($locationName: String = "Gilbert") {
+      # Get Gilbert location
+      locations(where: { name: { _eq: $locationName } }) {
         id
         name
+        isActive
       }
-      patients(where: { primaryLocation: { name: { _eq: "Gilbert" } } }) {
-        id
-        createdAt
+      
+      # Get patient count for Gilbert
+      patients_aggregate(where: { primaryLocation: { name: { _eq: $locationName } } }) {
+        aggregate {
+          count
+        }
       }
-      appointments(where: { locationId: { _eq: "gilbert-1" } }) {
-        id
-        status
-        scheduledDate
-        createdAt
+      
+      # Get appointment count for Gilbert
+      appointments_aggregate(where: { location: { name: { _eq: $locationName } } }) {
+        aggregate {
+          count
+        }
       }
-      leads(where: { locationId: { _eq: "gilbert-1" } }) {
-        id
-        source
-        createdAt
+      
+      # Get lead count for Gilbert
+      leads_aggregate(where: { location: { name: { _eq: $locationName } } }) {
+        aggregate {
+          count
+        }
       }
-      appointmentBookings(where: { appointmentId: { _in: ["gilbert-appointments"] } }) {
-        id
-        startTime
-        createdAt
+      
+      # Get booking count for Gilbert
+      appointmentBookings_aggregate(where: { appointment: { location: { name: { _eq: $locationName } } } }) {
+        aggregate {
+          count
+        }
       }
     }
   `,
@@ -233,6 +268,43 @@ export const GREYFINCH_QUERIES = {
         date
         category
         locationId
+      }
+    }
+  `,
+
+  // Simple Gilbert data query for basic stats
+  GET_GILBERT_SIMPLE: `
+    query GetGilbertSimple($locationName: String = "Gilbert") {
+      # Get Gilbert location status
+      locations(where: { name: { _eq: $locationName } }) {
+        id
+        name
+        isActive
+      }
+      
+      # Get basic counts for Gilbert
+      patients_aggregate(where: { primaryLocation: { name: { _eq: $locationName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      appointments_aggregate(where: { location: { name: { _eq: $locationName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      leads_aggregate(where: { location: { name: { _eq: $locationName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      appointmentBookings_aggregate(where: { appointment: { location: { name: { _eq: $locationName } } } }) {
+        aggregate {
+          count
+        }
       }
     }
   `,
@@ -306,14 +378,22 @@ export class GreyfinchSchemaUtils {
   }
   
   /**
-   * Get comprehensive analytics data
+   * Get comprehensive analytics data using the new simple Gilbert query
    */
   static async getAnalyticsData(): Promise<any> {
     try {
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
-      return result
+      console.log('🚀 Executing Gilbert simple GraphQL query...')
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_GILBERT_SIMPLE, { locationName: 'Gilbert' })
+      
+      if (result.success && result.data) {
+        console.log('✅ Gilbert simple query executed successfully:', result.data)
+        return result
+      } else {
+        console.error('❌ GraphQL query failed:', result.error)
+        throw new Error(result.error || 'GraphQL query failed')
+      }
     } catch (error) {
-      console.error('Analytics data fetch failed:', error)
+      console.error('❌ Error executing GraphQL query:', error)
       throw error
     }
   }
@@ -416,6 +496,7 @@ export class GreyfinchSchemaUtils {
 
   /**
    * Process and count data by location and date range
+   * Updated to handle new GraphQL structure with proper field relationships
    */
   static processDataByLocation(data: any, startDate?: string | null, endDate?: string | null, location?: string | null) {
     const processed = {
@@ -500,8 +581,38 @@ export class GreyfinchSchemaUtils {
       processed.locations['gilbert-1'].count += data.patients.length
     }
 
-    // Revenue and production not fetched in simplified query
-    // All data is Gilbert-only, so counts are already set above
+    // Handle aggregate data if using the new GraphQL structure
+    if (data.patients_aggregate && data.patients_aggregate.aggregate) {
+      const patientCount = data.patients_aggregate.aggregate.count || 0
+      processed.patients.count = patientCount
+      processed.summary.totalPatients = patientCount
+      processed.summary.gilbertCounts.patients = patientCount
+      processed.locations['gilbert-1'].count += patientCount
+    }
+
+    if (data.appointments_aggregate && data.appointments_aggregate.aggregate) {
+      const appointmentCount = data.appointments_aggregate.aggregate.count || 0
+      processed.appointments.count = appointmentCount
+      processed.summary.totalAppointments = appointmentCount
+      processed.summary.gilbertCounts.appointments = appointmentCount
+      processed.locations['gilbert-1'].count += appointmentCount
+    }
+
+    if (data.leads_aggregate && data.leads_aggregate.aggregate) {
+      const leadCount = data.leads_aggregate.aggregate.count || 0
+      processed.leads.count = leadCount
+      processed.summary.totalLeads = leadCount
+      processed.summary.gilbertCounts.leads = leadCount
+      processed.locations['gilbert-1'].count += leadCount
+    }
+
+    if (data.appointmentBookings_aggregate && data.appointmentBookings_aggregate.aggregate) {
+      const bookingCount = data.appointmentBookings_aggregate.aggregate.count || 0
+      processed.bookings.count = bookingCount
+      processed.summary.totalBookings = bookingCount
+      processed.summary.gilbertCounts.bookings = bookingCount
+      processed.locations['gilbert-1'].count += bookingCount
+    }
 
     return processed
   }

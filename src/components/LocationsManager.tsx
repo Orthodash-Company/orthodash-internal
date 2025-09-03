@@ -37,8 +37,8 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const { user } = useAuth();
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([
-    { id: 'gilbert', name: 'Gilbert', address: 'Gilbert, AZ', isActive: true },
-    { id: 'scottsdale', name: 'Scottsdale', address: 'Scottsdale, AZ', isActive: true }
+    { id: 'gilbert-1', name: 'Gilbert', address: 'Gilbert, AZ', isActive: true },
+    { id: 'scottsdale-1', name: 'Scottsdale', address: 'Scottsdale, AZ', isActive: false }
   ]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -388,26 +388,51 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           {locations.length > 0 ? (
             <div className="space-y-3">
               {locations.map((location) => (
-                <div key={location.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                <div key={location.id} className={`flex items-center justify-between p-3 border rounded-lg ${
+                  location.isActive 
+                    ? 'border-gray-200 bg-white' 
+                    : 'border-gray-300 bg-gray-50'
+                }`}>
                   <div className="flex items-center space-x-3">
-                    <MapPin className="h-4 w-4 text-[#1C1F4F]" />
+                    <MapPin className={`h-4 w-4 ${
+                      location.isActive ? 'text-[#1C1F4F]' : 'text-gray-400'
+                    }`} />
                     <div>
-                      <div className="font-medium">{location.name}</div>
+                      <div className={`font-medium ${
+                        location.isActive ? 'text-[#1C1F4F]' : 'text-gray-500'
+                      }`}>
+                        {location.name}
+                        {!location.isActive && (
+                          <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                            Offline
+                          </span>
+                        )}
+                      </div>
                       {location.address && (
-                        <div className="text-sm text-gray-600">{location.address}</div>
+                        <div className={`text-sm ${
+                          location.isActive ? 'text-gray-600' : 'text-gray-400'
+                        }`}>
+                          {location.address}
+                        </div>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Select value={selectedLocation || ''} onValueChange={setSelectedLocation}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={location.id}>Use</SelectItem>
-                        <SelectItem value="none">Don't use</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {location.isActive ? (
+                      <Select value={selectedLocation || ''} onValueChange={setSelectedLocation}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={location.id}>Use</SelectItem>
+                          <SelectItem value="none">Don't use</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="text-sm text-gray-500 px-3 py-1 bg-gray-100 rounded">
+                        Unavailable
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

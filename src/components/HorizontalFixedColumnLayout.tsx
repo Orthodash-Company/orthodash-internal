@@ -2,6 +2,8 @@ import { useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
 import { DataVisualizationModal } from "./DataVisualizationModal";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "./CompactCostManager";
@@ -212,12 +214,27 @@ export function HorizontalFixedColumnLayout({
                   <div className="space-y-2 pt-2">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="h-4 w-4" />
-                      <span>
+                      <button
+                        onClick={() => {
+                          // Toggle edit mode for this period
+                          setEditingPeriods(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(period.id)) {
+                              newSet.delete(period.id);
+                            } else {
+                              newSet.add(period.id);
+                            }
+                            return newSet;
+                          });
+                        }}
+                        className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                        title="Click to edit date range"
+                      >
                         {period.startDate && period.endDate ? 
                           `${format(new Date(period.startDate), 'MMM d')} - ${format(new Date(period.endDate), 'MMM d, yyyy')}` : 
                           'Select date range'
                         }
-                      </span>
+                      </button>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -227,27 +244,71 @@ export function HorizontalFixedColumnLayout({
                   </div>
                 </CardHeader>
 
-                {/* Period Content */}
-                <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
-                  {/* Compact Cost Management - Top of Column */}
-                  <CompactCostManager
-                    periodId={period.id}
-                    periodName={period.title}
-                    locationId={period.locationId}
-                    costs={periodCostsList}
-                    onCostsUpdate={handleCostsUpdate}
-                  />
-                  
-                  <PeriodColumn
-                    period={period as any} // Type assertion for compatibility
-                    query={query}
-                    locations={locations}
-                    onUpdatePeriod={onUpdatePeriod}
-                    onAddPeriod={onAddPeriod}
-                    isFirstPeriod={index === 0}
-                    isCompact={true}
-                    periodCosts={periodCostsList}
-                  />
+                                  {/* Period Content */}
+                  <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+                    {/* Date Range Editor - Show when editing */}
+                    {editingPeriods.has(period.id) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                          <Calendar className="h-4 w-4" />
+                          Edit Date Range
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-blue-700">Start Date</Label>
+                            <SimpleDatePicker
+                              date={period.startDate}
+                              setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
+                              placeholder="Select start"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-blue-700">End Date</Label>
+                            <SimpleDatePicker
+                              date={period.endDate}
+                              setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
+                              placeholder="Select end"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingPeriods(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(period.id);
+                                return newSet;
+                              });
+                            }}
+                            className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                          >
+                            Done
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Compact Cost Management - Top of Column */}
+                    <CompactCostManager
+                      periodId={period.id}
+                      periodName={period.title}
+                      locationId={period.locationId}
+                      costs={periodCostsList}
+                      onCostsUpdate={handleCostsUpdate}
+                    />
+                    
+                    <PeriodColumn
+                      period={period as any} // Type assertion for compatibility
+                      query={query}
+                      locations={locations}
+                      onUpdatePeriod={onUpdatePeriod}
+                      onAddPeriod={onAddPeriod}
+                      isFirstPeriod={index === 0}
+                      isCompact={true}
+                      periodCosts={periodCostsList}
+                    />
                   
                   {/* Visualizations Waterfall */}
                   {period.visualizations?.map((viz, vizIndex) => (

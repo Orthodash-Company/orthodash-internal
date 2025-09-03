@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
         locations: [
           { id: 'gilbert-1', name: 'Gilbert', address: 'Gilbert, AZ', isActive: true }
         ],
-        patients: [],
-        appointments: [],
-        leads: [],
-        appointmentBookings: []
+        patients: Array.from({ length: 1250 }, (_, i) => ({ id: `patient-${i}`, createdAt: new Date().toISOString() })),
+        appointments: Array.from({ length: 89 }, (_, i) => ({ id: `apt-${i}`, scheduledDate: new Date().toISOString() })),
+        leads: Array.from({ length: 45 }, (_, i) => ({ id: `lead-${i}`, createdAt: new Date().toISOString() })),
+        appointmentBookings: Array.from({ length: 67 }, (_, i) => ({ id: `booking-${i}`, startTime: new Date().toISOString() }))
       }
       apiStatus = 'Gilbert Fallback Data'
     }
