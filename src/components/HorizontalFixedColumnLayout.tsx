@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { SimpleDateInput } from "@/components/ui/simple-date-input";
+import { CompactDateInput } from "@/components/ui/compact-date-input";
 import { DataVisualizationModal } from "./DataVisualizationModal";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "./CompactCostManager";
@@ -270,19 +270,17 @@ export function HorizontalFixedColumnLayout({
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <Label className="text-xs text-blue-700">Start Date</Label>
-                            <SimpleDateInput
+                            <CompactDateInput
                               date={period.startDate}
                               setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
-                              placeholder="DD/MM/YYYY"
+                              label="Start Date"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs text-blue-700">End Date</Label>
-                            <SimpleDateInput
+                            <CompactDateInput
                               date={period.endDate}
                               setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
-                              placeholder="DD/MM/YYYY"
+                              label="End Date"
                             />
                           </div>
                         </div>
