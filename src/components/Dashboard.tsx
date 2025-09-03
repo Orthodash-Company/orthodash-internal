@@ -8,6 +8,7 @@ import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
 import { SessionManager } from './SessionManager';
+import { PDFReportGenerator } from './PDFReportGenerator';
 
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [greyfinchData, setGreyfinchData] = useState<any>(null);
   const [acquisitionCosts, setAcquisitionCosts] = useState<any>(null);
   const [aiSummary, setAiSummary] = useState<any>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -413,6 +415,65 @@ export default function Dashboard() {
     console.log('Share session:', session);
   };
 
+  // Save report to the reports system
+  const handleSaveReport = async (reportData: any) => {
+    if (!user?.id) {
+      console.error('User not authenticated');
+      return;
+    }
+
+    try {
+      // Create or get current session
+      let sessionId = currentSessionId;
+      if (!sessionId) {
+        // Create a new session for this report
+        const sessionResponse = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            name: `Report Session - ${new Date().toLocaleDateString()}`,
+            description: `Auto-generated session for ${reportData.title}`,
+            periods: periods,
+            locations: locations,
+            greyfinchData: greyfinchData,
+            includeCharts: true,
+            includeAIInsights: true,
+            includeRecommendations: true
+          })
+        });
+
+        if (sessionResponse.ok) {
+          const sessionResult = await sessionResponse.json();
+          sessionId = sessionResult.session.id;
+          setCurrentSessionId(sessionId);
+        }
+      }
+
+      // Save the report
+      const reportResponse = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          sessionId: sessionId,
+          name: reportData.title,
+          type: reportData.type,
+          data: reportData.data
+        })
+      });
+
+      if (reportResponse.ok) {
+        console.log('Report saved successfully');
+        // You could show a success toast here
+      } else {
+        console.error('Failed to save report');
+      }
+    } catch (error) {
+      console.error('Error saving report:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
@@ -638,6 +699,25 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <AISummaryGenerator periods={periods} periodData={{}} />
+            </CardContent>
+          </Card>
+
+          {/* PDF Report Generator */}
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-[#1C1F4F]">PDF Report Generator</CardTitle>
+              <CardDescription className="text-[#1C1F4F]/70">
+                Generate comprehensive PDF reports with all practice data, analysis, and AI insights
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PDFReportGenerator 
+                greyfinchData={greyfinchData}
+                periods={periods}
+                acquisitionCosts={acquisitionCosts}
+                aiSummary={aiSummary}
+                onSaveReport={handleSaveReport}
+              />
             </CardContent>
           </Card>
 
