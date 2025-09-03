@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Eye, Save, FileText, BarChart3, Users, Calendar, DollarSign, Target } from 'lucide-react';
+import { Download, Eye, Save, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 interface PDFReportGeneratorProps {
   greyfinchData: any;
@@ -32,9 +34,12 @@ export function PDFReportGenerator({
   aiSummary, 
   onSaveReport 
 }: PDFReportGeneratorProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [reportType, setReportType] = useState<'summary' | 'detailed' | 'executive'>('summary');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedReports, setGeneratedReports] = useState<ReportData[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // Extract counter data
   const getCounterData = () => {
@@ -96,6 +101,58 @@ export function PDFReportGenerator({
     }
     
     return filteredData;
+  };
+
+  // Save report to database
+  const saveReportToDatabase = async (reportData: ReportData) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to save reports",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          sessionId: `session-${Date.now()}`, // Generate a session ID
+          name: reportData.title,
+          type: reportData.type,
+          data: reportData.data
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save report: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Report saved successfully:', result);
+      
+      toast({
+        title: "Report Saved!",
+        description: "Your report has been saved to the reports history",
+      });
+
+      // Show success animation
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+
+    } catch (error) {
+      console.error('Error saving report:', error);
+      toast({
+        title: "Save Failed",
+        description: "Failed to save report to database",
+        variant: "destructive"
+      });
+    }
   };
 
   // Generate PDF report
@@ -348,13 +405,26 @@ export function PDFReportGenerator({
       if (onSaveReport) {
         onSaveReport(reportData);
       }
+
+      // Save to database
+      await saveReportToDatabase(reportData);
       
       // Download PDF
       const fileName = `orthodash-${reportType}-report-${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
       
+      toast({
+        title: "PDF Generated!",
+        description: "Your report has been generated and saved",
+      });
+
     } catch (error) {
       console.error('Error generating PDF:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate PDF report",
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -374,6 +444,14 @@ export function PDFReportGenerator({
 
   return (
     <div className="space-y-6">
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-right">
+          <CheckCircle className="h-5 w-5" />
+          <span>Report saved successfully!</span>
+        </div>
+      )}
+
       {/* Report Generation Controls */}
       <Card>
       <CardHeader>
