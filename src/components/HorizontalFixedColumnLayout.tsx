@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 import { DataVisualizationModal } from "./DataVisualizationModal";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "./CompactCostManager";
@@ -256,7 +256,7 @@ export function HorizontalFixedColumnLayout({
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <Label className="text-xs text-blue-700">Start Date</Label>
-                            <SimpleDatePicker
+                            <DatePicker
                               date={period.startDate}
                               setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
                               placeholder="Select start"
@@ -264,7 +264,7 @@ export function HorizontalFixedColumnLayout({
                           </div>
                           <div>
                             <Label className="text-xs text-blue-700">End Date</Label>
-                            <SimpleDatePicker
+                            <DatePicker
                               date={period.endDate}
                               setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
                               placeholder="Select end"

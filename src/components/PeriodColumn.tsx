@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -219,7 +219,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               Select Date Range
             </Label>
             <div className="grid grid-cols-1 gap-2">
-              <SimpleDatePicker
+              <DatePicker
                 date={period.startDate}
                 setDate={(date) => {
                   console.log('Start date changed:', date);
@@ -227,7 +227,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 }}
                 placeholder="Start date"
               />
-              <SimpleDatePicker
+              <DatePicker
                 date={period.endDate}
                 setDate={(date) => {
                   console.log('End date changed:', date);
@@ -409,7 +409,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs text-gray-600">Start Date</Label>
-                <SimpleDatePicker
+                <DatePicker
                   date={period.startDate}
                   setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
                   placeholder="Select start"
@@ -417,7 +417,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               </div>
               <div>
                 <Label className="text-xs text-gray-600">End Date</Label>
-                <SimpleDatePicker
+                <DatePicker
                   date={period.endDate}
                   setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
                   placeholder="Select end"
