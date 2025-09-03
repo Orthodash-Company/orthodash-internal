@@ -31,6 +31,7 @@ export function HorizontalFixedColumnLayout({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
   const [periodCosts, setPeriodCosts] = useState<Record<string, CompactCost[]>>({});
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   // Auto-scroll to the right when new periods are added
   useEffect(() => {
@@ -54,6 +55,10 @@ export function HorizontalFixedColumnLayout({
       visualizations: []
     };
     onAddPeriod(newPeriod);
+    
+    // Show success animation
+    setShowSuccessAnimation(true);
+    setTimeout(() => setShowSuccessAnimation(false), 3000); // Hide after 3 seconds
   };
 
   // Handle costs update for a period
@@ -72,6 +77,16 @@ export function HorizontalFixedColumnLayout({
 
   return (
     <div className="relative">
+      {/* Success Animation */}
+      {showSuccessAnimation && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right-2 duration-300">
+          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="font-medium">New column added successfully! 🎉</span>
+          </div>
+        </div>
+      )}
+
       {/* Period Navigation - Mobile Only */}
       <div className="lg:hidden mb-4">
         <Card>

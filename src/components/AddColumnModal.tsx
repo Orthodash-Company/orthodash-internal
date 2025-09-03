@@ -26,6 +26,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
     nextMonth.setMonth(today.getMonth() + 1);
     return nextMonth;
   });
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleAddPeriod = () => {
     console.log('handleAddPeriod called with:', { startDate, endDate, title, locationId });
@@ -58,6 +59,10 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
       
       console.log('Period added successfully');
       
+      // Show success animation
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000); // Hide after 3 seconds
+      
       // Reset form and close modal
       const nextPeriodLetter = String.fromCharCode(65 + existingPeriodsCount + 1);
       setTitle(`Period ${nextPeriodLetter}`);
@@ -75,7 +80,18 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <>
+      {/* Success Animation */}
+      {showSuccess && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right-2 duration-300">
+          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="font-medium">New column added successfully! 🎉</span>
+          </div>
+        </div>
+      )}
+      
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {children || (
           <div className="w-80 h-full min-h-[600px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-100/50 transition-colors cursor-pointer group">
@@ -202,6 +218,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
           </Button>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

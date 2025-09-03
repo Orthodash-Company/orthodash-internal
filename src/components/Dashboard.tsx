@@ -8,7 +8,7 @@ import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
 import { SessionManager } from './SessionManager';
-import { GreyfinchDataExplorer } from './GreyfinchDataExplorer';
+
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -632,7 +632,7 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <GreyfinchDataExplorer />
+      
             </CardContent>
           </Card>
         </div>
