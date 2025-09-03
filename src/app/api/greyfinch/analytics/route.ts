@@ -7,29 +7,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    const location = searchParams.get('location') // 'gilbert', 'scottsdale', or 'all'
+    const location = 'gilbert' // Always Gilbert only
     
-    console.log('📊 Fetching Greyfinch analytics data...', { startDate, endDate, location })
+    console.log('📊 Fetching Gilbert-only Greyfinch data...', { startDate, endDate, location })
     
-    const greyfinch = new GreyfinchService()
-    
-    // Test connection first
-    const connectionTest = await greyfinch.testConnection()
-    if (!connectionTest.success) {
-      return NextResponse.json({
-        success: false,
-        message: 'Failed to connect to Greyfinch API',
-        error: connectionTest.message
-      }, { status: 500 })
-    }
-
-    // Get comprehensive analytics data
+    // Get Gilbert-only analytics data
     try {
-      console.log('🔍 Attempting to fetch comprehensive analytics data...')
+      console.log('🔍 Fetching Gilbert data...')
       const result = await GreyfinchSchemaUtils.getAnalyticsData()
-      console.log('📊 Comprehensive analytics data received:', result)
+      console.log('📊 Gilbert data received:', result)
       
-      // Process the data using the enhanced utility
+      // Process the Gilbert data
       const processedData = GreyfinchSchemaUtils.processDataByLocation(result, startDate, endDate, location)
       
       // Add metadata
@@ -50,126 +38,148 @@ export async function GET(request: NextRequest) {
           })
         }
 
-        // Apply date filtering
+        // Apply date filtering to Gilbert data
         if (processedData.leads.data) {
           const filteredLeads = filterByDateRange(processedData.leads.data, 'createdAt')
           processedData.leads.data = filteredLeads
           processedData.leads.count = filteredLeads.length
+          processedData.summary.gilbertCounts.leads = filteredLeads.length
         }
 
         if (processedData.appointments.data) {
           const filteredAppointments = filterByDateRange(processedData.appointments.data, 'scheduledDate')
           processedData.appointments.data = filteredAppointments
           processedData.appointments.count = filteredAppointments.length
+          processedData.summary.gilbertCounts.appointments = filteredAppointments.length
         }
 
         if (processedData.bookings.data) {
           const filteredBookings = filterByDateRange(processedData.bookings.data, 'startTime')
           processedData.bookings.data = filteredBookings
           processedData.bookings.count = filteredBookings.length
+          processedData.summary.gilbertCounts.bookings = filteredBookings.length
         }
 
         if (processedData.patients.data) {
           const filteredPatients = filterByDateRange(processedData.patients.data, 'createdAt')
           processedData.patients.data = filteredPatients
           processedData.patients.count = filteredPatients.length
+          processedData.summary.gilbertCounts.patients = filteredPatients.length
         }
 
-        // Recalculate summary counts after filtering
-        processedData.summary.totalLeads = processedData.leads.count
-        processedData.summary.totalAppointments = processedData.appointments.count
-        processedData.summary.totalBookings = processedData.bookings.count
-        processedData.summary.totalPatients = processedData.patients.count
+        // Update total counts
+        processedData.summary.totalLeads = processedData.summary.gilbertCounts.leads
+        processedData.summary.totalAppointments = processedData.summary.gilbertCounts.appointments
+        processedData.summary.totalBookings = processedData.summary.gilbertCounts.bookings
+        processedData.summary.totalPatients = processedData.summary.gilbertCounts.patients
       }
 
-      // Filter by specific location if requested
-      if (location && location !== 'all') {
-        const locationName = location.toLowerCase()
-        if (locationName === 'gilbert') {
-          processedData.summary.totalLeads = processedData.summary.gilbertCounts.leads
-          processedData.summary.totalAppointments = processedData.summary.gilbertCounts.appointments
-          processedData.summary.totalBookings = processedData.summary.gilbertCounts.bookings
-          processedData.summary.totalPatients = processedData.summary.gilbertCounts.patients
-          processedData.summary.totalRevenue = processedData.summary.gilbertCounts.revenue
-        } else if (locationName === 'scottsdale') {
-          processedData.summary.totalLeads = processedData.summary.scottsdaleCounts.leads
-          processedData.summary.totalAppointments = processedData.summary.scottsdaleCounts.appointments
-          processedData.summary.totalBookings = processedData.summary.scottsdaleCounts.bookings
-          processedData.summary.totalPatients = processedData.summary.scottsdaleCounts.patients
-          processedData.summary.totalRevenue = processedData.summary.scottsdaleCounts.revenue
-        }
-      }
-
-      console.log('✅ Analytics data processed successfully')
+      console.log('✅ Gilbert data processed successfully')
       
       return NextResponse.json({
         success: true,
-        message: 'Analytics data retrieved successfully',
+        message: 'Gilbert data retrieved successfully',
         data: processedData
       })
 
     } catch (graphqlError) {
-      console.log('⚠️ Comprehensive query failed, trying basic counts...')
+      console.log('⚠️ Gilbert data fetch failed, using fallback data:', graphqlError)
       
-      try {
-        // Fallback to basic counts query
-        const basicResult = await GreyfinchSchemaUtils.getBasicCounts()
-        console.log('📊 Basic counts data received:', basicResult)
-        
-        // Process basic data
-        const processedData = GreyfinchSchemaUtils.processDataByLocation(basicResult, startDate, endDate, location)
-        processedData.lastUpdated = new Date().toISOString()
-        processedData.queryParams = { startDate, endDate, location }
-        processedData.apiStatus = 'Basic Data Available'
-        
-        return NextResponse.json({
-          success: true,
-          message: 'Analytics data retrieved with basic counts',
-          data: processedData
-        })
-        
-      } catch (basicError) {
-        console.log('⚠️ Basic counts also failed, using fallback data:', basicError)
-        
-        // Return fallback data if all queries fail
-        const fallbackData = {
-          locations: {
-            gilbert: { id: 'gilbert-1', name: 'Gilbert', count: 0 },
-            scottsdale: { id: 'scottsdale-1', name: 'Scottsdale', count: 0 }
-          },
-          leads: { count: 0, data: [] },
-          appointments: { count: 0, data: [] },
-          bookings: { count: 0, data: [] },
-          patients: { count: 0, data: [] },
-          revenue: { total: 0, data: [] },
-          summary: {
-            totalLeads: 0,
-            totalAppointments: 0,
-            totalBookings: 0,
-            totalPatients: 0,
-            totalRevenue: 0,
-            gilbertCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0 },
-            scottsdaleCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0 }
-          },
-          lastUpdated: new Date().toISOString(),
-          queryParams: { startDate, endDate, location },
-          apiStatus: 'Fallback Data',
-          error: 'All GraphQL queries failed'
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: 'Analytics data retrieved with fallback data',
-          data: fallbackData
-        })
+      // Return Gilbert fallback data
+      const fallbackData = {
+        locations: {
+          'gilbert-1': { id: 'gilbert-1', name: 'Gilbert', count: 0, isActive: true },
+          'scottsdale-1': { id: 'scottsdale-1', name: 'Scottsdale', count: 0, isActive: false }
+        },
+        leads: { count: 0, data: [] },
+        appointments: { count: 0, data: [] },
+        bookings: { count: 0, data: [] },
+        patients: { count: 0, data: [] },
+        revenue: { total: 0, data: [] },
+        summary: {
+          totalLeads: 0,
+          totalAppointments: 0,
+          totalBookings: 0,
+          totalPatients: 0,
+          totalRevenue: 0,
+          gilbertCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 },
+          scottsdaleCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 }
+        },
+        lastUpdated: new Date().toISOString(),
+        queryParams: { startDate, endDate, location },
+        apiStatus: 'Gilbert Fallback Data'
       }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Gilbert data retrieved with fallback',
+        data: fallbackData
+      })
     }
 
   } catch (error) {
-    console.error('❌ Analytics data fetch error:', error)
+    console.error('❌ Gilbert data fetch error:', error)
     return NextResponse.json({
       success: false,
-      message: 'Failed to fetch analytics data',
+      message: 'Failed to fetch Gilbert data',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  }
+}
+
+// Handle custom GraphQL queries for data exploration
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { query } = body
+    
+    console.log('🔍 Custom GraphQL query received:', query)
+    
+    if (!query) {
+      return NextResponse.json({
+        success: false,
+        message: 'No GraphQL query provided'
+      }, { status: 400 })
+    }
+
+    const greyfinch = new GreyfinchService()
+    
+    // Test connection first
+    const connectionTest = await greyfinch.testConnection()
+    if (!connectionTest.success) {
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to connect to Greyfinch API',
+        error: connectionTest.message
+      }, { status: 500 })
+    }
+
+    try {
+      // Execute the custom GraphQL query
+      console.log('🚀 Executing custom GraphQL query...')
+      const result = await greyfinch.makeGraphQLRequest(query)
+      console.log('✅ Custom query executed successfully:', result)
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Custom GraphQL query executed successfully',
+        data: result
+      })
+      
+    } catch (graphqlError) {
+      console.error('❌ Custom GraphQL query failed:', graphqlError)
+      return NextResponse.json({
+        success: false,
+        message: 'Custom GraphQL query failed',
+        error: graphqlError instanceof Error ? graphqlError.message : 'Unknown GraphQL error'
+      }, { status: 500 })
+    }
+
+  } catch (error) {
+    console.error('❌ POST request error:', error)
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to process POST request',
       error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }

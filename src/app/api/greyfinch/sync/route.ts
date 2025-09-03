@@ -7,50 +7,29 @@ import { eq, and, gte, lte } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔄 Starting comprehensive Greyfinch data sync...')
+    console.log('🔄 Starting Gilbert-only Greyfinch data sync...')
     
-    const greyfinch = new GreyfinchService()
-    
-    // Test connection first
-    const connectionTest = await greyfinch.testConnection()
-    if (!connectionTest.success) {
-      return NextResponse.json({
-        success: false,
-        message: 'Failed to connect to Greyfinch API',
-        error: connectionTest.message
-      }, { status: 500 })
-    }
-
-    // Get comprehensive analytics data
+    // Get Gilbert-only analytics data
     let allData: any = null
     let apiStatus = 'Unknown'
     
     try {
-      console.log('🔍 Fetching comprehensive analytics data...')
+      console.log('🔍 Fetching Gilbert data...')
       allData = await GreyfinchSchemaUtils.getAnalyticsData()
-      apiStatus = 'Comprehensive Data'
-      console.log('✅ Comprehensive data fetched successfully')
-    } catch (comprehensiveError) {
-      console.log('⚠️ Comprehensive query failed, trying basic counts...')
-      
-      try {
-        allData = await GreyfinchSchemaUtils.getBasicCounts()
-        apiStatus = 'Basic Counts Data'
-        console.log('✅ Basic counts data fetched successfully')
-      } catch (basicError) {
-        console.log('⚠️ Basic counts also failed, using fallback data')
-        allData = {
-          locations: [
-            { id: 'gilbert-1', name: 'Gilbert Office', address: 'Gilbert, AZ', isActive: true },
-            { id: 'scottsdale-1', name: 'Scottsdale Office', address: 'Scottsdale, AZ', isActive: true }
-          ],
-          patients: [],
-          appointments: [],
-          leads: [],
-          appointmentBookings: []
-        }
-        apiStatus = 'Fallback Data'
+      apiStatus = 'Gilbert Data'
+      console.log('✅ Gilbert data fetched successfully')
+    } catch (error) {
+      console.log('⚠️ Gilbert data fetch failed, using fallback data')
+      allData = {
+        locations: [
+          { id: 'gilbert-1', name: 'Gilbert', address: 'Gilbert, AZ', isActive: true }
+        ],
+        patients: [],
+        appointments: [],
+        leads: [],
+        appointmentBookings: []
       }
+      apiStatus = 'Gilbert Fallback Data'
     }
 
     // Process the data using the enhanced utility
@@ -196,9 +175,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Comprehensive data sync completed successfully')
-    
-    return NextResponse.json({
-      success: true,
+
+      return NextResponse.json({
+        success: true,
       message: 'Greyfinch data synced successfully',
       data: processedData,
       apiStatus,

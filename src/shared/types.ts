@@ -61,18 +61,23 @@ export interface GreyfinchData {
   bookings: { count: number; data: any[] };
   patients: { count: number; data: any[] };
   revenue: { total: number; data: any[] };
+  production: { total: number; netProduction: number; data: any[] };
   summary: {
     totalLeads: number;
     totalAppointments: number;
     totalBookings: number;
     totalPatients: number;
     totalRevenue: number;
+    totalProduction: number;
+    totalNetProduction: number;
     gilbertCounts: {
       leads: number;
       appointments: number;
       bookings: number;
       patients: number;
       revenue: number;
+      production: number;
+      netProduction: number;
     };
     scottsdaleCounts: {
       leads: number;
@@ -80,6 +85,8 @@ export interface GreyfinchData {
       bookings: number;
       patients: number;
       revenue: number;
+      production: number;
+      netProduction: number;
     };
   };
   lastUpdated: string;
@@ -109,5 +116,22 @@ export interface PeriodData {
   locations: number;
   bookings: number;
   revenue: number;
+  production: number;
   netProduction: number;
+  acquisitionCosts: number;
+}
+
+// New interface for compact cost management
+export interface CompactCost {
+  id: string;
+  name: string;
+  amount: number;
+  category: string;
+  date: string;
+}
+
+export interface PeriodCosts {
+  periodId: string;
+  costs: CompactCost[];
+  total: number;
 }

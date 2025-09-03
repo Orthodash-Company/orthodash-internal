@@ -1,80 +1,142 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { sessions } from '@/shared/schema'
-import { eq } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { sessions } from '@/shared/schema';
+import { eq } from 'drizzle-orm';
 
+// GET /api/sessions - Get all sessions for a user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
     if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 400 })
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
-    
-    // Check if database is available
-    if (!process.env.DATABASE_URL) {
-      console.warn("DATABASE_URL not set, returning empty sessions");
-      return NextResponse.json([])
-    }
-    
-    const userSessions = await db.select().from(sessions).where(
-      eq(sessions.userId, userId)
-    ).orderBy(sessions.createdAt)
-    
-    return NextResponse.json(userSessions)
+
+    const userSessions = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.userId, userId))
+      .orderBy(sessions.createdAt);
+
+    return NextResponse.json({
+      success: true,
+      sessions: userSessions
+    });
+
   } catch (error) {
-    console.error('Error fetching sessions:', error)
-    // Return empty array instead of error to prevent frontend crashes
-    return NextResponse.json([])
+    console.error('Error fetching sessions:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch sessions' },
+      { status: 500 }
+    );
   }
 }
 
+// POST /api/sessions - Create a new session
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { userId, name, description, greyfinchData, acquisitionCosts, periods, aiSummary, reportData } = body
-    
-    if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 400 })
+    const body = await request.json();
+    const {
+      name,
+      description,
+      periods,
+      locations,
+      greyfinchData,
+      userId,
+      includeCharts,
+      includeAIInsights,
+      includeRecommendations
+    } = body;
+
+    if (!userId || !name) {
+      return NextResponse.json(
+        { error: 'User ID and session name required' },
+        { status: 400 }
+      );
     }
-    
-    // Check if database is available
-    if (!process.env.DATABASE_URL) {
-      console.warn("DATABASE_URL not set, returning mock session");
-      return NextResponse.json({ 
-        success: true, 
-        id: 'mock-session-id',
-        message: 'Session saved successfully (mock)' 
-      })
-    }
-    
+
     const sessionData = {
       userId,
-      name: name || `Analysis Session ${new Date().toLocaleDateString()}`,
-      description: description || 'Comprehensive analysis session with Greyfinch data and AI insights',
-      greyfinchData: greyfinchData || null,
-      acquisitionCosts: acquisitionCosts || null,
-      periods: periods || null,
-      aiSummary: aiSummary || null,
-      metadata: reportData || null,
-      isActive: true
-    }
-    
-    const result = await db.insert(sessions).values(sessionData).returning()
-    
-    return NextResponse.json({ 
-      success: true, 
-      id: result[0]?.id,
-      message: 'Session saved successfully' 
-    })
+      name,
+      description: description || '',
+      greyfinchData: greyfinchData || {},
+      periods: periods || [],
+      acquisitionCosts: [],
+      aiSummary: null,
+      metadata: {
+        includeCharts,
+        includeAIInsights,
+        includeRecommendations,
+        locations: locations || []
+      },
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const [newSession] = await db
+      .insert(sessions)
+      .values(sessionData)
+      .returning();
+
+    return NextResponse.json({
+      success: true,
+      session: newSession
+    }, { status: 201 });
+
   } catch (error) {
-    console.error('Error saving session:', error)
-    // Return success response to prevent frontend crashes
-    return NextResponse.json({ 
-      success: true, 
-      id: 'error-session-id',
-      message: 'Session saved successfully (error fallback)' 
-    })
+    console.error('Error creating session:', error);
+    return NextResponse.json(
+      { error: 'Failed to create session' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/sessions - Update an existing session
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { sessionId, periods, locations, greyfinchData, updatedAt } = body;
+
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: 'Session ID required' },
+        { status: 400 }
+      );
+    }
+
+    const updateData = {
+      periods: periods || [],
+      locations: locations || [],
+      greyfinchData: greyfinchData || {},
+      updatedAt: updatedAt || new Date()
+    };
+
+    const [updatedSession] = await db
+      .update(sessions)
+      .set(updateData)
+      .where(eq(sessions.id, sessionId))
+      .returning();
+
+    if (!updatedSession) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      session: updatedSession
+    });
+
+  } catch (error) {
+    console.error('Error updating session:', error);
+    return NextResponse.json(
+      { error: 'Failed to update session' },
+      { status: 500 }
+    );
   }
 }

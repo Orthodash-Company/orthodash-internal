@@ -27,7 +27,7 @@ import {
   Eye,
   EyeOff
 } from "lucide-react";
-import { PeriodConfig, Location } from "@/shared/types";
+import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 interface PeriodData {
@@ -52,6 +52,15 @@ interface PeriodData {
       direct: number;
     }>;
   };
+  patients: number;
+  appointments: number;
+  leads: number;
+  locations: number;
+  bookings: number;
+  revenue: number;
+  production: number;
+  netProduction: number;
+  acquisitionCosts: number;
 }
 
 interface PeriodColumnProps {
@@ -60,6 +69,7 @@ interface PeriodColumnProps {
   locations: Location[];
   onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
   isCompact?: boolean;
+  periodCosts?: CompactCost[];
 }
 
 interface PeriodColumnPropsExtended extends PeriodColumnProps {
@@ -67,15 +77,19 @@ interface PeriodColumnPropsExtended extends PeriodColumnProps {
   isFirstPeriod?: boolean;
 }
 
-export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false }: PeriodColumnPropsExtended) {
+export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false, periodCosts = [] }: PeriodColumnPropsExtended) {
   const data = query?.data;
   const isLoading = query?.isLoading;
   const error = query?.error;
+  
+  // Calculate total costs for this period
+  const totalCosts = periodCosts.reduce((sum, cost) => sum + cost.amount, 0);
   
   // Debug logging
   console.log(`PeriodColumn ${period.id} - isLoading: ${isLoading}, hasData: ${!!data}, error: ${!!error}`);
   console.log(`Period dates: start=${period.startDate}, end=${period.endDate}`);
   console.log(`Period data:`, data);
+  console.log(`Period costs:`, periodCosts, `Total: $${totalCosts}`);
 
   // Handle loading and error states for live data
   if (isLoading) {
@@ -148,7 +162,16 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
     noShowRate: 0,
     referralSources: { digital: 0, professional: 0, direct: 0 },
     conversionRates: { digital: 0, professional: 0, direct: 0 },
-    trends: { weekly: [] }
+    trends: { weekly: [] },
+    patients: 0,
+    appointments: 0,
+    leads: 0,
+    locations: 0,
+    bookings: 0,
+    revenue: 0,
+    production: 0,
+    netProduction: 0,
+    acquisitionCosts: totalCosts
   };
   
   const pieData = [
@@ -268,13 +291,13 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   if (isCompact) {
     return (
       <div className="space-y-4">
-        {/* Key Metrics - Compact View */}
+        {/* Key Metrics - Compact View with Production Data */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-600">Net Production</p>
-                <p className="text-lg font-semibold">${safeData.avgNetProduction.toLocaleString()}</p>
+                <p className="text-lg font-semibold">${safeData.netProduction.toLocaleString()}</p>
               </div>
               <DollarSign className="h-8 w-8 text-[#1d1d52]" />
             </div>
@@ -284,9 +307,35 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-600">No-Show Rate</p>
-                <p className="text-lg font-semibold">{safeData.noShowRate}%</p>
+                <p className="text-lg font-semibold">{safeData.noShowRate.toFixed(1)}%</p>
               </div>
               <Clock className="h-8 w-8 text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Production and Revenue Summary */}
+        <div className="bg-white p-4 rounded-lg border">
+          <h4 className="text-sm font-medium mb-3">Financial Summary</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Total Production:</span>
+              <span className="font-medium">${safeData.production.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Total Revenue:</span>
+              <span className="font-medium">${safeData.revenue.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Acquisition Costs:</span>
+              <span className="font-medium text-red-600">-${totalCosts.toLocaleString()}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between text-sm font-semibold">
+              <span>Net Production:</span>
+              <span className={`${safeData.netProduction >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                ${safeData.netProduction.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>

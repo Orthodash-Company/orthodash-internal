@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginMessage, setLoginMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<'info' | 'warning' | 'success'>('info');
   const router = useRouter();
   const { loginMutation, user } = useAuth();
 
@@ -26,12 +28,34 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginMessage(null);
     
     try {
-      loginMutation.mutate({ username: email, password });
-      router.push('/');
+      const result = await loginMutation.mutate({ username: email, password });
+      
+      if (result?.success) {
+        setMessageType('success');
+        setLoginMessage('Welcome back! Redirecting to dashboard...');
+        setTimeout(() => router.push('/'), 1500);
+      } else {
+        // Handle specific error cases
+        const errorMessage = result?.message || 'Unable to sign in';
+        
+        if (errorMessage.includes('Invalid login credentials')) {
+          setMessageType('warning');
+          setLoginMessage('Please check your email and password. Both need to be correct.');
+        } else if (errorMessage.includes('User not found')) {
+          setMessageType('info');
+          setLoginMessage('Creating new account for you...');
+        } else {
+          setMessageType('warning');
+          setLoginMessage('Unable to sign in. Please try again.');
+        }
+      }
     } catch (error) {
       console.error('Login failed:', error);
+      setMessageType('warning');
+      setLoginMessage('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -99,6 +123,19 @@ export default function LoginPage() {
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
+            
+            {/* Login Message Display */}
+            {loginMessage && (
+              <div className={`mt-4 p-3 rounded-lg border text-sm ${
+                messageType === 'success' 
+                  ? 'bg-green-50 border-green-200 text-green-800'
+                  : messageType === 'warning'
+                  ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                  : 'bg-blue-50 border-blue-200 text-blue-800'
+              }`}>
+                {loginMessage}
+              </div>
+            )}
           </form>
           
           <div className="mt-6 text-center">
@@ -111,6 +148,7 @@ export default function LoginPage() {
           </div>
         </CardContent>
       </Card>
+      
     </div>
   );
 }

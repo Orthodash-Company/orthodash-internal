@@ -10,17 +10,17 @@ type AuthContextType = {
   loading: boolean;
   error: Error | null;
   loginMutation: {
-    mutate: (credentials: LoginData) => Promise<void>;
+    mutate: (credentials: LoginData) => Promise<{ success: boolean; message?: string; data?: any }>;
     isPending: boolean;
     error: Error | null;
   };
   logoutMutation: {
-    mutate: () => Promise<void>;
+    mutate: () => Promise<{ success: boolean; message?: string; data?: any }>;
     isPending: boolean;
     error: Error | null;
   };
   registerMutation: {
-    mutate: (credentials: RegisterData) => Promise<void>;
+    mutate: (credentials: RegisterData) => Promise<{ success: boolean; message?: string; data?: any }>;
     isPending: boolean;
     error: Error | null;
   };
@@ -83,6 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           // If user doesn't exist, create them
           if (error.message.includes('Invalid login credentials')) {
+            console.log('👤 User not found, creating new user...');
+            
             const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
               email: credentials.username,
               password: credentials.password,
@@ -93,26 +95,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             setUser(signUpData.user!);
-            toast({
-              title: "Login successful",
-              description: "Welcome to ORTHODASH!",
-            });
-            return;
+            return { success: true, message: "Login successful", data: signUpData };
           }
           throw new Error(error.message);
         }
 
         setUser(data.user!);
-        toast({
-          title: "Login successful",
-          description: "Welcome to ORTHODASH!",
-        });
+        return { success: true, message: "Login successful", data: data };
       } catch (error) {
-        toast({
-          title: "Login failed",
-          description: error instanceof Error ? error.message : "Unknown error",
-          variant: "destructive",
-        });
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return { success: false, message: errorMessage };
       } finally {
         setLoginPending(false);
       }
@@ -135,20 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setUser(data.user!);
-        toast({
-          title: "Registration successful",
-          description: "Welcome to ORTHODASH! Redirecting to setup...",
-        });
         // Redirect to welcome page for new users
         if (typeof window !== 'undefined') {
           window.location.href = '/welcome';
         }
+        return { success: true, message: "Registration successful", data: data };
       } catch (error) {
-        toast({
-          title: "Registration failed",
-          description: error instanceof Error ? error.message : "Unknown error",
-          variant: "destructive",
-        });
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return { success: false, message: errorMessage };
       } finally {
         setRegisterPending(false);
       }
@@ -166,21 +152,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error(error.message);
         }
         setUser(null);
-        toast({
-          title: "Logged out",
-          description: "You have been successfully logged out.",
-        });
         
         // Route to auth page after successful logout
         if (typeof window !== 'undefined') {
           window.location.href = '/auth';
         }
+        return { success: true, message: "Logout successful" };
       } catch (error) {
-        toast({
-          title: "Logout failed",
-          description: error instanceof Error ? error.message : "Unknown error",
-          variant: "destructive",
-        });
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return { success: false, message: errorMessage };
       } finally {
         setLogoutPending(false);
       }

@@ -7,7 +7,8 @@ import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
-import { PDFReportGenerator } from './PDFReportGenerator';
+import { SessionManager } from './SessionManager';
+import { GreyfinchDataExplorer } from './GreyfinchDataExplorer';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +26,8 @@ import {
   Download,
   Calendar,
   Building2,
-  Save
+  Save,
+  Trash2
 } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
 import { useSessionManager } from '@/hooks/use-session-manager';
@@ -115,10 +117,34 @@ export default function Dashboard() {
     setPeriods(prev => prev.map(p => p.id === periodId ? { ...p, ...updates } : p));
   };
 
+  const handleClearData = () => {
+    if (window.confirm('Are you sure you want to clear all data? This will remove all analysis periods, costs, and data. This action cannot be undone.')) {
+      // Clear all data
+      setPeriods([]);
+      setPeriodQueries([]);
+      setAcquisitionCosts(null);
+      setAiSummary(null);
+      
+      // Clear Greyfinch data from localStorage
+      localStorage.removeItem('greyfinchData');
+      
+      // Reset Greyfinch data state
+      setGreyfinchData(null);
+      
+      // Clear locations
+      setLocations([]);
+      
+      // Clear sessions from localStorage (they will be recreated when new data is added)
+      localStorage.removeItem('orthodash-sessions');
+      
+      console.log('🧹 All data cleared successfully');
+    }
+  };
+
   // Load Greyfinch data from localStorage and API
   const loadGreyfinchData = async () => {
     try {
-      console.log('🔄 Fetching Greyfinch analytics data...')
+      console.log('🔄 Fetching Gilbert Greyfinch data...')
       const response = await fetch('/api/greyfinch/sync', {
         method: 'POST',
         headers: {
@@ -129,12 +155,12 @@ export default function Dashboard() {
       const data = await response.json()
       
       if (data.success) {
-        console.log('✅ Greyfinch analytics data loaded:', data.data)
+        console.log('✅ Gilbert Greyfinch data loaded:', data.data)
         
-        // Update dashboard with analytics data
+        // Update dashboard with Gilbert data
         setGreyfinchData(data.data)
         
-        // Extract and set locations from the data
+        // Extract and set locations from the data (Gilbert + inactive Scottsdale)
         if (data.data && data.data.locations) {
           const locationArray: Location[] = []
           
@@ -181,32 +207,31 @@ export default function Dashboard() {
         appointments: 0,
         leads: 0,
         locations: 0,
-        bookings: 0
+        bookings: 0,
+        revenue: 0,
+        production: 0,
+        netProduction: 0,
+        acquisitionCosts: 0
       };
-    }
-
-    // Check if we have pre-calculated period data
-    if (greyfinchData.data.periodData && greyfinchData.data.periodData[period.id]) {
-      return greyfinchData.data.periodData[period.id];
-    }
-
-    // Use pre-calculated period data if available
-    if (greyfinchData.data.periodData && greyfinchData.data.periodData[period.id]) {
-      return greyfinchData.data.periodData[period.id];
     }
 
     // Generate data based on location and period
     const { data } = greyfinchData;
     
     // Filter data based on location if specified
-    let filteredLeads = data.leads || [];
-    let filteredAppointments = data.appointments || [];
-    let filteredBookings = data.appointmentBookings || [];
+    let filteredLeads = data.leads?.data || [];
+    let filteredAppointments = data.appointments?.data || [];
+    let filteredBookings = data.bookings?.data || [];
+    let filteredPatients = data.patients?.data || [];
+    let filteredRevenue = data.revenue?.data || [];
+    let filteredProduction = data.production?.data || [];
     
     if (period.locationId && period.locationId !== 'all') {
       // Filter by specific location
       filteredLeads = filteredLeads.filter((lead: any) => lead.locationId === period.locationId);
       filteredAppointments = filteredAppointments.filter((apt: any) => apt.locationId === period.locationId);
+      filteredRevenue = filteredRevenue.filter((rev: any) => rev.locationId === period.locationId);
+      filteredProduction = filteredProduction.filter((prod: any) => prod.locationId === period.locationId);
     }
     
     // Filter by date range if specified
@@ -225,8 +250,23 @@ export default function Dashboard() {
       });
       
       filteredBookings = filteredBookings.filter((booking: any) => {
-        const bookingTime = new Date(booking.startTime).getTime();
+        const bookingTime = new Date(booking.startTime || booking.createdAt).getTime();
         return bookingTime >= startTime && bookingTime <= endTime;
+      });
+      
+      filteredPatients = filteredPatients.filter((patient: any) => {
+        const patientTime = new Date(patient.createdAt).getTime();
+        return patientTime >= startTime && patientTime <= endTime;
+      });
+      
+      filteredRevenue = filteredRevenue.filter((rev: any) => {
+        const revTime = new Date(rev.date || rev.createdAt).getTime();
+        return revTime >= startTime && revTime <= endTime;
+      });
+      
+      filteredProduction = filteredProduction.filter((prod: any) => {
+        const prodTime = new Date(prod.date || prod.createdAt).getTime();
+        return prodTime >= startTime && prodTime <= endTime;
       });
     }
     
@@ -238,9 +278,14 @@ export default function Dashboard() {
     const locationCount = period.locationId === 'all' ? 
       Object.keys(data.locations || {}).length : 1;
     
+    // Calculate financial metrics
+    const totalRevenue = filteredRevenue.reduce((sum: number, rev: any) => sum + (rev.amount || 0), 0);
+    const totalProduction = filteredProduction.reduce((sum: number, prod: any) => sum + (prod.productionAmount || 0), 0);
+    const totalNetProduction = filteredProduction.reduce((sum: number, prod: any) => sum + (prod.netProduction || 0), 0);
+    
     return {
-      avgNetProduction: 5200,
-      avgAcquisitionCost: 1500,
+      avgNetProduction: totalAppointments > 0 ? totalNetProduction / totalAppointments : 0,
+      avgAcquisitionCost: 1500, // Default value, will be updated by cost management
       noShowRate: noShowRate,
       referralSources: {
         digital: Math.floor(Math.random() * 100) + 50,
@@ -253,11 +298,15 @@ export default function Dashboard() {
         direct: 20 + Math.random() * 10
       },
       trends: { weekly: [] },
-      patients: 0, // We don't have patient data in the current API response
+      patients: filteredPatients.length,
       appointments: totalAppointments,
       leads: filteredLeads.length,
       locations: locationCount,
-      bookings: filteredBookings.length
+      bookings: filteredBookings.length,
+      revenue: totalRevenue,
+      production: totalProduction,
+      netProduction: totalNetProduction,
+      acquisitionCosts: 0 // Will be updated by cost management
     };
   };
 
@@ -399,8 +448,8 @@ export default function Dashboard() {
                     className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
                   >
                     <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden xs:inline">Export PDF</span>
-                    <span className="xs:hidden">Export</span>
+                    <span className="hidden xs:inline">Sessions & Reports</span>
+                    <span className="xs:hidden">Sessions</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -501,10 +550,11 @@ export default function Dashboard() {
                 </TabsContent>
 
                 <TabsContent value="export" className="mt-6">
-                  <PDFReportGenerator 
+                  <SessionManager 
                     periods={periods}
                     locations={locations}
                     greyfinchData={greyfinchData}
+                    user={user}
                   />
                 </TabsContent>
               </Tabs>
@@ -514,10 +564,23 @@ export default function Dashboard() {
           {/* Main Dashboard Content - Analysis Columns */}
           <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">Analysis Periods</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
-                Create and manage analysis periods for your practice data
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-[#1C1F4F]">Analysis Periods</CardTitle>
+                  <CardDescription className="text-[#1C1F4F]/70">
+                    Create and manage analysis periods for your practice data
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearData}
+                  className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Data
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <HorizontalFixedColumnLayout
@@ -557,6 +620,19 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <AISummaryGenerator periods={periods} periodData={{}} />
+            </CardContent>
+          </Card>
+
+          {/* Greyfinch Data Explorer */}
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-[#1C1F4F]">Greyfinch Data Explorer</CardTitle>
+              <CardDescription className="text-[#1C1F4F]/70">
+                Real-time data from Greyfinch GraphQL API - locations, patients, appointments, and weekly trends
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GreyfinchDataExplorer />
             </CardContent>
           </Card>
         </div>

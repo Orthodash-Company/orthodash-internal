@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataVisualizationModal } from "./DataVisualizationModal";
 import { PeriodColumn } from "./PeriodColumn";
-import { AddColumnModal } from "./AddColumnModal";
-import { Plus, X, Edit3, Calendar, MapPin, Save } from "lucide-react";
+import { CompactCostManager } from "./CompactCostManager";
+import { Plus, X, Edit3, Calendar, MapPin, Save, Minus } from "lucide-react";
 import { format } from "date-fns";
-import { PeriodConfig, Location, VisualizationOption } from "@/shared/types";
+import { PeriodConfig, Location, VisualizationOption, CompactCost } from "@/shared/types";
 
 interface HorizontalFixedColumnLayoutProps {
   periods: PeriodConfig[];
@@ -28,6 +28,7 @@ export function HorizontalFixedColumnLayout({
 }: HorizontalFixedColumnLayoutProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
+  const [periodCosts, setPeriodCosts] = useState<Record<string, CompactCost[]>>({});
 
   // Auto-scroll to the right when new periods are added
   useEffect(() => {
@@ -39,6 +40,34 @@ export function HorizontalFixedColumnLayout({
     }
   }, [periods.length]);
 
+  // Handle direct period addition
+  const handleDirectAddPeriod = () => {
+    const nextPeriodLetter = String.fromCharCode(65 + periods.length);
+    const newPeriod: Omit<PeriodConfig, 'id'> = {
+      name: `Period ${nextPeriodLetter}`,
+      title: `Period ${nextPeriodLetter}`,
+      locationId: 'all',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      visualizations: []
+    };
+    onAddPeriod(newPeriod);
+  };
+
+  // Handle costs update for a period
+  const handleCostsUpdate = (periodId: string, costs: CompactCost[]) => {
+    setPeriodCosts(prev => ({
+      ...prev,
+      [periodId]: costs
+    }));
+  };
+
+  // Get total costs for a period
+  const getPeriodTotalCosts = (periodId: string) => {
+    const costs = periodCosts[periodId] || [];
+    return costs.reduce((sum, cost) => sum + cost.amount, 0);
+  };
+
   return (
     <div className="relative">
       {/* Period Navigation - Mobile Only */}
@@ -49,18 +78,13 @@ export function HorizontalFixedColumnLayout({
               <CardTitle className="text-sm font-medium">
                 Analytics Periods ({periods.length})
               </CardTitle>
-              <AddColumnModal 
-                locations={locations}
-                onAddPeriod={onAddPeriod}
-                existingPeriodsCount={periods.length}
+              <Button
+                size="sm"
+                className="h-8 px-3"
+                onClick={handleDirectAddPeriod}
               >
-                <Button
-                  size="sm"
-                  className="h-8 px-3"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </AddColumnModal>
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -108,6 +132,7 @@ export function HorizontalFixedColumnLayout({
         {periods.map((period, index) => {
           const query = periodQueries[index];
           const location = locations.find(l => l.id.toString() === period.locationId);
+          const periodCostsList = periodCosts[period.id] || [];
           
           return (
             <div 
@@ -147,7 +172,23 @@ export function HorizontalFixedColumnLayout({
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {/* Add Visualization button moved to top right */}
+                      {/* Remove Period Button */}
+                      {periods.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to remove ${period.title}? This action cannot be undone.`)) {
+                              onRemovePeriod(period.id);
+                            }
+                          }}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                      )}
+                      
+                      {/* Add Visualization button */}
                       <DataVisualizationModal
                         onSelectVisualization={(viz) => {
                           const currentViz = period.visualizations || [];
@@ -164,17 +205,6 @@ export function HorizontalFixedColumnLayout({
                           </Button>
                         }
                       />
-                      
-                      {periods.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => onRemovePeriod(period.id)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
                   </div>
 
@@ -197,10 +227,17 @@ export function HorizontalFixedColumnLayout({
                   </div>
                 </CardHeader>
 
-
-
                 {/* Period Content */}
                 <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+                  {/* Compact Cost Management - Top of Column */}
+                  <CompactCostManager
+                    periodId={period.id}
+                    periodName={period.title}
+                    locationId={period.locationId}
+                    costs={periodCostsList}
+                    onCostsUpdate={handleCostsUpdate}
+                  />
+                  
                   <PeriodColumn
                     period={period as any} // Type assertion for compatibility
                     query={query}
@@ -209,6 +246,7 @@ export function HorizontalFixedColumnLayout({
                     onAddPeriod={onAddPeriod}
                     isFirstPeriod={index === 0}
                     isCompact={true}
+                    periodCosts={periodCostsList}
                   />
                   
                   {/* Visualizations Waterfall */}
@@ -285,7 +323,7 @@ export function HorizontalFixedColumnLayout({
           );
         })}
 
-        {/* Add Column Modal - Fixed Position */}
+        {/* Add Column Button - Direct Addition */}
         <div 
           className="flex-shrink-0 snap-center sticky-add-column"
           style={{ 
@@ -294,11 +332,29 @@ export function HorizontalFixedColumnLayout({
             height: '100%'
           }}
         >
-          <AddColumnModal 
-            locations={locations}
-            onAddPeriod={onAddPeriod}
-            existingPeriodsCount={periods.length}
-          />
+          <Card className="h-full border-2 border-dashed border-gray-300 bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
+            <CardContent className="h-full flex flex-col items-center justify-center p-8">
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-[#1d1d52] flex items-center justify-center mx-auto group-hover:bg-[#1d1d52]/80 transition-colors">
+                  <Plus className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Analysis Period</h3>
+                  <p className="text-sm text-gray-600 max-w-48">
+                    Compare data across different time periods and locations for comprehensive insights
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={handleDirectAddPeriod}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Column
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -314,8 +370,6 @@ export function HorizontalFixedColumnLayout({
           ))}
         </div>
       </div>
-      
-
     </div>
   );
 }
