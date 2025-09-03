@@ -60,6 +60,7 @@ export const GREYFINCH_FIELD_PATTERNS = {
     actualDate: 'timestamp',
     duration: 'Integer',
     notes: 'String',
+    revenue: 'Float',
     createdAt: 'timestamp',
     updatedAt: 'timestamp'
   },
@@ -73,6 +74,7 @@ export const GREYFINCH_FIELD_PATTERNS = {
     phone: 'String',
     source: 'String',
     status: 'LeadStatus',
+    locationId: 'uuid',
     createdAt: 'timestamp',
     updatedAt: 'timestamp'
   },
@@ -88,24 +90,40 @@ export const GREYFINCH_FIELD_PATTERNS = {
     timezone: 'String',
     createdAt: 'timestamp',
     updatedAt: 'timestamp'
+  },
+
+  // Revenue/Production fields
+  REVENUE_FIELDS: {
+    id: 'uuid',
+    amount: 'Float',
+    appointmentId: 'uuid',
+    patientId: 'uuid',
+    locationId: 'uuid',
+    date: 'timestamp',
+    category: 'String',
+    description: 'String',
+    createdAt: 'timestamp',
+    updatedAt: 'timestamp'
   }
 }
 
-// Common GraphQL queries with proper field naming
+// Comprehensive GraphQL queries for real data extraction
 export const GREYFINCH_QUERIES = {
-  // Basic patient query with camelCase fields
-  GET_PATIENTS: `
-    query GetPatients {
+  // Comprehensive analytics data query
+  GET_ANALYTICS_DATA: `
+    query GetAnalyticsData {
+      locations {
+        id
+        name
+        address
+        isActive
+        createdAt
+        updatedAt
+      }
       patients {
         id
         firstName
         lastName
-        middleName
-        birthDate
-        gender
-        title
-        email
-        phone
         primaryLocation {
           id
           name
@@ -113,28 +131,6 @@ export const GREYFINCH_QUERIES = {
         createdAt
         updatedAt
       }
-    }
-  `,
-  
-  // Basic location query
-  GET_LOCATIONS: `
-    query GetLocations {
-      locations {
-        id
-        name
-        address
-        phone
-        email
-        isActive
-        createdAt
-        updatedAt
-      }
-    }
-  `,
-  
-  // Basic appointment query
-  GET_APPOINTMENTS: `
-    query GetAppointments {
       appointments {
         id
         patientId
@@ -144,16 +140,10 @@ export const GREYFINCH_QUERIES = {
         scheduledDate
         actualDate
         duration
-        notes
+        revenue
         createdAt
         updatedAt
       }
-    }
-  `,
-  
-  // Basic lead query
-  GET_LEADS: `
-    query GetLeads {
       leads {
         id
         firstName
@@ -162,15 +152,10 @@ export const GREYFINCH_QUERIES = {
         phone
         source
         status
+        locationId
         createdAt
         updatedAt
       }
-    }
-  `,
-  
-  // Basic booking query
-  GET_BOOKINGS: `
-    query GetBookings {
       appointmentBookings {
         id
         appointmentId
@@ -182,52 +167,77 @@ export const GREYFINCH_QUERIES = {
         createdAt
         updatedAt
       }
-    }
-  `,
-  
-  // Schema introspection query
-  INTROSPECT_SCHEMA: `
-    query IntrospectSchema {
-      __schema {
-        types {
-          name
-          description
-          fields {
-            name
-            description
-            type {
-              name
-              kind
-              ofType {
-                name
-                kind
-              }
-            }
-          }
-        }
-      }
-    }
-  `,
-  
-  // Type-specific introspection
-  INTROSPECT_TYPE: `
-    query IntrospectType($typeName: String!) {
-      __type(name: $typeName) {
-        name
+      revenue {
+        id
+        amount
+        appointmentId
+        patientId
+        locationId
+        date
+        category
         description
-        fields {
-          name
-          description
-          type {
-            name
-            kind
-            ofType {
-              name
-              kind
-            }
-          }
-        }
+        createdAt
+        updatedAt
       }
+    }
+  `,
+
+  // Simplified data query for basic counts
+  GET_BASIC_COUNTS: `
+    query GetBasicCounts {
+      locations {
+        id
+        name
+      }
+      patients {
+        id
+        createdAt
+      }
+      appointments {
+        id
+        status
+        scheduledDate
+        revenue
+        createdAt
+      }
+      leads {
+        id
+        source
+        createdAt
+      }
+      appointmentBookings {
+        id
+        startTime
+        createdAt
+      }
+    }
+  `,
+
+  // Revenue-focused query
+  GET_REVENUE_DATA: `
+    query GetRevenueData {
+      appointments {
+        id
+        revenue
+        scheduledDate
+        actualDate
+        status
+        locationId
+      }
+      revenue {
+        id
+        amount
+        date
+        category
+        locationId
+      }
+    }
+  `,
+
+  // Test connection query
+  TEST_CONNECTION: `
+    query TestConnection {
+      __typename
     }
   `
 }
@@ -280,46 +290,70 @@ export class GreyfinchSchemaUtils {
   }
   
   /**
-   * Introspect the GraphQL schema to get type information
+   * Test the GraphQL connection
    */
-  static async introspectSchema(): Promise<any> {
+  static async testConnection(): Promise<any> {
     try {
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.INTROSPECT_SCHEMA)
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.TEST_CONNECTION)
       return result
     } catch (error) {
-      console.error('Schema introspection failed:', error)
+      console.error('Connection test failed:', error)
       throw error
     }
   }
   
   /**
-   * Introspect a specific type
+   * Get comprehensive analytics data
    */
-  static async introspectType(typeName: string): Promise<any> {
+  static async getAnalyticsData(): Promise<any> {
     try {
-      const result = await greyfinchService.makeGraphQLRequest(
-        GREYFINCH_QUERIES.INTROSPECT_TYPE,
-        { typeName }
-      )
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
       return result
     } catch (error) {
-      console.error(`Type introspection failed for ${typeName}:`, error)
+      console.error('Analytics data fetch failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get basic count data
+   */
+  static async getBasicCounts(): Promise<any> {
+    try {
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_BASIC_COUNTS)
+      return result
+    } catch (error) {
+      console.error('Basic counts fetch failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get revenue data
+   */
+  static async getRevenueData(): Promise<any> {
+    try {
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_REVENUE_DATA)
+      return result
+    } catch (error) {
+      console.error('Revenue data fetch failed:', error)
       throw error
     }
   }
   
   /**
-   * Get all available field names for a type
+   * Get available field names for known types
    */
-  static async getTypeFields(typeName: string): Promise<string[]> {
-    try {
-      const result = await this.introspectType(typeName)
-      const fields = result.__type?.fields || []
-      return fields.map((field: any) => field.name)
-    } catch (error) {
-      console.error(`Failed to get fields for type ${typeName}:`, error)
+  static getKnownTypeFields(typeName: string): string[] {
+    const patterns = GREYFINCH_FIELD_PATTERNS as any
+    const typeFields = patterns[`${typeName.toUpperCase()}_FIELDS`]
+    
+    if (!typeFields) {
+      console.warn(`Unknown type: ${typeName}`)
       return []
     }
+    
+    return Object.keys(typeFields)
   }
   
   /**
@@ -375,6 +409,145 @@ export class GreyfinchSchemaUtils {
     return `${operation} ${name} {
   ${fieldString}
 }`
+  }
+
+  /**
+   * Process and count data by location and date range
+   */
+  static processDataByLocation(data: any, startDate?: string | null, endDate?: string | null, location?: string | null) {
+    const processed = {
+      locations: {} as any,
+      leads: { count: 0, data: [] as any[] },
+      appointments: { count: 0, data: [] as any[] },
+      bookings: { count: 0, data: [] as any[] },
+      patients: { count: 0, data: [] as any[] },
+      revenue: { total: 0, data: [] as any[] },
+      summary: {
+        totalLeads: 0,
+        totalAppointments: 0,
+        totalBookings: 0,
+        totalPatients: 0,
+        totalRevenue: 0,
+        gilbertCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0 },
+        scottsdaleCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0 }
+      },
+      lastUpdated: new Date().toISOString(),
+      queryParams: { startDate, endDate, location },
+      apiStatus: 'Data Processed'
+    }
+
+    // Process locations
+    if (data.locations) {
+      data.locations.forEach((location: any) => {
+        const locationName = location.name?.toLowerCase() || 'unknown'
+        processed.locations[location.id] = {
+          id: location.id,
+          name: location.name,
+          count: 0
+        }
+      })
+    }
+
+    // Process leads
+    if (data.leads) {
+      processed.leads.data = data.leads
+      processed.leads.count = data.leads.length
+      processed.summary.totalLeads = data.leads.length
+
+      // Count by location
+      data.leads.forEach((lead: any) => {
+        if (lead.locationId) {
+          const location = data.locations?.find((l: any) => l.id === lead.locationId)
+          if (location) {
+            const locationName = location.name?.toLowerCase()
+            if (locationName?.includes('gilbert')) {
+              processed.summary.gilbertCounts.leads++
+            } else if (locationName?.includes('scottsdale')) {
+              processed.summary.scottsdaleCounts.leads++
+            }
+          }
+        }
+      })
+    }
+
+    // Process appointments
+    if (data.appointments) {
+      processed.appointments.data = data.appointments
+      processed.appointments.count = data.appointments.length
+      processed.summary.totalAppointments = data.appointments.length
+
+      // Count by location and calculate revenue
+      data.appointments.forEach((apt: any) => {
+        if (apt.locationId) {
+          const location = data.locations?.find((l: any) => l.id === apt.locationId)
+          if (location) {
+            const locationName = location.name?.toLowerCase()
+            if (locationName?.includes('gilbert')) {
+              processed.summary.gilbertCounts.appointments++
+              processed.summary.gilbertCounts.revenue += apt.revenue || 0
+            } else if (locationName?.includes('scottsdale')) {
+              processed.summary.scottsdaleCounts.appointments++
+              processed.summary.scottsdaleCounts.revenue += apt.revenue || 0
+            }
+          }
+        }
+        processed.summary.totalRevenue += apt.revenue || 0
+      })
+    }
+
+    // Process bookings
+    if (data.appointmentBookings) {
+      processed.bookings.data = data.appointmentBookings
+      processed.bookings.count = data.appointmentBookings.length
+      processed.summary.totalBookings = data.appointmentBookings.length
+
+      // Count by location
+      data.appointmentBookings.forEach((booking: any) => {
+        const appointment = data.appointments?.find((apt: any) => apt.id === booking.appointmentId)
+        if (appointment?.locationId) {
+          const location = data.locations?.find((l: any) => l.id === appointment.locationId)
+          if (location) {
+            const locationName = location.name?.toLowerCase()
+            if (locationName?.includes('gilbert')) {
+              processed.summary.gilbertCounts.bookings++
+            } else if (locationName?.includes('scottsdale')) {
+              processed.summary.scottsdaleCounts.bookings++
+            }
+          }
+        }
+      })
+    }
+
+    // Process patients
+    if (data.patients) {
+      processed.patients.data = data.patients
+      processed.patients.count = data.patients.length
+      processed.summary.totalPatients = data.patients.length
+
+      // Count by location
+      data.patients.forEach((patient: any) => {
+        if (patient.primaryLocation?.id) {
+          const location = data.locations?.find((l: any) => l.id === patient.primaryLocation.id)
+          if (location) {
+            const locationName = location.name?.toLowerCase()
+            if (locationName?.includes('gilbert')) {
+              processed.summary.gilbertCounts.patients++
+            } else if (locationName?.includes('scottsdale')) {
+              processed.summary.scottsdaleCounts.patients++
+            }
+          }
+        }
+      })
+    }
+
+    // Process revenue
+    if (data.revenue) {
+      processed.revenue.data = data.revenue
+      processed.revenue.total = data.revenue.reduce((sum: number, rev: any) => sum + (rev.amount || 0), 0)
+      processed.summary.totalRevenue += processed.revenue.total
+    }
+
+    return processed
   }
 }
 

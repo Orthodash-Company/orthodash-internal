@@ -32,18 +32,12 @@ export async function GET(request: NextRequest) {
         query: `query { __typename }`
       },
       {
-        name: 'Introspection Query',
-        query: `query IntrospectionQuery {
-          __schema {
-            queryType {
-              name
-              fields {
-                name
-                type {
-                  name
-                }
-              }
-            }
+        name: 'Patients Query',
+        query: `query GetPatients {
+          patients {
+            id
+            firstName
+            lastName
           }
         }`
       },

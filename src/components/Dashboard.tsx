@@ -7,8 +7,8 @@ import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
 import { LocationsManager } from './LocationsManager';
-
 import { PDFReportGenerator } from './PDFReportGenerator';
+import { SimpleDatePicker } from '@/components/ui/simple-date-picker';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,9 +26,14 @@ import {
   Download,
   Calendar,
   Building2,
-  Save
+  Save,
+  DollarSign,
+  Users,
+  CalendarDays,
+  Target,
+  BookOpen
 } from 'lucide-react';
-import { PeriodConfig, Location } from '@/shared/types';
+import { PeriodConfig, Location, GreyfinchData, PeriodData } from '@/shared/types';
 import { useSessionManager } from '@/hooks/use-session-manager';
 
 export default function Dashboard() {
@@ -38,8 +43,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [locations, setLocations] = useState<Location[]>([]);
   const [periods, setPeriods] = useState<PeriodConfig[]>([]);
-  const [periodQueries, setPeriodQueries] = useState<any[]>([]);
-  const [greyfinchData, setGreyfinchData] = useState<any>(null);
+  const [periodQueries, setPeriodQueries] = useState<PeriodData[]>([]);
+  const [greyfinchData, setGreyfinchData] = useState<GreyfinchData | null>(null);
   const [acquisitionCosts, setAcquisitionCosts] = useState<any>(null);
   const [aiSummary, setAiSummary] = useState<any>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -100,10 +105,15 @@ export default function Dashboard() {
     };
   }, [activeTab]);
 
-  const handleAddPeriod = (period: Omit<PeriodConfig, 'id'>) => {
+  const handleAddPeriod = () => {
     const newPeriod: PeriodConfig = {
-      ...period,
-      id: `period-${Date.now()}`
+      id: `period-${Date.now()}`,
+      name: `Period ${periods.length + 1}`,
+      title: `Period ${periods.length + 1}`,
+      locationId: 'all',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      visualizations: []
     };
     setPeriods(prev => [...prev, newPeriod]);
   };
@@ -120,13 +130,13 @@ export default function Dashboard() {
   const loadGreyfinchData = async () => {
     try {
       console.log('🔄 Fetching Greyfinch analytics data...')
-              const response = await fetch('/api/greyfinch/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({}),
-        })
+      const response = await fetch('/api/greyfinch/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
       const data = await response.json()
       
       if (data.success) {
@@ -134,6 +144,23 @@ export default function Dashboard() {
         
         // Update dashboard with analytics data
         setGreyfinchData(data.data)
+        
+        // Extract and set locations from the data
+        if (data.data && data.data.locations) {
+          const locationArray: Location[] = []
+          
+          // Convert the locations object to an array
+          Object.values(data.data.locations).forEach((location: any) => {
+            locationArray.push({
+              id: parseInt(location.id) || Date.now(),
+              name: location.name,
+              greyfinchId: location.id
+            })
+          })
+          
+          console.log('📍 Setting locations:', locationArray)
+          setLocations(locationArray)
+        }
       } else {
         console.error('❌ Failed to load Greyfinch analytics data:', data.message)
       }
@@ -143,17 +170,13 @@ export default function Dashboard() {
   }
 
   // Create data queries for each period
-  const createPeriodQueries = (periods: PeriodConfig[], greyfinchData: any) => {
-    return periods.map(period => ({
-      data: generatePeriodData(period, greyfinchData),
-      isLoading: false,
-      error: null
-    }));
+  const createPeriodQueries = (periods: PeriodConfig[], greyfinchData: GreyfinchData | null) => {
+    return periods.map(period => generatePeriodData(period, greyfinchData));
   };
 
   // Generate data for a specific period
-  const generatePeriodData = (period: PeriodConfig, greyfinchData: any) => {
-    if (!greyfinchData || !greyfinchData.data) {
+  const generatePeriodData = (period: PeriodConfig, greyfinchData: GreyfinchData | null): PeriodData => {
+    if (!greyfinchData) {
       return {
         avgNetProduction: 0,
         avgAcquisitionCost: 0,
@@ -165,47 +188,81 @@ export default function Dashboard() {
         appointments: 0,
         leads: 0,
         locations: 0,
-        bookings: 0
+        bookings: 0,
+        revenue: 0,
+        netProduction: 0
       };
     }
 
     // Check if we have pre-calculated period data
-    if (greyfinchData.data.periodData && greyfinchData.data.periodData[period.id]) {
-      return greyfinchData.data.periodData[period.id];
+    if (greyfinchData.periodData && greyfinchData.periodData[period.id]) {
+      return greyfinchData.periodData[period.id];
     }
 
-    // For client-side, we'll use a simplified approach
-    // The actual data processing should happen on the server
-    if (!greyfinchData || !greyfinchData.data) {
-      return {
-        avgNetProduction: 0,
-        avgAcquisitionCost: 0,
-        noShowRate: 0,
-        referralSources: { digital: 0, professional: 0, direct: 0 },
-        conversionRates: { digital: 0, professional: 0, direct: 0 },
-        trends: { weekly: [] },
-        patients: 0,
-        appointments: 0,
-        leads: 0,
-        locations: 0,
-        bookings: 0
-      };
+    // Filter data based on location if specified
+    let filteredLeads = greyfinchData.leads?.data || [];
+    let filteredAppointments = greyfinchData.appointments?.data || [];
+    let filteredBookings = greyfinchData.bookings?.data || [];
+    let filteredPatients = greyfinchData.patients?.data || [];
+    let totalRevenue = greyfinchData.summary?.totalRevenue || 0;
+    
+    if (period.locationId && period.locationId !== 'all') {
+      // Filter by specific location
+      filteredLeads = filteredLeads.filter((lead: any) => lead.locationId === period.locationId);
+      filteredAppointments = filteredAppointments.filter((apt: any) => apt.locationId === period.locationId);
+      filteredPatients = filteredPatients.filter((patient: any) => 
+        patient.primaryLocation?.id === period.locationId
+      );
+      
+      // Calculate location-specific revenue
+      if (period.locationId === 'gilbert') {
+        totalRevenue = greyfinchData.summary?.gilbertCounts?.revenue || 0;
+      } else if (period.locationId === 'scottsdale') {
+        totalRevenue = greyfinchData.summary?.scottsdaleCounts?.revenue || 0;
+      }
     }
+    
+    // Filter by date range if specified
+    if (period.startDate && period.endDate) {
+      const startTime = new Date(period.startDate).getTime();
+      const endTime = new Date(period.endDate).getTime();
+      
+      filteredLeads = filteredLeads.filter((lead: any) => {
+        const leadTime = new Date(lead.createdAt).getTime();
+        return leadTime >= startTime && leadTime <= endTime;
+      });
+      
+      filteredAppointments = filteredAppointments.filter((apt: any) => {
+        const aptTime = new Date(apt.scheduledDate || apt.createdAt).getTime();
+        return aptTime >= startTime && aptTime <= endTime;
+      });
+      
+      filteredBookings = filteredBookings.filter((booking: any) => {
+        const bookingTime = new Date(booking.startTime).getTime();
+        return bookingTime >= startTime && bookingTime <= endTime;
+      });
 
-    // Use pre-calculated period data if available
-    if (greyfinchData.data.periodData && greyfinchData.data.periodData[period.id]) {
-      return greyfinchData.data.periodData[period.id];
+      filteredPatients = filteredPatients.filter((patient: any) => {
+        const patientTime = new Date(patient.createdAt).getTime();
+        return patientTime >= startTime && patientTime <= endTime;
+      });
     }
-
-    // Fallback to basic calculations
-    const { data } = greyfinchData;
-    const totalAppointments = data.appointments ? data.appointments.length : 0;
-    const noShowAppointments = data.appointments ? data.appointments.filter((apt: any) => apt.status === 'no-show').length : 0;
+    
+    const totalAppointments = filteredAppointments.length;
+    const noShowAppointments = filteredAppointments.filter((apt: any) => apt.status === 'no-show').length;
     const noShowRate = totalAppointments > 0 ? (noShowAppointments / totalAppointments) * 100 : 0;
     
+    // Calculate location-specific data
+    const locationCount = period.locationId === 'all' ? 
+      Object.keys(greyfinchData.locations || {}).length : 1;
+    
+    // Calculate net production (revenue minus costs)
+    const avgAcquisitionCost = 1500; // This should come from cost management
+    const netProduction = totalRevenue - (avgAcquisitionCost * filteredLeads.length);
+    
     return {
-      avgNetProduction: 5200,
-      avgAcquisitionCost: 1500,
+      avgNetProduction: netProduction / Math.max(filteredAppointments.length, 1),
+      avgAcquisitionCost: avgAcquisitionCost,
       noShowRate: noShowRate,
       referralSources: {
         digital: Math.floor(Math.random() * 100) + 50,
@@ -218,15 +275,15 @@ export default function Dashboard() {
         direct: 20 + Math.random() * 10
       },
       trends: { weekly: [] },
-      patients: data.patients ? data.patients.length : 0,
+      patients: filteredPatients.length,
       appointments: totalAppointments,
-      leads: data.leads ? data.leads.length : 0,
-      locations: data.locations ? data.locations.length : 0,
-      bookings: data.bookings ? data.bookings.length : 0
+      leads: filteredLeads.length,
+      locations: locationCount,
+      bookings: filteredBookings.length,
+      revenue: totalRevenue,
+      netProduction: netProduction
     };
   };
-
-
 
   // Update period queries when periods or greyfinchData changes
   useEffect(() => {
@@ -249,261 +306,328 @@ export default function Dashboard() {
 
   // Handle Greyfinch data updates
   const handleGreyfinchDataUpdate = (data: any) => {
-    setGreyfinchData(data);
-    // Store in localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('greyfinchData', JSON.stringify(data));
+    console.log('🔄 Updating Greyfinch data in Dashboard:', data)
+    
+    // Handle the new comprehensive data structure
+    if (data.syncData) {
+      setGreyfinchData(data.syncData);
+      
+      // Extract and set locations from the sync data
+      if (data.syncData.locations) {
+        const locationArray: Location[] = []
+        
+        // Convert the locations object to an array
+        Object.values(data.syncData.locations).forEach((location: any) => {
+          locationArray.push({
+            id: parseInt(location.id) || Date.now(),
+            name: location.name,
+            greyfinchId: location.id
+          })
+        })
+        
+        setLocations(locationArray)
+      }
+    } else if (data.data) {
+      setGreyfinchData(data.data);
+      
+      // Extract and set locations from the analytics data
+      if (data.data.locations) {
+        const locationArray: Location[] = []
+        
+        Object.values(data.data.locations).forEach((location: any) => {
+          locationArray.push({
+            id: parseInt(location.id) || Date.now(),
+            name: location.name,
+            greyfinchId: location.id
+          })
+        })
+        
+        setLocations(locationArray)
+      }
     }
+  }
+
+  // Handle acquisition costs updates
+  const handleAcquisitionCostsUpdate = (costs: any) => {
+    setAcquisitionCosts(costs);
+  }
+
+  // Handle AI summary updates
+  const handleAISummaryUpdate = (summary: any) => {
+    setAiSummary(summary);
+  }
+
+  // Get current data counts for display
+  const getCurrentCounts = () => {
+    if (!greyfinchData) return { locations: 0, leads: 0, appointments: 0, patients: 0, bookings: 0, revenue: 0 };
+    
+    return {
+      locations: Object.keys(greyfinchData.locations || {}).length,
+      leads: greyfinchData.summary?.totalLeads || 0,
+      appointments: greyfinchData.summary?.totalAppointments || 0,
+      patients: greyfinchData.summary?.totalPatients || 0,
+      bookings: greyfinchData.summary?.totalBookings || 0,
+      revenue: greyfinchData.summary?.totalRevenue || 0
     };
-
-  // Session management handlers
-  const handleRestoreSession = (session: any) => {
-    if (session.greyfinchData) {
-      setGreyfinchData(session.greyfinchData);
-    }
-    if (session.periods) {
-      setPeriods(session.periods);
-    }
-    if (session.acquisitionCosts) {
-      setAcquisitionCosts(session.acquisitionCosts);
-    }
-    if (session.aiSummary) {
-      setAiSummary(session.aiSummary);
-    }
   };
 
-  const handlePreviewSession = (session: any) => {
-    // Show session preview in a modal or sidebar
-    console.log('Preview session:', session);
-  };
-
-  const handleDownloadSession = (session: any) => {
-    // Generate and download a comprehensive report
-    console.log('Download session:', session);
-  };
-
-  const handleShareSession = (session: any) => {
-    // Open share modal
-    console.log('Share session:', session);
-  };
-
- 
+  const currentCounts = getCurrentCounts();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <div className="bg-white border border-[#1C1F4F]/20 rounded-2xl p-8 shadow-xl">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#1C1F4F]/20 border-t-[#1C1F4F] mx-auto"></div>
-          <p className="text-[#1C1F4F] text-center mt-4 font-medium">Loading Orthodash...</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading Orthodash...</p>
         </div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
   return (
-    <div className="min-h-screen bg-[#fafafa]">
-      <SimpleHeader 
-        onRestoreSession={handleRestoreSession}
-        onPreviewSession={handlePreviewSession}
-        onDownloadSession={handleDownloadSession}
-        onShareSession={handleShareSession}
-      />
+    <div className="min-h-screen bg-gray-50">
+      <SimpleHeader />
       
-      <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-
-          {/* Tabs Container */}
-          <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-300 ease-in-out ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
-            <CardHeader className="pb-4">
-              <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
-                  <TabsTrigger 
-                    value="locations" 
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
-                  >
-                    <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden xs:inline">Locations</span>
-                    <span className="xs:hidden">Loc</span>
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="connections" 
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
-                  >
-                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden xs:inline">Connections</span>
-                    <span className="xs:hidden">Conn</span>
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="export" 
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
-                  >
-                    <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden xs:inline">Export PDF</span>
-                    <span className="xs:hidden">Export</span>
-                  </TabsTrigger>
-                </TabsList>
-
-                {activeTab && (
-                  <div className="mt-2 text-xs text-[#1C1F4F]/60 text-center">
-                    Click outside or press Escape to close
-                  </div>
-                )}
-
-                <TabsContent value="locations" className="mt-6">
-                  <LocationsManager onGreyfinchDataUpdate={handleGreyfinchDataUpdate} />
-                </TabsContent>
-
-                <TabsContent value="connections" className="mt-6">
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                          <CardTitle className="text-[#1C1F4F] flex items-center">
-                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
-                              <Building2 className="h-4 w-4 text-white" />
-                            </div>
-                            Meta Ads
-                          </CardTitle>
-                          <CardDescription className="text-[#1C1F4F]/70">
-                            Connect your Facebook and Instagram advertising accounts
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
-                            Connect Meta Ads
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                          <CardTitle className="text-[#1C1F4F] flex items-center">
-                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
-                              <TrendingUp className="h-4 w-4 text-white" />
-                            </div>
-                            Google Ads
-                          </CardTitle>
-                          <CardDescription className="text-[#1C1F4F]/70">
-                            Connect your Google Ads account for campaign data
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
-                            Connect Google Ads
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                          <CardTitle className="text-[#1C1F4F] flex items-center">
-                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
-                              <BarChart3 className="h-4 w-4 text-white" />
-                            </div>
-                            QuickBooks
-                          </CardTitle>
-                          <CardDescription className="text-[#1C1F4F]/70">
-                            Connect QuickBooks for vendor and revenue data
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
-                            Connect QuickBooks
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                          <CardTitle className="text-[#1C1F4F] flex items-center">
-                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
-                              <Settings className="h-4 w-4 text-white" />
-                            </div>
-                            Custom API
-                          </CardTitle>
-                          <CardDescription className="text-[#1C1F4F]/70">
-                            Connect custom APIs for additional data sources
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
-                            Connect Custom API
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    <Separator className="bg-[#1C1F4F]/20" />
-
-                    {/* Greyfinch API is automatically connected using environment variables */}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="export" className="mt-6">
-                  <PDFReportGenerator 
-                    periods={periods}
-                    locations={locations}
-                    greyfinchData={greyfinchData}
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardHeader>
-          </Card>
-
-          {/* Main Dashboard Content - Analysis Columns */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">Analysis Periods</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
-                Create and manage analysis periods for your practice data
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <HorizontalFixedColumnLayout
-                periods={periods}
-                locations={locations}
-                periodQueries={periodQueries}
-                onAddPeriod={handleAddPeriod}
-                onRemovePeriod={handleRemovePeriod}
-                onUpdatePeriod={handleUpdatePeriod}
-              />
+      <div className="container mx-auto px-4 py-8">
+        {/* Data Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Building2 className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Locations</p>
+                  <p className="text-2xl font-bold text-gray-900">{currentCounts.locations}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
-
-          {/* Cost Management */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">Acquisition Cost Management</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
-                Manage manual costs and API integrations for comprehensive cost tracking
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CostManagementEnhanced 
-                locationId={null} 
-                period={periods.length > 0 ? periods[0].startDate?.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
-              />
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Users className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Patients</p>
+                  <p className="text-2xl font-bold text-gray-900">{currentCounts.patients}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
-
-          {/* AI Summary Generator */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">AI-Powered Analytics Summary</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
-                Generate comprehensive insights and recommendations using AI
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AISummaryGenerator periods={periods} periodData={{}} />
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <CalendarDays className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Appointments</p>
+                  <p className="text-2xl font-bold text-gray-900">{currentCounts.appointments}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Target className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Leads</p>
+                  <p className="text-2xl font-bold text-gray-900">{currentCounts.leads}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <BookOpen className="h-5 w-5 text-indigo-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Bookings</p>
+                  <p className="text-2xl font-bold text-gray-900">{currentCounts.bookings}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Revenue</p>
+                  <p className="text-2xl font-bold text-gray-900">${currentCounts.revenue.toLocaleString()}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
-      </main>
+
+        {/* Main Content Tabs */}
+        <div className="bg-white rounded-lg shadow-sm border" ref={tabsRef}>
+          <Tabs value={activeTab || "locations"} onValueChange={setActiveTab} className="w-full">
+            <div className="border-b px-6 py-4">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="locations" className="flex items-center space-x-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>Locations</span>
+                </TabsTrigger>
+                <TabsTrigger value="periods" className="flex items-center space-x-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Periods</span>
+                </TabsTrigger>
+                <TabsTrigger value="costs" className="flex items-center space-x-2">
+                  <DollarSign className="h-4 w-4" />
+                  <span>Costs</span>
+                </TabsTrigger>
+                <TabsTrigger value="ai" className="flex items-center space-x-2">
+                  <BarChart3 className="h-4 w-4" />
+                  <span>AI Analysis</span>
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="flex items-center space-x-2">
+                  <FileText className="h-4 w-4" />
+                  <span>Reports</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="locations" className="p-6">
+              <LocationsManager onGreyfinchDataUpdate={handleGreyfinchDataUpdate} />
+            </TabsContent>
+
+            <TabsContent value="periods" className="p-6">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Analysis Periods</h2>
+                    <p className="text-gray-600">Compare performance across different time periods</p>
+                  </div>
+                  <Button onClick={handleAddPeriod} className="flex items-center space-x-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Add Period</span>
+                  </Button>
+                </div>
+
+                {periods.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Analysis Periods</h3>
+                      <p className="text-gray-600 mb-4">Create your first analysis period to start comparing performance data.</p>
+                      <Button onClick={handleAddPeriod}>Create First Period</Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {periods.map((period, index) => (
+                      <Card key={period.id} className="relative">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">{period.name}</CardTitle>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemovePeriod(period.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* Location Selection */}
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Location</label>
+                            <select
+                              value={period.locationId}
+                              onChange={(e) => handleUpdatePeriod(period.id, { locationId: e.target.value })}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                              <option value="all">All Locations</option>
+                              {locations.map((location) => (
+                                <option key={location.id} value={location.id}>
+                                  {location.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Date Range */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Start Date</label>
+                              <SimpleDatePicker
+                                date={period.startDate}
+                                setDate={(date) => date && handleUpdatePeriod(period.id, { startDate: date })}
+                                placeholder="Start Date"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">End Date</label>
+                              <SimpleDatePicker
+                                date={period.endDate}
+                                setDate={(date) => date && handleUpdatePeriod(period.id, { endDate: date })}
+                                placeholder="End Date"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Period Summary */}
+                          {periodQueries[index] && (
+                            <div className="pt-4 border-t">
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <span className="text-gray-600">Revenue:</span>
+                                  <span className="ml-2 font-medium">${periodQueries[index].revenue.toLocaleString()}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600">Net Production:</span>
+                                  <span className="ml-2 font-medium">${periodQueries[index].netProduction.toLocaleString()}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600">Patients:</span>
+                                  <span className="ml-2 font-medium">{periodQueries[index].patients}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600">Appointments:</span>
+                                  <span className="ml-2 font-medium">{periodQueries[index].appointments}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="costs" className="p-6">
+              <CostManagementEnhanced 
+                locationId={null} 
+                period={periods.length > 0 ? periods[0].startDate?.toISOString().split('T')[0] || '' : ''} 
+              />
+            </TabsContent>
+
+            <TabsContent value="ai" className="p-6">
+              <AISummaryGenerator 
+                periods={periods}
+                periodData={{}}
+              />
+            </TabsContent>
+
+            <TabsContent value="reports" className="p-6">
+              <PDFReportGenerator 
+                periods={periods}
+                locations={locations}
+                greyfinchData={greyfinchData}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

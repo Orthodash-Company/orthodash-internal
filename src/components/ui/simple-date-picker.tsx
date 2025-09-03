@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, ChevronDown } from 'lucide-react';
 import { format, parse, isValid } from 'date-fns';
 
 interface SimpleDatePickerProps {
@@ -118,10 +118,62 @@ export function SimpleDatePicker({
     return Array.from({ length: maxDays }, (_, i) => i + 1);
   };
 
-  const scrollToValue = (container: HTMLDivElement, value: number, itemHeight: number = 40) => {
-    const scrollTop = (value - 1) * itemHeight;
+  const scrollToValue = (container: HTMLDivElement, value: number, itemHeight: number = 32) => {
+    const paddingHeight = 32; // 2 * 16px padding
+    const scrollTop = (value - 1) * itemHeight + paddingHeight;
     container.scrollTop = scrollTop;
   };
+
+  // Simple scroll handler - no debouncing, no complex state
+  const handleScroll = (type: 'month' | 'day' | 'year', scrollTop: number) => {
+    const itemHeight = 32;
+    const paddingHeight = 32;
+    const adjustedScrollTop = scrollTop - paddingHeight;
+    const selectedIndex = Math.round(adjustedScrollTop / itemHeight);
+    
+    switch (type) {
+      case 'month':
+        if (selectedIndex >= 0 && selectedIndex < months.length) {
+          setSelectedMonth(selectedIndex);
+        }
+        break;
+      case 'day':
+        const days = generateDays();
+        if (selectedIndex >= 0 && selectedIndex < days.length) {
+          setSelectedDay(days[selectedIndex]);
+        }
+        break;
+      case 'year':
+        if (selectedIndex >= 0 && selectedIndex < years.length) {
+          setSelectedYear(years[selectedIndex]);
+        }
+        break;
+    }
+  };
+
+  // Scroll to selected values when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        const monthContainer = document.querySelector('[data-scroll="month"]') as HTMLDivElement;
+        const dayContainer = document.querySelector('[data-scroll="day"]') as HTMLDivElement;
+        const yearContainer = document.querySelector('[data-scroll="year"]') as HTMLDivElement;
+        
+        if (monthContainer) {
+          scrollToValue(monthContainer, selectedMonth);
+        }
+        if (dayContainer) {
+          scrollToValue(dayContainer, selectedDay);
+        }
+        if (yearContainer) {
+          const yearIndex = years.indexOf(selectedYear);
+          if (yearIndex >= 0) {
+            scrollToValue(yearContainer, yearIndex + 1);
+          }
+        }
+      }, 100);
+    }
+  }, [isOpen, selectedMonth, selectedDay, selectedYear, years]);
 
   return (
     <div className="relative" ref={containerRef}>
@@ -144,110 +196,160 @@ export function SimpleDatePicker({
 
       {/* Dropdown with Scroll Wheels */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium">Select Date</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const today = new Date();
-                  updateDate(today.getMonth(), today.getDate(), today.getFullYear());
-                }}
-              >
-                Today
-              </Button>
-            </div>
-            
-            <div className="flex gap-2 mb-4">
-              {/* Month Scroll */}
-              <div className="flex-1">
-                <div className="text-xs font-medium text-gray-500 mb-2 text-center">Month</div>
-                <div className="relative h-32 overflow-hidden border border-gray-200 rounded">
-                  <div className="h-16" /> {/* Top spacer */}
-                  <div className="h-32 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {months.map((month, index) => (
-                      <div
-                        key={month}
-                        className={`h-8 flex items-center justify-center text-sm cursor-pointer transition-colors ${
-                          index === selectedMonth 
-                            ? 'text-blue-600 font-semibold bg-blue-50' 
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                        onClick={() => updateDate(index, selectedDay, selectedYear)}
-                      >
-                        {month}
-                      </div>
-                    ))}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium">Select Date</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    updateDate(today.getMonth(), today.getDate(), today.getFullYear());
+                  }}
+                >
+                  Today
+                </Button>
+              </div>
+              
+              <div className="flex gap-2 mb-4">
+                {/* Month Scroll */}
+                <div className="flex-1">
+                  <div className="text-xs font-medium text-gray-500 mb-2 text-center">Month</div>
+                  <div className="relative h-40 overflow-hidden border border-gray-200 rounded">
+                    <div 
+                      data-scroll="month"
+                      className="h-40 overflow-y-auto scrollbar-hide" 
+                      style={{ 
+                        scrollbarWidth: 'none', 
+                        msOverflowStyle: 'none'
+                      }}
+                      onScroll={(e) => {
+                        const target = e.target as HTMLDivElement;
+                        handleScroll('month', target.scrollTop);
+                      }}
+                    >
+                      {/* Padding items */}
+                      {Array.from({ length: 2 }, (_, i) => (
+                        <div key={`month-pad-${i}`} className="h-16" />
+                      ))}
+                      {months.map((month, index) => (
+                        <div
+                          key={month}
+                          className={`h-8 flex items-center justify-center text-sm cursor-pointer ${
+                            index === selectedMonth 
+                              ? 'text-blue-600 font-semibold bg-blue-50' 
+                              : 'text-gray-600'
+                          }`}
+                          onClick={() => updateDate(index, selectedDay, selectedYear)}
+                        >
+                          {month}
+                        </div>
+                      ))}
+                      {Array.from({ length: 2 }, (_, i) => (
+                        <div key={`month-pad-bottom-${i}`} className="h-16" />
+                      ))}
+                    </div>
                   </div>
-                  <div className="h-16" /> {/* Bottom spacer */}
+                </div>
+
+                {/* Day Scroll */}
+                <div className="flex-1">
+                  <div className="text-xs font-medium text-gray-500 mb-2 text-center">Day</div>
+                  <div className="relative h-40 overflow-hidden border border-gray-200 rounded">
+                    <div 
+                      data-scroll="day"
+                      className="h-40 overflow-y-auto scrollbar-hide" 
+                      style={{ 
+                        scrollbarWidth: 'none', 
+                        msOverflowStyle: 'none'
+                      }}
+                      onScroll={(e) => {
+                        const target = e.target as HTMLDivElement;
+                        handleScroll('day', target.scrollTop);
+                      }}
+                    >
+                      {/* Padding items */}
+                      {Array.from({ length: 2 }, (_, i) => (
+                        <div key={`day-pad-${i}`} className="h-16" />
+                      ))}
+                      {generateDays().map((day) => (
+                        <div
+                          key={day}
+                          className={`h-8 flex items-center justify-center text-sm cursor-pointer ${
+                            day === selectedDay 
+                              ? 'text-blue-600 font-semibold bg-blue-50' 
+                              : 'text-gray-600'
+                          }`}
+                          onClick={() => updateDate(selectedMonth, day, selectedYear)}
+                        >
+                          {day}
+                        </div>
+                      ))}
+                      {Array.from({ length: 2 }, (_, i) => (
+                        <div key={`day-pad-bottom-${i}`} className="h-16" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Year Scroll */}
+                <div className="flex-1">
+                  <div className="text-xs font-medium text-gray-500 mb-2 text-center">Year</div>
+                  <div className="relative h-40 overflow-hidden border border-gray-200 rounded">
+                    <div 
+                      data-scroll="year"
+                      className="h-40 overflow-y-auto scrollbar-hide" 
+                      style={{ 
+                        scrollbarWidth: 'none', 
+                        msOverflowStyle: 'none'
+                      }}
+                      onScroll={(e) => {
+                        const target = e.target as HTMLDivElement;
+                        handleScroll('year', target.scrollTop);
+                      }}
+                    >
+                      {/* Padding items */}
+                      {Array.from({ length: 2 }, (_, i) => (
+                        <div key={`year-pad-${i}`} className="h-16" />
+                      ))}
+                      {years.map((year) => (
+                        <div
+                          key={year}
+                          className={`h-8 flex items-center justify-center text-sm cursor-pointer ${
+                            year === selectedYear 
+                              ? 'text-blue-600 font-semibold bg-blue-50' 
+                              : 'text-gray-600'
+                          }`}
+                          onClick={() => updateDate(selectedMonth, selectedDay, year)}
+                        >
+                          {year}
+                        </div>
+                      ))}
+                      {Array.from({ length: 2 }, (_, i) => (
+                        <div key={`year-pad-bottom-${i}`} className="h-16" />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Day Scroll */}
-              <div className="flex-1">
-                <div className="text-xs font-medium text-gray-500 mb-2 text-center">Day</div>
-                <div className="relative h-32 overflow-hidden border border-gray-200 rounded">
-                  <div className="h-16" /> {/* Top spacer */}
-                  <div className="h-32 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {generateDays().map((day) => (
-                      <div
-                        key={day}
-                        className={`h-8 flex items-center justify-center text-sm cursor-pointer transition-colors ${
-                          day === selectedDay 
-                            ? 'text-blue-600 font-semibold bg-blue-50' 
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                        onClick={() => updateDate(selectedMonth, day, selectedYear)}
-                      >
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="h-16" /> {/* Bottom spacer */}
-                </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => setIsOpen(false)}
+                >
+                  OK
+                </Button>
               </div>
-
-              {/* Year Scroll */}
-              <div className="flex-1">
-                <div className="text-xs font-medium text-gray-500 mb-2 text-center">Year</div>
-                <div className="relative h-32 overflow-hidden border border-gray-200 rounded">
-                  <div className="h-16" /> {/* Top spacer */}
-                  <div className="h-32 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {years.map((year) => (
-                      <div
-                        key={year}
-                        className={`h-8 flex items-center justify-center text-sm cursor-pointer transition-colors ${
-                          year === selectedYear 
-                            ? 'text-blue-600 font-semibold bg-blue-50' 
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                        onClick={() => updateDate(selectedMonth, selectedDay, year)}
-                      >
-                        {year}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="h-16" /> {/* Bottom spacer */}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setIsOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() => setIsOpen(false)}
-              >
-                OK
-              </Button>
             </div>
           </div>
         </div>

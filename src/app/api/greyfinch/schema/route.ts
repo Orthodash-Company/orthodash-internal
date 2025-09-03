@@ -28,11 +28,11 @@ export async function GET(request: NextRequest) {
     switch (action) {
       case 'introspect':
         if (typeName) {
-          // Introspect specific type
-          result = await GreyfinchSchemaUtils.introspectType(typeName)
+          // Get known fields for specific type
+          result = GreyfinchSchemaUtils.getKnownTypeFields(typeName)
         } else {
-          // Introspect entire schema
-          result = await GreyfinchSchemaUtils.introspectSchema()
+          // Test connection
+          result = await GreyfinchSchemaUtils.testConnection()
         }
         break
         
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
             error: 'MISSING_TYPE_NAME'
           }, { status: 400 })
         }
-        result = await GreyfinchSchemaUtils.getTypeFields(typeName)
+        result = GreyfinchSchemaUtils.getKnownTypeFields(typeName)
         break
         
       case 'validate':

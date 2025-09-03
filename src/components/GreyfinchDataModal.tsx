@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,20 +16,26 @@ export function GreyfinchDataModal({ onDataSelected, trigger }: GreyfinchDataMod
   const [isLoading, setIsLoading] = useState(false)
   const [locations, setLocations] = useState<any[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
-  const { toast } = useToast()
+  const [error, setError] = useState<string | null>(null)
 
   const fetchLocations = async () => {
     setIsLoading(true)
+    setError(null)
     try {
+      console.log('Fetching locations...')
       const response = await fetch('/api/locations')
+      console.log('Response status:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
       const data = await response.json()
+      console.log('Locations data:', data)
       setLocations(data)
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch locations",
-        variant: "destructive"
-      })
+      console.error('Error fetching locations:', error)
+      setError(error instanceof Error ? error.message : 'Unknown error')
     } finally {
       setIsLoading(false)
     }
@@ -45,6 +51,12 @@ export function GreyfinchDataModal({ onDataSelected, trigger }: GreyfinchDataMod
   const handleRefresh = () => {
     fetchLocations()
   }
+
+  // Fetch locations on component mount
+  useEffect(() => {
+    console.log('GreyfinchDataModal mounted, fetching locations...')
+    fetchLocations()
+  }, [])
 
   return (
     <Card className="w-full">
@@ -73,6 +85,15 @@ export function GreyfinchDataModal({ onDataSelected, trigger }: GreyfinchDataMod
           </Button>
         </div>
 
+        {error && (
+          <div className="text-center py-4">
+            <p className="text-sm text-red-600 mb-2">Error: {error}</p>
+            <Button onClick={fetchLocations} variant="outline" size="sm">
+              Retry
+            </Button>
+          </div>
+        )}
+        
         {isLoading ? (
           <div className="text-center py-4">
             <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
@@ -99,7 +120,7 @@ export function GreyfinchDataModal({ onDataSelected, trigger }: GreyfinchDataMod
               </Button>
             ))}
           </div>
-        ) : (
+        ) : !error && (
           <div className="text-center py-4">
             <p className="text-sm text-gray-600">No locations found</p>
             <Button onClick={fetchLocations} variant="outline" size="sm" className="mt-2">

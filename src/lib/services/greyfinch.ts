@@ -169,7 +169,7 @@ export class GreyfinchService {
 
       // Get locations with proper field naming
       try {
-        const locationsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LOCATIONS)
+        const locationsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
         detailedData.locations = locationsData?.locations || []
         console.log('Pulled locations:', detailedData.locations.length)
       } catch (e) {
@@ -181,7 +181,7 @@ export class GreyfinchService {
 
       // Get patients with proper field naming
       try {
-        const patientsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_PATIENTS)
+        const patientsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
         detailedData.patients = patientsData?.patients || []
         console.log('Pulled patients:', detailedData.patients.length)
       } catch (e) {
@@ -197,7 +197,7 @@ export class GreyfinchService {
 
       // Get appointments with proper field naming
       try {
-        const appointmentsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_APPOINTMENTS)
+        const appointmentsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
         detailedData.appointments = appointmentsData?.appointments || []
         console.log('Pulled appointments:', detailedData.appointments.length)
       } catch (e) {
@@ -213,7 +213,7 @@ export class GreyfinchService {
 
       // Get leads with proper field naming
       try {
-        const leadsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LEADS)
+        const leadsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
         detailedData.leads = leadsData?.leads || []
         console.log('Pulled leads:', detailedData.leads.length)
       } catch (e) {
@@ -229,7 +229,7 @@ export class GreyfinchService {
 
       // Get bookings with proper field naming
       try {
-        const bookingsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_BOOKINGS)
+        const bookingsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
         detailedData.bookings = bookingsData?.appointmentBookings || []
         console.log('Pulled bookings:', detailedData.bookings.length)
       } catch (e) {

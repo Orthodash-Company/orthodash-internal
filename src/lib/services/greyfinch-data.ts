@@ -123,7 +123,7 @@ export class GreyfinchDataService {
     try {
       console.log('Fetching locations from Greyfinch...')
       
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LOCATIONS)
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
       
       if (result?.locations) {
         return {
@@ -162,7 +162,7 @@ export class GreyfinchDataService {
     try {
       console.log('Fetching patients from Greyfinch...')
       
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_PATIENTS)
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
       
       if (result?.patients) {
         return {
@@ -201,7 +201,7 @@ export class GreyfinchDataService {
     try {
       console.log('Fetching appointments from Greyfinch...')
       
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_APPOINTMENTS)
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
       
       if (result?.appointments) {
         return {
@@ -240,7 +240,7 @@ export class GreyfinchDataService {
     try {
       console.log('Fetching leads from Greyfinch...')
       
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_LEADS)
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
       
       if (result?.leads) {
         return {
@@ -279,7 +279,7 @@ export class GreyfinchDataService {
     try {
       console.log('Fetching bookings from Greyfinch...')
       
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_BOOKINGS)
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
       
       if (result?.appointmentBookings) {
         return {
