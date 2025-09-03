@@ -376,12 +376,12 @@ export function PDFReportGenerator({
     <div className="space-y-6">
       {/* Report Generation Controls */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5" />
             Generate PDF Report
-          </CardTitle>
-        </CardHeader>
+        </CardTitle>
+      </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex-1">
@@ -398,8 +398,8 @@ export function PDFReportGenerator({
                   <SelectItem value="executive">Executive Report</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            
+        </div>
+
             <Button 
               onClick={generatePDF} 
               disabled={isGenerating}
@@ -412,7 +412,7 @@ export function PDFReportGenerator({
               )}
               {isGenerating ? 'Generating...' : 'Generate PDF'}
             </Button>
-          </div>
+              </div>
           
           <div className="text-sm text-gray-600">
             <p><strong>Summary Report:</strong> High-level overview with key metrics and insights</p>
@@ -442,9 +442,9 @@ export function PDFReportGenerator({
                       <p className="text-sm text-gray-500">
                         {report.type.charAt(0).toUpperCase() + report.type.slice(1)} • {new Date(report.createdAt).toLocaleDateString()}
                       </p>
-                    </div>
-                  </div>
-                  
+          </div>
+        </div>
+
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -516,8 +516,8 @@ export function PDFReportGenerator({
                 {getCounterData().leads || 0}
               </p>
               <p className="text-sm text-purple-700">Leads</p>
-            </div>
-            
+        </div>
+
             <div className="text-center p-3 bg-orange-50 rounded-lg">
               <DollarSign className="h-8 w-8 text-orange-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-orange-900">
@@ -525,9 +525,9 @@ export function PDFReportGenerator({
               </p>
               <p className="text-sm text-orange-700">Analysis Periods</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
     </div>
   );
 }

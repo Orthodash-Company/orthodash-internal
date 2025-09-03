@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Brain, TrendingUp, DollarSign, Users, Calendar, Target } from 'lucide-react';
+import { Brain, TrendingUp, DollarSign, Users, Calendar, Target, Eye, EyeOff } from 'lucide-react';
 import { greyfinchService } from '@/lib/services/greyfinch';
 
 interface AISummaryGeneratorProps {
@@ -17,6 +17,7 @@ interface AISummary {
   summary: string;
   insights: string[];
   recommendations: string[];
+  strategicRecommendations?: string[];
   kpis: {
     roas: number;
     roi: number;
@@ -26,11 +27,15 @@ interface AISummary {
   };
   acquisitionCosts: any[];
   dataRecommendations?: string[];
+  nationalComparison?: any;
+  marketingOptimization?: any;
 }
 
 export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [summary, setSummary] = useState<AISummary | null>(null);
+  const [rawResponse, setRawResponse] = useState<string>('');
+  const [showRawResponse, setShowRawResponse] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -111,11 +116,33 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
 
       const data = await response.json();
       
+      // Store the raw response for debugging
+      setRawResponse(JSON.stringify(data, null, 2));
+      
       if (!data.summary) {
         throw new Error('Invalid response from AI summary service');
       }
       
-      setSummary(data);
+      // Normalize the response to handle different field names
+      const normalizedSummary: AISummary = {
+        summary: data.summary || 'No summary available',
+        insights: data.insights || data.keyInsights || ['No insights available'],
+        recommendations: data.recommendations || data.strategicRecommendations || ['No recommendations available'],
+        strategicRecommendations: data.strategicRecommendations,
+        kpis: data.kpis || {
+          roas: 0,
+          roi: 0,
+          acquisitionCost: 0,
+          lifetimeValue: 0,
+          conversionRate: 0
+        },
+        acquisitionCosts: data.acquisitionCosts || [],
+        dataRecommendations: data.dataRecommendations,
+        nationalComparison: data.nationalComparison,
+        marketingOptimization: data.marketingOptimization
+      };
+      
+      setSummary(normalizedSummary);
       toast({
         title: "AI Summary Generated",
         description: `Generated comprehensive analysis using ${analysisData.availableData.totalPeriods} periods and ${analysisData.availableData.hasGreyfinchData ? 'Greyfinch data' : 'available data'}.`,
@@ -153,33 +180,65 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
           )}
         </Button>
 
+        {/* Raw Response Preview */}
+        {rawResponse && (
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-700">Raw OpenAI Response</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRawResponse(!showRawResponse)}
+                className="h-8 px-3"
+              >
+                {showRawResponse ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Show
+                  </>
+                )}
+              </Button>
+            </div>
+            {showRawResponse && (
+              <pre className="text-xs bg-white p-3 rounded border overflow-x-auto max-h-96">
+                {rawResponse}
+              </pre>
+            )}
+          </div>
+        )}
+
         {summary && (
           <div className="space-y-6">
             {/* KPI Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <DollarSign className="h-6 w-6 mx-auto mb-2 text-blue-600" />
-                <div className="text-lg font-bold text-blue-600">{summary.kpis.roas.toFixed(2)}x</div>
+                <div className="text-lg font-bold text-blue-600">{summary.kpis?.roas?.toFixed(2) || '0.00'}x</div>
                 <div className="text-sm text-gray-600">ROAS</div>
               </div>
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <TrendingUp className="h-6 w-6 mx-auto mb-2 text-green-600" />
-                <div className="text-lg font-bold text-green-600">{summary.kpis.roi.toFixed(1)}%</div>
+                <div className="text-lg font-bold text-green-600">{summary.kpis?.roi?.toFixed(1) || '0.0'}%</div>
                 <div className="text-sm text-gray-600">ROI</div>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-lg">
                 <Target className="h-6 w-6 mx-auto mb-2 text-purple-600" />
-                <div className="text-lg font-bold text-purple-600">${summary.kpis.acquisitionCost}</div>
+                <div className="text-lg font-bold text-purple-600">${summary.kpis?.acquisitionCost || '0'}</div>
                 <div className="text-sm text-gray-600">Avg Cost</div>
               </div>
               <div className="text-center p-4 bg-orange-50 rounded-lg">
                 <Users className="h-6 w-6 mx-auto mb-2 text-orange-600" />
-                <div className="text-lg font-bold text-orange-600">${summary.kpis.lifetimeValue}</div>
+                <div className="text-lg font-bold text-orange-600">${summary.kpis?.lifetimeValue || '0'}</div>
                 <div className="text-sm text-gray-600">LTV</div>
               </div>
               <div className="text-center p-4 bg-red-50 rounded-lg">
                 <Calendar className="h-6 w-6 mx-auto mb-2 text-red-600" />
-                <div className="text-lg font-bold text-red-600">{summary.kpis.conversionRate.toFixed(1)}%</div>
+                <div className="text-lg font-bold text-red-600">{summary.kpis?.conversionRate?.toFixed(1) || '0.0'}%</div>
                 <div className="text-sm text-gray-600">Conv Rate</div>
               </div>
             </div>
@@ -191,33 +250,71 @@ export function AISummaryGenerator({ periods, periodData }: AISummaryGeneratorPr
             </div>
 
             {/* Key Insights */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Insights</h3>
-              <div className="space-y-2">
-                {summary.insights.map((insight, index) => (
-                  <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <p className="text-gray-700">{insight}</p>
-                  </div>
-                ))}
+            {summary.insights && summary.insights.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Insights</h3>
+                <div className="space-y-2">
+                  {summary.insights.map((insight, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <p className="text-gray-700">{insight}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Strategic Recommendations */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Strategic Recommendations</h3>
-              <div className="space-y-2">
-                {summary.recommendations.map((recommendation, index) => (
-                  <div key={index} className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <p className="text-green-800">{recommendation}</p>
-                  </div>
-                ))}
+            {summary.recommendations && summary.recommendations.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Strategic Recommendations</h3>
+                <div className="space-y-2">
+                  {summary.recommendations.map((recommendation, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <p className="text-green-800">{recommendation}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* National Comparison */}
+            {summary.nationalComparison && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">National Benchmark Comparison</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(summary.nationalComparison).map(([key, value]) => (
+                    <div key={key} className="p-4 bg-blue-50 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-900 capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                      </h4>
+                      <p className="text-sm text-blue-800 mt-1">{value as string}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Marketing Optimization */}
+            {summary.marketingOptimization && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Marketing Optimization Strategies</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(summary.marketingOptimization).map(([key, value]) => (
+                    <div key={key} className="p-4 bg-green-50 rounded-lg">
+                      <h4 className="text-sm font-medium text-green-900 capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                      </h4>
+                      <p className="text-sm text-green-800 mt-1">{value as string}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Acquisition Cost Analysis */}
-            {summary.acquisitionCosts.length > 0 && (
+            {summary.acquisitionCosts && summary.acquisitionCosts.length > 0 && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Acquisition Cost Analysis</h3>
                 <div className="overflow-x-auto">

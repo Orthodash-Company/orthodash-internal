@@ -673,8 +673,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Cost Management */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          {/* Cost Management - Temporarily Hidden */}
+          {/* <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
             <CardHeader>
               <CardTitle className="text-[#1C1F4F]">Acquisition Cost Management</CardTitle>
               <CardDescription className="text-[#1C1F4F]/70">
@@ -687,7 +687,7 @@ export default function Dashboard() {
                 period={periods.length > 0 ? periods[0].startDate?.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
               />
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* AI Summary Generator */}
           <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
