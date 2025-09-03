@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CompactCalendarPicker } from "@/components/ui/compact-calendar-picker";
+import { SimpleDateInput } from "@/components/ui/simple-date-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -219,21 +219,21 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               Select Date Range
             </Label>
             <div className="grid grid-cols-1 gap-2">
-              <CompactCalendarPicker
+              <SimpleDateInput
                 date={period.startDate}
                 setDate={(date) => {
                   console.log('Start date changed:', date);
                   onUpdatePeriod(period.id, { startDate: date });
                 }}
-                placeholder="Start date"
+                placeholder="DD/MM/YYYY"
               />
-              <CompactCalendarPicker
+              <SimpleDateInput
                 date={period.endDate}
                 setDate={(date) => {
                   console.log('End date changed:', date);
                   onUpdatePeriod(period.id, { endDate: date });
                 }}
-                placeholder="End date"
+                placeholder="DD/MM/YYYY"
               />
             </div>
           </div>
@@ -409,18 +409,18 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs text-gray-600">Start Date</Label>
-                <CompactCalendarPicker
+                <SimpleDateInput
                   date={period.startDate}
                   setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
-                  placeholder="Select start"
+                  placeholder="DD/MM/YYYY"
                 />
               </div>
               <div>
                 <Label className="text-xs text-gray-600">End Date</Label>
-                <CompactCalendarPicker
+                <SimpleDateInput
                   date={period.endDate}
                   setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
-                  placeholder="Select end"
+                  placeholder="DD/MM/YYYY"
                 />
               </div>
             </div>
