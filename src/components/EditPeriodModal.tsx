@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
+import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
 import { Edit3, Calendar, MapPin, Save } from "lucide-react";
 
 interface Location {
@@ -117,7 +117,7 @@ export function EditPeriodModal({ period, locations, onUpdatePeriod, trigger }: 
                 <Calendar className="w-4 h-4" />
                 Start Date
               </Label>
-              <DatePicker
+              <EnhancedDatePicker
                 date={startDate}
                 setDate={(date) => date && setStartDate(date)}
                 placeholder="Select start date"
@@ -126,7 +126,7 @@ export function EditPeriodModal({ period, locations, onUpdatePeriod, trigger }: 
             
             <div className="space-y-2">
               <Label>End Date</Label>
-              <DatePicker
+              <EnhancedDatePicker
                 date={endDate}
                 setDate={(date) => date && setEndDate(date)}
                 placeholder="Select end date"

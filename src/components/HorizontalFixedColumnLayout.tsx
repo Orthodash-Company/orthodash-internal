@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker";
+import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
 import { DataVisualizationModal } from "./DataVisualizationModal";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "./CompactCostManager";
@@ -271,19 +271,19 @@ export function HorizontalFixedColumnLayout({
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <Label className="text-xs text-blue-700">Start Date</Label>
-                            <DatePicker
-                              date={period.startDate}
-                              setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
-                              placeholder="Select start"
-                            />
+                                                         <EnhancedDatePicker
+                               date={period.startDate}
+                               setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
+                               placeholder="Select start"
+                             />
                           </div>
                           <div>
                             <Label className="text-xs text-blue-700">End Date</Label>
-                            <DatePicker
-                              date={period.endDate}
-                              setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
-                              placeholder="Select end"
-                            />
+                                                         <EnhancedDatePicker
+                               date={period.endDate}
+                               setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
+                               placeholder="Select end"
+                             />
                           </div>
                         </div>
                         <div className="flex gap-2 pt-2">
