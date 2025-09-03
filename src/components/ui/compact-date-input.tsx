@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CompactDateInputProps {
@@ -23,6 +23,7 @@ export function CompactDateInput({
   disabled = false
 }: CompactDateInputProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +40,12 @@ export function CompactDateInput({
     if (!disabled) {
       setIsEditing(true);
       setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  };
+
+  const handleCalendarClick = () => {
+    if (!disabled) {
+      setShowCalendar(!showCalendar);
     }
   };
 
@@ -88,6 +95,15 @@ export function CompactDateInput({
     }
   };
 
+  const handleCalendarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value) {
+      const newDate = new Date(value);
+      setDate(newDate);
+      setShowCalendar(false);
+    }
+  };
+
   if (isEditing) {
     return (
       <div className="space-y-2">
@@ -113,15 +129,38 @@ export function CompactDateInput({
       {label && (
         <Label className="text-xs text-gray-600">{label}</Label>
       )}
-      <Button
-        variant="outline"
-        onClick={handleClick}
-        disabled={disabled}
-        className={`h-8 px-3 text-sm justify-start font-normal ${className || ''}`}
-      >
-        <CalendarIcon className="mr-2 h-3 w-3 text-gray-400" />
-        {date ? format(date, 'dd/MM/yyyy') : placeholder}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          onClick={handleClick}
+          disabled={disabled}
+          className={`h-8 px-3 text-sm justify-start font-normal flex-1 ${className || ''}`}
+        >
+          <CalendarIcon className="mr-2 h-3 w-3 text-gray-400" />
+          {date ? format(date, 'dd/MM/yyyy') : placeholder}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleCalendarClick}
+          disabled={disabled}
+          className="h-8 px-2 text-sm"
+          title="Open calendar picker"
+        >
+          <Calendar className="h-3 w-3" />
+        </Button>
+      </div>
+      
+      {/* HTML Calendar Picker */}
+      {showCalendar && (
+        <div className="mt-2">
+          <Input
+            type="date"
+            value={date ? date.toISOString().split('T')[0] : ''}
+            onChange={handleCalendarChange}
+            className="h-8 text-sm"
+          />
+        </div>
+      )}
     </div>
   );
 }
