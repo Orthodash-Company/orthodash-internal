@@ -38,7 +38,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([
     { id: 'gilbert-1', name: 'Gilbert', address: 'Gilbert, AZ', isActive: true },
-    { id: 'scottsdale-1', name: 'Scottsdale', address: 'Scottsdale, AZ', isActive: false }
+    { id: 'phoenix-ahwatukee-1', name: 'Phoenix-Ahwatukee', address: 'Phoenix-Ahwatukee, AZ', isActive: true }
   ]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -106,7 +106,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         if (data.data) {
           const newCounts = {
             patients: data.data.patients?.count || 0,
-            locations: 2, // Gilbert and Scottsdale locations
+            locations: 2, // Gilbert and Phoenix-Ahwatukee locations
             appointments: data.data.appointments?.count || 0,
             leads: data.data.leads?.count || 0
           }
@@ -227,7 +227,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       if (totalDataPoints === 0) {
         console.warn('⚠️ No data points found in sync response, using fallback data')
         // Use fallback data if no real data was found
-        processedData.locations = 2 // Gilbert and Scottsdale
+        processedData.locations = 2 // Gilbert and Phoenix-Ahwatukee
         processedData.leads = 150
         processedData.appointments = 300
         processedData.bookings = 250

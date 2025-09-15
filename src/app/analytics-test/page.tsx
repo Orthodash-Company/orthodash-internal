@@ -156,8 +156,8 @@ export default function AnalyticsTestPage() {
                       </div>
                     </div>
                     <div className="p-3 border rounded">
-                      <div className="font-medium">Scottsdale</div>
-                      <div className="text-2xl font-bold">{analyticsData.locations.scottsdale.count}</div>
+                      <div className="font-medium">Phoenix-Ahwatukee</div>
+                      <div className="text-2xl font-bold">{analyticsData.locations.phoenixAhwatukee?.count || 0}</div>
                       <div className="text-sm text-gray-500">
                         Added: {analyticsData.locations.scottsdale.dateAdded || 'Unknown'}
                       </div>
@@ -207,7 +207,7 @@ export default function AnalyticsTestPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
-            <p>• <strong>Test Analytics:</strong> Tests the new analytics endpoint that focuses on getting row counts and date information for Gilbert and Scottsdale locations.</p>
+            <p>• <strong>Test Analytics:</strong> Tests the new analytics endpoint that focuses on getting row counts and date information for Gilbert and Phoenix-Ahwatukee locations.</p>
             <p>• <strong>Discover Fields:</strong> Tests various field names to find which ones work with the Greyfinch API.</p>
             <p>• The analytics endpoint tries multiple field name variations to find the correct ones for each data type.</p>
             <p>• This helps us understand what data is available and how to access it for your reporting tool.</p>

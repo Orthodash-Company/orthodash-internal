@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       {
         id: 2,
         userId: 'default-user-id',
-        name: 'Scottsdale Office',
-        address: '456 Scottsdale Rd, Scottsdale, AZ',
-        patientCount: 892,
+        name: 'Phoenix-Ahwatukee Office',
+        address: '123 Ahwatukee Blvd, Phoenix-Ahwatukee, AZ',
+        patientCount: 850,
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date()

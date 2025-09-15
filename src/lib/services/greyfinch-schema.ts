@@ -309,6 +309,68 @@ export const GREYFINCH_QUERIES = {
     }
   `,
 
+  // Both locations data query for Gilbert and Phoenix-Ahwatukee
+  GET_BOTH_LOCATIONS_DATA: `
+    query GetBothLocationsData($gilbertName: String = "Gilbert", $phoenixName: String = "Phoenix-Ahwatukee") {
+      # Get both location statuses
+      locations(where: { name: { _in: [$gilbertName, $phoenixName] } }) {
+        id
+        name
+        isActive
+      }
+      
+      # Get basic counts for Gilbert
+      gilbert_patients_aggregate: patients_aggregate(where: { primaryLocation: { name: { _eq: $gilbertName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      gilbert_appointments_aggregate: appointments_aggregate(where: { location: { name: { _eq: $gilbertName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      gilbert_leads_aggregate: leads_aggregate(where: { location: { name: { _eq: $gilbertName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      gilbert_bookings_aggregate: appointmentBookings_aggregate(where: { appointment: { location: { name: { _eq: $gilbertName } } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      # Get basic counts for Phoenix-Ahwatukee
+      phoenix_patients_aggregate: patients_aggregate(where: { primaryLocation: { name: { _eq: $phoenixName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      phoenix_appointments_aggregate: appointments_aggregate(where: { location: { name: { _eq: $phoenixName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      phoenix_leads_aggregate: leads_aggregate(where: { location: { name: { _eq: $phoenixName } } }) {
+        aggregate {
+          count
+        }
+      }
+      
+      phoenix_bookings_aggregate: appointmentBookings_aggregate(where: { appointment: { location: { name: { _eq: $phoenixName } } } }) {
+        aggregate {
+          count
+        }
+      }
+    }
+  `,
+
   // Test connection query
   TEST_CONNECTION: `
     query TestConnection {
@@ -378,15 +440,18 @@ export class GreyfinchSchemaUtils {
   }
   
   /**
-   * Get comprehensive analytics data using the new simple Gilbert query
+   * Get comprehensive analytics data using the new both locations query
    */
   static async getAnalyticsData(): Promise<any> {
     try {
-      console.log('🚀 Executing Gilbert simple GraphQL query...')
-      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_GILBERT_SIMPLE, { locationName: 'Gilbert' })
+      console.log('🚀 Executing both locations GraphQL query...')
+      const result = await greyfinchService.makeGraphQLRequest(GREYFINCH_QUERIES.GET_BOTH_LOCATIONS_DATA, { 
+        gilbertName: 'Gilbert', 
+        phoenixName: 'Phoenix-Ahwatukee' 
+      })
       
       if (result.success && result.data) {
-        console.log('✅ Gilbert simple query executed successfully:', result.data)
+        console.log('✅ Both locations query executed successfully:', result.data)
         return result
       } else {
         console.error('❌ GraphQL query failed:', result.error)
@@ -516,14 +581,14 @@ export class GreyfinchSchemaUtils {
         totalProduction: 0,
         totalNetProduction: 0,
         gilbertCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 },
-        scottsdaleCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 }
+        phoenixCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 }
       },
       lastUpdated: new Date().toISOString(),
       queryParams: { startDate, endDate, location: 'gilbert' },
       apiStatus: 'Gilbert Data Processed'
     }
 
-    // Process locations - Gilbert (active) and Scottsdale (inactive)
+    // Process locations - Gilbert (active) and Phoenix-Ahwatukee (active)
     processed.locations = {
       'gilbert-1': {
         id: 'gilbert-1',
@@ -531,11 +596,11 @@ export class GreyfinchSchemaUtils {
         count: 0,
         isActive: true
       },
-      'scottsdale-1': {
-        id: 'scottsdale-1',
-        name: 'Scottsdale',
+      'phoenix-ahwatukee-1': {
+        id: 'phoenix-ahwatukee-1',
+        name: 'Phoenix-Ahwatukee',
         count: 0,
-        isActive: false
+        isActive: true
       }
     }
 

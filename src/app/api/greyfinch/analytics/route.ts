@@ -89,7 +89,19 @@ export async function GET(request: NextRequest) {
       const fallbackData = {
         locations: {
           'gilbert-1': { id: 'gilbert-1', name: 'Gilbert', count: 1250, isActive: true },
-          'scottsdale-1': { id: 'scottsdale-1', name: 'Scottsdale', count: 0, isActive: false }
+          'phoenix-ahwatukee-1': { id: 'phoenix-ahwatukee-1', name: 'Phoenix-Ahwatukee', count: 850, isActive: true }
+        },
+        gilbertCounts: {
+          patients: 1250,
+          appointments: 89,
+          leads: 45,
+          bookings: 67
+        },
+        phoenixCounts: {
+          patients: 850,
+          appointments: 62,
+          leads: 32,
+          bookings: 45
         },
         leads: { count: 45, data: [] },
         appointments: { count: 89, data: [] },

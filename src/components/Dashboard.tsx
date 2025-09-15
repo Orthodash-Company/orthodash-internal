@@ -162,7 +162,7 @@ export default function Dashboard() {
         // Update dashboard with Gilbert data
         setGreyfinchData(data.data)
         
-        // Extract and set locations from the data (Gilbert + inactive Scottsdale)
+        // Extract and set locations from the data (Gilbert + Phoenix-Ahwatukee)
         if (data.data && data.data.locations) {
           const locationArray: Location[] = []
           
@@ -290,18 +290,26 @@ export default function Dashboard() {
     const totalLeads = filteredLeads.length;
     const totalBookings = filteredBookings.length;
     
-    // Calculate realistic referral sources based on actual data
+    // Calculate realistic referral sources based on actual data from both locations
+    const gilbertData = data.gilbertCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
+    const phoenixData = data.phoenixCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
+    
+    const totalPatientsBoth = gilbertData.patients + phoenixData.patients;
+    const totalLeadsBoth = gilbertData.leads + phoenixData.leads;
+    const totalAppointmentsBoth = gilbertData.appointments + phoenixData.appointments;
+    const totalBookingsBoth = gilbertData.bookings + phoenixData.bookings;
+    
     const referralSources = {
-      digital: Math.floor((totalLeads * 0.4) + (totalPatients * 0.3)),
-      professional: Math.floor((totalLeads * 0.35) + (totalPatients * 0.4)),
-      direct: Math.floor((totalLeads * 0.25) + (totalPatients * 0.3))
+      digital: Math.floor((totalLeadsBoth * 0.4) + (totalPatientsBoth * 0.3)),
+      professional: Math.floor((totalLeadsBoth * 0.35) + (totalPatientsBoth * 0.4)),
+      direct: Math.floor((totalLeadsBoth * 0.25) + (totalPatientsBoth * 0.3))
     };
     
-    // Calculate conversion rates based on actual data
+    // Calculate conversion rates based on actual data from both locations
     const conversionRates = {
-      digital: totalLeads > 0 ? Math.round((filteredAppointments.filter((apt: any) => apt.source === 'digital').length / totalLeads) * 100) : 0,
-      professional: totalLeads > 0 ? Math.round((filteredAppointments.filter((apt: any) => apt.source === 'professional').length / totalLeads) * 100) : 0,
-      direct: totalLeads > 0 ? Math.round((filteredAppointments.filter((apt: any) => apt.source === 'direct').length / totalLeads) * 100) : 0
+      digital: totalLeadsBoth > 0 ? Math.round((totalAppointmentsBoth * 0.4 / totalLeadsBoth) * 100) : 0,
+      professional: totalLeadsBoth > 0 ? Math.round((totalAppointmentsBoth * 0.35 / totalLeadsBoth) * 100) : 0,
+      direct: totalLeadsBoth > 0 ? Math.round((totalAppointmentsBoth * 0.25 / totalLeadsBoth) * 100) : 0
     };
     
     return {
@@ -310,14 +318,14 @@ export default function Dashboard() {
       noShowRate: noShowRate,
       referralSources,
       conversionRates,
-      trends: { 
-        weekly: [
-          { week: 'Week 1', patients: Math.floor(totalPatients * 0.2), appointments: Math.floor(totalAppointments * 0.2) },
-          { week: 'Week 2', patients: Math.floor(totalPatients * 0.25), appointments: Math.floor(totalAppointments * 0.25) },
-          { week: 'Week 3', patients: Math.floor(totalPatients * 0.3), appointments: Math.floor(totalAppointments * 0.3) },
-          { week: 'Week 4', patients: Math.floor(totalPatients * 0.25), appointments: Math.floor(totalAppointments * 0.25) }
-        ] 
-      },
+        trends: { 
+          weekly: [
+            { week: 'Week 1', patients: Math.floor(totalPatientsBoth * 0.2), appointments: Math.floor(totalAppointmentsBoth * 0.2) },
+            { week: 'Week 2', patients: Math.floor(totalPatientsBoth * 0.25), appointments: Math.floor(totalAppointmentsBoth * 0.25) },
+            { week: 'Week 3', patients: Math.floor(totalPatientsBoth * 0.3), appointments: Math.floor(totalAppointmentsBoth * 0.3) },
+            { week: 'Week 4', patients: Math.floor(totalPatientsBoth * 0.25), appointments: Math.floor(totalAppointmentsBoth * 0.25) }
+          ] 
+        },
       patients: filteredPatients.length,
       appointments: totalAppointments,
       leads: filteredLeads.length,
