@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
 import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
@@ -143,8 +143,8 @@ export default function Dashboard() {
     }
   };
 
-  // Load Greyfinch data from localStorage and API
-  const loadGreyfinchData = async () => {
+  // Load Greyfinch data from localStorage and API - memoized to prevent unnecessary re-renders
+  const loadGreyfinchData = useCallback(async () => {
     try {
       console.log('🔄 Fetching Gilbert Greyfinch data...')
       const response = await fetch('/api/greyfinch/sync', {
@@ -184,19 +184,19 @@ export default function Dashboard() {
     } catch (error) {
       console.error('❌ Error fetching Greyfinch analytics data:', error)
     }
-  }
+  }, [])
 
-  // Create data queries for each period
-  const createPeriodQueries = (periods: PeriodConfig[], greyfinchData: any) => {
+  // Create data queries for each period - memoized for performance
+  const createPeriodQueries = useCallback((periods: PeriodConfig[], greyfinchData: any) => {
     return periods.map(period => ({
       data: generatePeriodData(period, greyfinchData),
       isLoading: false,
       error: null
     }));
-  };
+  }, []);
 
-  // Generate data for a specific period
-  const generatePeriodData = (period: PeriodConfig, greyfinchData: any) => {
+  // Generate data for a specific period - memoized for performance
+  const generatePeriodData = useCallback((period: PeriodConfig, greyfinchData: any) => {
     if (!greyfinchData || !greyfinchData.data) {
       return {
         avgNetProduction: 0,
@@ -427,13 +427,16 @@ export default function Dashboard() {
       netProduction: totalNetProductionSelected,
       acquisitionCosts: 0 // Will be updated by cost management
     };
-  };
+  }, []);
 
-  // Update period queries when periods or greyfinchData changes
+  // Update period queries when periods or greyfinchData changes - memoized for performance
+  const periodQueriesMemo = useMemo(() => {
+    return createPeriodQueries(periods, greyfinchData);
+  }, [periods, greyfinchData, createPeriodQueries]);
+
   useEffect(() => {
-    const queries = createPeriodQueries(periods, greyfinchData);
-    setPeriodQueries(queries);
-  }, [periods, greyfinchData]);
+    setPeriodQueries(periodQueriesMemo);
+  }, [periodQueriesMemo]);
 
   // Cache session data when data changes (no API call)
   useEffect(() => {
@@ -448,8 +451,8 @@ export default function Dashboard() {
     }
   }, [user?.id, greyfinchData, periods, acquisitionCosts, aiSummary, cacheSessionData]);
 
-  // Handle Greyfinch data updates
-  const handleGreyfinchDataUpdate = (data: any) => {
+  // Handle Greyfinch data updates - memoized to prevent unnecessary re-renders
+  const handleGreyfinchDataUpdate = useCallback((data: any) => {
     console.log('🔄 Updating Greyfinch data in Dashboard:', data)
     
     // Handle the new comprehensive data structure
@@ -481,10 +484,10 @@ export default function Dashboard() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('greyfinchData', JSON.stringify(data));
     }
-  };
+  }, []);
 
-  // Session management handlers
-  const handleRestoreSession = (session: any) => {
+  // Session management handlers - memoized for performance
+  const handleRestoreSession = useCallback((session: any) => {
     if (session.greyfinchData) {
       setGreyfinchData(session.greyfinchData);
     }
@@ -497,25 +500,25 @@ export default function Dashboard() {
     if (session.aiSummary) {
       setAiSummary(session.aiSummary);
     }
-  };
+  }, []);
 
-  const handlePreviewSession = (session: any) => {
+  const handlePreviewSession = useCallback((session: any) => {
     // Show session preview in a modal or sidebar
     console.log('Preview session:', session);
-  };
+  }, []);
 
-  const handleDownloadSession = (session: any) => {
+  const handleDownloadSession = useCallback((session: any) => {
     // Generate and download a comprehensive report
     console.log('Download session:', session);
-  };
+  }, []);
 
-  const handleShareSession = (session: any) => {
+  const handleShareSession = useCallback((session: any) => {
     // Open share modal
     console.log('Share session:', session);
-  };
+  }, []);
 
-  // Save report to the reports system
-  const handleSaveReport = async (reportData: any) => {
+  // Save report to the reports system - memoized for performance
+  const handleSaveReport = useCallback(async (reportData: any) => {
     if (!user?.id) {
       console.error('User not authenticated');
       return;
@@ -571,7 +574,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error saving report:', error);
     }
-  };
+  }, [user?.id, periods, locations, greyfinchData]);
 
   if (isLoading) {
     return (

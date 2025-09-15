@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -41,8 +41,8 @@ export function PDFReportGenerator({
   const [generatedReports, setGeneratedReports] = useState<ReportData[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Extract counter data
-  const getCounterData = () => {
+  // Extract counter data - memoized for performance
+  const getCounterData = useMemo(() => {
     if (!greyfinchData?.data) return {};
     
     const { data } = greyfinchData;
@@ -53,7 +53,7 @@ export function PDFReportGenerator({
       bookings: data.bookings?.count || 0,
       locations: data.locations?.length || 0
     };
-  };
+  }, [greyfinchData]);
 
   // Extract analysis data for a specific period
   const getPeriodAnalysisData = (period: any) => {
@@ -103,8 +103,8 @@ export function PDFReportGenerator({
     return filteredData;
   };
 
-  // Save report to database
-  const saveReportToDatabase = async (reportData: ReportData) => {
+  // Save report to database - memoized for performance
+  const saveReportToDatabase = useCallback(async (reportData: ReportData) => {
     if (!user?.id) {
       toast({
         title: "Authentication Error",
@@ -153,10 +153,10 @@ export function PDFReportGenerator({
         variant: "destructive"
       });
     }
-  };
+  }, [user?.id, toast]);
 
-  // Generate PDF report
-  const generatePDF = async () => {
+  // Generate PDF report - memoized for performance
+  const generatePDF = useCallback(async () => {
     setIsGenerating(true);
     
     try {
@@ -185,7 +185,7 @@ export function PDFReportGenerator({
       yPosition += 15;
       
       // Counter Data Section
-      const counterData = getCounterData();
+      const counterData = getCounterData;
       doc.setFontSize(14);
       doc.setTextColor(29, 29, 82);
       doc.text('Practice Overview', 20, yPosition);
@@ -394,7 +394,7 @@ export function PDFReportGenerator({
           periods,
           acquisitionCosts,
           aiSummary,
-          counterData: getCounterData()
+          counterData: getCounterData
         }
       };
       
@@ -428,19 +428,19 @@ export function PDFReportGenerator({
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [reportType, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, onSaveReport, saveReportToDatabase, toast]);
 
-  // View generated report
-  const viewReport = (report: ReportData) => {
+  // View generated report - memoized for performance
+  const viewReport = useCallback((report: ReportData) => {
     // For now, just show the report data in console
     // In a real implementation, this could open a modal or new tab
     console.log('Viewing report:', report);
-  };
+  }, []);
 
-  // Delete generated report
-  const deleteReport = (reportId: string) => {
+  // Delete generated report - memoized for performance
+  const deleteReport = useCallback((reportId: string) => {
     setGeneratedReports(prev => prev.filter(r => r.id !== reportId));
-  };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -575,7 +575,7 @@ export function PDFReportGenerator({
             <div className="text-center p-3 bg-blue-50 rounded-lg">
               <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-blue-900">
-                {getCounterData().patients || 0}
+                {getCounterData.patients || 0}
               </p>
               <p className="text-sm text-blue-700">Patients</p>
             </div>
@@ -583,7 +583,7 @@ export function PDFReportGenerator({
             <div className="text-center p-3 bg-green-50 rounded-lg">
               <Calendar className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-green-900">
-                {getCounterData().appointments || 0}
+                {getCounterData.appointments || 0}
               </p>
               <p className="text-sm text-green-700">Appointments</p>
             </div>
@@ -591,7 +591,7 @@ export function PDFReportGenerator({
             <div className="text-center p-3 bg-purple-50 rounded-lg">
               <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-purple-900">
-                {getCounterData().leads || 0}
+                {getCounterData.leads || 0}
               </p>
               <p className="text-sm text-purple-700">Leads</p>
         </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,7 +66,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     console.log('🔍 Connection status changed:', isConnected);
   }, [isConnected]);
 
-  const checkConnectionAndFetchLocations = async () => {
+  const checkConnectionAndFetchLocations = useCallback(async () => {
     setIsLoading(true)
     console.log('🔄 Checking Greyfinch connection...')
     
@@ -132,9 +132,9 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       setIsLoading(false)
       console.log('🏁 Connection check completed. Final state:', { isConnected, connectionChecked })
     }
-  }
+  }, [isConnected, connectionChecked])
 
-  const handlePullAllData = async () => {
+  const handlePullAllData = useCallback(async () => {
     if (!user?.id) {
       toast({
         title: "Authentication Required",
@@ -273,7 +273,38 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, toast, onGreyfinchDataUpdate]);
+
+  // Memoize data counts display for performance
+  const dataCountsDisplay = useMemo(() => (
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
+        <Users className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.patients || 0}</div>
+        <div className="text-sm text-gray-600">Patients</div>
+      </div>
+      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
+        <MapPin className="h-8 w-8 mx-auto mb-2 text-green-500" />
+        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.locations || 0}</div>
+        <div className="text-sm text-gray-600">Locations</div>
+      </div>
+      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
+        <Calendar className="h-8 w-8 mx-auto mb-2 text-purple-500" />
+        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.appointments || 0}</div>
+        <div className="text-sm text-gray-600">Appointments</div>
+      </div>
+      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
+        <DollarSign className="h-8 w-8 mx-auto mb-2 text-orange-500" />
+        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.leads || 0}</div>
+        <div className="text-sm text-gray-600">Leads</div>
+      </div>
+      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
+        <BookOpen className="h-8 w-8 mx-auto mb-2 text-red-500" />
+        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.bookings || 0}</div>
+        <div className="text-sm text-gray-600">Bookings</div>
+      </div>
+    </div>
+  ), [dataCounts]);
 
   return (
     <div className="space-y-6">
@@ -312,36 +343,8 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
             </Button>
           </div>
 
-
-
           {/* Data Counts */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-              <Users className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-              <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.patients || 0}</div>
-              <div className="text-sm text-gray-600">Patients</div>
-            </div>
-            <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-              <MapPin className="h-8 w-8 mx-auto mb-2 text-green-500" />
-              <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.locations || 0}</div>
-              <div className="text-sm text-gray-600">Locations</div>
-            </div>
-            <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-              <Calendar className="h-8 w-8 mx-auto mb-2 text-purple-500" />
-              <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.appointments || 0}</div>
-              <div className="text-sm text-gray-600">Appointments</div>
-            </div>
-            <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-              <DollarSign className="h-8 w-8 mx-auto mb-2 text-orange-500" />
-              <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.leads || 0}</div>
-              <div className="text-sm text-gray-600">Leads</div>
-            </div>
-            <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-              <BookOpen className="h-8 w-8 mx-auto mb-2 text-red-500" />
-              <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.bookings || 0}</div>
-              <div className="text-sm text-gray-600">Bookings</div>
-            </div>
-          </div>
+          {dataCountsDisplay}
 
           {/* Pull Data Button */}
           <Button
