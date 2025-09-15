@@ -3,7 +3,8 @@ export interface PeriodConfig {
   id: string;
   name: string;
   title: string;
-  locationId: string;
+  locationId: string; // Keep for backward compatibility
+  locationIds: string[]; // New field for multiple locations
   startDate: Date;
   endDate: Date;
   visualizations?: VisualizationOption[];
@@ -13,6 +14,7 @@ export interface Location {
   id: number;
   name: string;
   greyfinchId?: string;
+  isActive?: boolean;
 }
 
 export interface VisualizationOption {

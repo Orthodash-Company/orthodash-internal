@@ -48,6 +48,7 @@ export function AddColumnModal({ locations, onAddPeriod, existingPeriodsCount, c
       name: title,
       title,
       locationId,
+      locationIds: locationId === 'all' ? [] : [locationId],
       startDate: startDate,
       endDate: endDate,
     };

@@ -5,21 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EnhancedDatePicker } from "@/components/ui/enhanced-date-picker";
+import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { Edit3, Calendar, MapPin, Save } from "lucide-react";
-
-interface Location {
-  id: number;
-  name: string;
-  greyfinchId?: string;
-}
-
-interface PeriodConfig {
-  id: string;
-  title: string;
-  locationId: string;
-  startDate: Date;
-  endDate: Date;
-}
+import { PeriodConfig, Location } from "@/shared/types";
 
 interface EditPeriodModalProps {
   period: PeriodConfig;
@@ -32,15 +20,21 @@ export function EditPeriodModal({ period, locations, onUpdatePeriod, trigger }: 
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(period.title);
   const [locationId, setLocationId] = useState(period.locationId);
+  const [locationIds, setLocationIds] = useState(period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all'));
   const [startDate, setStartDate] = useState<Date>(period.startDate);
   const [endDate, setEndDate] = useState<Date>(period.endDate);
 
   const handleSaveChanges = () => {
     if (!startDate || !endDate) return;
     
+    const primaryLocationId = locationIds.length === 1 ? locationIds[0] : 
+                            locationIds.length === 0 ? 'all' : 
+                            locationIds.length === locations.length ? 'all' : locationIds[0];
+    
     onUpdatePeriod(period.id, {
       title,
-      locationId,
+      locationId: primaryLocationId,
+      locationIds,
       startDate,
       endDate,
     });
@@ -94,21 +88,18 @@ export function EditPeriodModal({ period, locations, onUpdatePeriod, trigger }: 
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              Location
+              Locations
             </Label>
-            <Select value={locationId} onValueChange={setLocationId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id.toString()}>
-                    {location.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiLocationSelector
+              locations={locations.map(loc => ({
+                id: loc.id.toString(),
+                name: loc.name,
+                isActive: loc.isActive
+              }))}
+              selectedLocationIds={locationIds}
+              onSelectionChange={setLocationIds}
+              placeholder="Select locations"
+            />
           </div>
           
           <div className="grid grid-cols-2 gap-4">

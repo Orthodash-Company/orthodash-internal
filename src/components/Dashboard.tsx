@@ -228,12 +228,14 @@ export default function Dashboard() {
     let filteredRevenue = data.revenue?.data || [];
     let filteredProduction = data.production?.data || [];
     
-    if (period.locationId && period.locationId !== 'all') {
-      // Filter by specific location
-      filteredLeads = filteredLeads.filter((lead: any) => lead.locationId === period.locationId);
-      filteredAppointments = filteredAppointments.filter((apt: any) => apt.locationId === period.locationId);
-      filteredRevenue = filteredRevenue.filter((rev: any) => rev.locationId === period.locationId);
-      filteredProduction = filteredProduction.filter((prod: any) => prod.locationId === period.locationId);
+    // Handle multiple location filtering
+    const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
+    if (selectedLocationIds.length > 0) {
+      // Filter by selected locations
+      filteredLeads = filteredLeads.filter((lead: any) => selectedLocationIds.includes(lead.locationId));
+      filteredAppointments = filteredAppointments.filter((apt: any) => selectedLocationIds.includes(apt.locationId));
+      filteredRevenue = filteredRevenue.filter((rev: any) => selectedLocationIds.includes(rev.locationId));
+      filteredProduction = filteredProduction.filter((prod: any) => selectedLocationIds.includes(prod.locationId));
     }
     
     // Filter by date range if specified
@@ -277,8 +279,8 @@ export default function Dashboard() {
     const noShowRate = totalAppointments > 0 ? (noShowAppointments / totalAppointments) * 100 : 0;
     
     // Calculate location-specific data
-    const locationCount = period.locationId === 'all' ? 
-      Object.keys(data.locations || {}).length : 1;
+    const locationCount = selectedLocationIds.length === 0 ? 
+      Object.keys(data.locations || {}).length : selectedLocationIds.length;
     
     // Calculate financial metrics
     const totalRevenue = filteredRevenue.reduce((sum: number, rev: any) => sum + (rev.amount || 0), 0);
@@ -290,26 +292,49 @@ export default function Dashboard() {
     const totalLeads = filteredLeads.length;
     const totalBookings = filteredBookings.length;
     
-    // Calculate realistic referral sources based on actual data from both locations
+    // Calculate realistic referral sources based on actual data from selected locations
     const gilbertData = data.gilbertCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
     const phoenixData = data.phoenixCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
     
-    const totalPatientsBoth = gilbertData.patients + phoenixData.patients;
-    const totalLeadsBoth = gilbertData.leads + phoenixData.leads;
-    const totalAppointmentsBoth = gilbertData.appointments + phoenixData.appointments;
-    const totalBookingsBoth = gilbertData.bookings + phoenixData.bookings;
+    // Calculate totals based on selected locations
+    let totalPatientsSelected = 0;
+    let totalLeadsSelected = 0;
+    let totalAppointmentsSelected = 0;
+    let totalBookingsSelected = 0;
+    
+    if (selectedLocationIds.length === 0) {
+      // All locations selected
+      totalPatientsSelected = gilbertData.patients + phoenixData.patients;
+      totalLeadsSelected = gilbertData.leads + phoenixData.leads;
+      totalAppointmentsSelected = gilbertData.appointments + phoenixData.appointments;
+      totalBookingsSelected = gilbertData.bookings + phoenixData.bookings;
+    } else {
+      // Specific locations selected
+      if (selectedLocationIds.includes('gilbert-1')) {
+        totalPatientsSelected += gilbertData.patients;
+        totalLeadsSelected += gilbertData.leads;
+        totalAppointmentsSelected += gilbertData.appointments;
+        totalBookingsSelected += gilbertData.bookings;
+      }
+      if (selectedLocationIds.includes('phoenix-ahwatukee-1')) {
+        totalPatientsSelected += phoenixData.patients;
+        totalLeadsSelected += phoenixData.leads;
+        totalAppointmentsSelected += phoenixData.appointments;
+        totalBookingsSelected += phoenixData.bookings;
+      }
+    }
     
     const referralSources = {
-      digital: Math.floor((totalLeadsBoth * 0.4) + (totalPatientsBoth * 0.3)),
-      professional: Math.floor((totalLeadsBoth * 0.35) + (totalPatientsBoth * 0.4)),
-      direct: Math.floor((totalLeadsBoth * 0.25) + (totalPatientsBoth * 0.3))
+      digital: Math.floor((totalLeadsSelected * 0.4) + (totalPatientsSelected * 0.3)),
+      professional: Math.floor((totalLeadsSelected * 0.35) + (totalPatientsSelected * 0.4)),
+      direct: Math.floor((totalLeadsSelected * 0.25) + (totalPatientsSelected * 0.3))
     };
     
-    // Calculate conversion rates based on actual data from both locations
+    // Calculate conversion rates based on actual data from selected locations
     const conversionRates = {
-      digital: totalLeadsBoth > 0 ? Math.round((totalAppointmentsBoth * 0.4 / totalLeadsBoth) * 100) : 0,
-      professional: totalLeadsBoth > 0 ? Math.round((totalAppointmentsBoth * 0.35 / totalLeadsBoth) * 100) : 0,
-      direct: totalLeadsBoth > 0 ? Math.round((totalAppointmentsBoth * 0.25 / totalLeadsBoth) * 100) : 0
+      digital: totalLeadsSelected > 0 ? Math.round((totalAppointmentsSelected * 0.4 / totalLeadsSelected) * 100) : 0,
+      professional: totalLeadsSelected > 0 ? Math.round((totalAppointmentsSelected * 0.35 / totalLeadsSelected) * 100) : 0,
+      direct: totalLeadsSelected > 0 ? Math.round((totalAppointmentsSelected * 0.25 / totalLeadsSelected) * 100) : 0
     };
     
     return {
@@ -320,10 +345,10 @@ export default function Dashboard() {
       conversionRates,
         trends: { 
           weekly: [
-            { week: 'Week 1', patients: Math.floor(totalPatientsBoth * 0.2), appointments: Math.floor(totalAppointmentsBoth * 0.2) },
-            { week: 'Week 2', patients: Math.floor(totalPatientsBoth * 0.25), appointments: Math.floor(totalAppointmentsBoth * 0.25) },
-            { week: 'Week 3', patients: Math.floor(totalPatientsBoth * 0.3), appointments: Math.floor(totalAppointmentsBoth * 0.3) },
-            { week: 'Week 4', patients: Math.floor(totalPatientsBoth * 0.25), appointments: Math.floor(totalAppointmentsBoth * 0.25) }
+            { week: 'Week 1', patients: Math.floor(totalPatientsSelected * 0.2), appointments: Math.floor(totalAppointmentsSelected * 0.2) },
+            { week: 'Week 2', patients: Math.floor(totalPatientsSelected * 0.25), appointments: Math.floor(totalAppointmentsSelected * 0.25) },
+            { week: 'Week 3', patients: Math.floor(totalPatientsSelected * 0.3), appointments: Math.floor(totalAppointmentsSelected * 0.3) },
+            { week: 'Week 4', patients: Math.floor(totalPatientsSelected * 0.25), appointments: Math.floor(totalAppointmentsSelected * 0.25) }
           ] 
         },
       patients: filteredPatients.length,

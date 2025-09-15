@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompactDateInput } from "@/components/ui/compact-date-input";
+import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -242,24 +243,26 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              Location
+              Locations
             </Label>
-            <Select
-              value={period.locationId}
-              onValueChange={(value) => onUpdatePeriod(period.id, { locationId: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id.toString()}>
-                    {location.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiLocationSelector
+              locations={locations.map(loc => ({
+                id: loc.id.toString(),
+                name: loc.name,
+                isActive: loc.isActive
+              }))}
+              selectedLocationIds={period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all')}
+              onSelectionChange={(locationIds) => {
+                const primaryLocationId = locationIds.length === 1 ? locationIds[0] : 
+                                        locationIds.length === 0 ? 'all' : 
+                                        locationIds.length === locations.length ? 'all' : locationIds[0];
+                onUpdatePeriod(period.id, { 
+                  locationIds,
+                  locationId: primaryLocationId // Keep for backward compatibility
+                });
+              }}
+              placeholder="Select locations"
+            />
           </div>
 
           {/* Empty State Message - Enhanced for Period A */}

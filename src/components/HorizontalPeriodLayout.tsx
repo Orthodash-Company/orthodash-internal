@@ -289,7 +289,7 @@ export function HorizontalPeriodLayout({
       {/* Scroll Indicators - Mobile Only */}
       <div className="lg:hidden mt-4 flex justify-center">
         <div className="flex gap-2">
-          {periods.concat([{ id: 'add', name: 'Add', title: 'Add', locationId: '', startDate: new Date(), endDate: new Date() }]).map((_, index) => (
+          {periods.concat([{ id: 'add', name: 'Add', title: 'Add', locationId: '', locationIds: [], startDate: new Date(), endDate: new Date() }]).map((_, index) => (
             <div
               key={index}
               className="w-2 h-2 rounded-full bg-gray-300 transition-colors"
