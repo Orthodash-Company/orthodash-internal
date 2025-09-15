@@ -80,72 +80,70 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
       const acquisitionCostData = await Promise.all(acquisitionCostPromises);
       const allAcquisitionCosts = acquisitionCostData.filter(data => data !== null);
 
-      // Prepare comprehensive data for AI analysis
-      const analysisData = {
-        periods: (periods || []).map((period, index) => ({
-          ...period,
-          data: periodData[index]?.data || null,
-          acquisitionCosts: allAcquisitionCosts[index] || { manual: [], api: [], totals: {} },
-          locationData: {
-            selectedLocationIds: period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all'),
+      // Prepare raw data dump for AI analysis - let ChatGPT create its own context
+      const rawDataDump = {
+        // All periods with their complete data
+        analysisPeriods: (periods || []).map((period, index) => ({
+          periodInfo: {
+            id: period.id,
+            title: period.title,
+            startDate: period.startDate,
+            endDate: period.endDate,
+            locationId: period.locationId,
+            locationIds: period.locationIds,
             selectedLocationNames: (period.locationIds || [period.locationId || 'all'].filter((id: any) => id !== 'all'))
               .map((id: any) => locations.find(loc => loc.id.toString() === id)?.name || 'Unknown Location')
-          }
+          },
+          // Raw filtered data from this period
+          periodData: periodData[index]?.data || null,
+          // Acquisition costs for this period
+          acquisitionCosts: allAcquisitionCosts[index] || { manual: [], api: [], totals: {} }
         })),
-        locations: locations || [],
+        
+        // All available locations
+        allLocations: locations || [],
+        
+        // Complete Greyfinch data
         greyfinchData: greyfinchData || greyfinchAnalytics || {},
-        acquisitionCosts: acquisitionCosts || {},
-        periodQueries: periodData || [],
-        userId: user.id,
-        availableData: {
-          hasPeriods: (periods || []).length > 0,
-          hasGreyfinchData: !!(greyfinchData || greyfinchAnalytics),
-          hasAcquisitionCosts: allAcquisitionCosts.length > 0,
-          hasLocationData: (locations || []).length > 0,
-          hasPeriodQueries: (periodData || []).length > 0,
-          hasComparisons: (periods || []).length > 1 || (locations || []).length > 1,
+        
+        // All period queries (raw data)
+        allPeriodQueries: periodData || [],
+        
+        // Global acquisition costs
+        globalAcquisitionCosts: acquisitionCosts || {},
+        
+        // Data summary for context
+        dataSummary: {
           totalPeriods: (periods || []).length,
           totalLocations: (locations || []).length,
-          totalAcquisitionCosts: allAcquisitionCosts.length,
-          totalPeriodQueries: (periodData || []).length
-        },
-        comparisons: {
-          periodComparisons: (periods || []).length > 1 ? {
-            periods: periods.map((period, index) => ({
-              name: period.title,
-              data: periodData[index]?.data || null,
-              locationIds: period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all'),
-              dateRange: {
-                start: period.startDate,
-                end: period.endDate
-              }
-            }))
-          } : null,
-          locationComparisons: (locations || []).length > 1 ? {
-            locations: locations.map(location => ({
-              id: location.id,
-              name: location.name,
-              data: periodData.map(query => query?.data).filter(Boolean)
-            }))
-          } : null
+          hasGreyfinchData: !!(greyfinchData || greyfinchAnalytics),
+          hasAcquisitionCosts: allAcquisitionCosts.length > 0,
+          hasMultiplePeriods: (periods || []).length > 1,
+          hasMultipleLocations: (locations || []).length > 1,
+          dateRanges: (periods || []).map(p => ({
+            period: p.title,
+            start: p.startDate,
+            end: p.endDate
+          }))
         }
       };
 
-      console.log('Sending comprehensive analysis data to ChatGPT:', {
-        periodsCount: analysisData.periods.length,
-        locationsCount: analysisData.locations.length,
-        hasGreyfinchData: !!analysisData.greyfinchData,
-        hasPeriodQueries: analysisData.periodQueries.length > 0,
-        hasComparisons: !!(analysisData.comparisons.periodComparisons || analysisData.comparisons.locationComparisons),
-        availableData: analysisData.availableData,
-        userId: analysisData.userId,
+      console.log('Sending raw data dump to ChatGPT for analysis:', {
+        periodsCount: rawDataDump.analysisPeriods.length,
+        locationsCount: rawDataDump.allLocations.length,
+        hasGreyfinchData: !!rawDataDump.greyfinchData,
+        hasPeriodQueries: rawDataDump.allPeriodQueries.length > 0,
+        dataSummary: rawDataDump.dataSummary,
+        userId: user.id,
         dataStructure: {
-          periods: analysisData.periods.map(p => ({ name: p.title, hasData: !!p.data, locationCount: p.locationData.selectedLocationIds.length })),
-          locations: analysisData.locations.map(l => ({ name: l.name, id: l.id })),
-          comparisons: {
-            periodComparisons: analysisData.comparisons.periodComparisons ? 'Available' : 'None',
-            locationComparisons: analysisData.comparisons.locationComparisons ? 'Available' : 'None'
-          }
+          periods: rawDataDump.analysisPeriods.map(p => ({ 
+            name: p.periodInfo.title, 
+            hasData: !!p.periodData, 
+            locationCount: p.periodInfo.selectedLocationNames.length,
+            dateRange: `${p.periodInfo.startDate} to ${p.periodInfo.endDate}`
+          })),
+          locations: rawDataDump.allLocations.map(l => ({ name: l.name, id: l.id })),
+          greyfinchDataKeys: Object.keys(rawDataDump.greyfinchData || {})
         }
       });
 
@@ -154,7 +152,10 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(analysisData),
+        body: JSON.stringify({
+          rawDataDump: rawDataDump,
+          userId: user.id
+        }),
       });
 
       if (!response.ok) {
@@ -193,7 +194,7 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
       setSummary(normalizedSummary);
       toast({
         title: "AI Summary Generated",
-        description: `Generated comprehensive analysis using ${analysisData.availableData.totalPeriods} periods, ${analysisData.availableData.totalLocations} locations, ${analysisData.availableData.hasGreyfinchData ? 'Greyfinch data' : 'available data'}, and ${analysisData.availableData.hasComparisons ? 'comparison data' : 'single period data'}.`,
+        description: `Generated comprehensive analysis using ${rawDataDump.dataSummary.totalPeriods} periods, ${rawDataDump.dataSummary.totalLocations} locations, and ${rawDataDump.dataSummary.hasGreyfinchData ? 'complete Greyfinch data' : 'available data'}.`,
       });
     } catch (error) {
       console.error('Error generating AI summary:', error);

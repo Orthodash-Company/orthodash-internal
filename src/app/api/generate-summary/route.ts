@@ -17,13 +17,14 @@ export async function POST(request: NextRequest) {
     console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
     
     const body = await request.json();
-    const { periods, greyfinchData, userId, availableData } = body;
+    const { rawDataDump, userId } = body;
 
     console.log('Generate summary request:', { 
-      periodsCount: periods?.length || 0, 
-      hasGreyfinchData: !!greyfinchData, 
+      periodsCount: rawDataDump?.analysisPeriods?.length || 0, 
+      hasGreyfinchData: !!rawDataDump?.greyfinchData, 
       userId: userId ? 'present' : 'missing',
-      availableData
+      locationsCount: rawDataDump?.allLocations?.length || 0,
+      dataSummary: rawDataDump?.dataSummary
     });
 
     if (!userId) {
@@ -36,47 +37,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate KPIs from available data
-    const kpis = calculateKPIs(periods || [], greyfinchData || {});
+    const kpis = calculateKPIs(rawDataDump?.analysisPeriods || [], rawDataDump?.greyfinchData || {});
 
-    // Prepare data for AI analysis
-    const analysisData = {
-      periods: periods || [],
-      greyfinchData: greyfinchData || {},
+    console.log('Raw data dump prepared for AI analysis:', {
+      periodsCount: rawDataDump?.analysisPeriods?.length || 0,
+      locationsCount: rawDataDump?.allLocations?.length || 0,
       kpis: kpis,
-      acquisitionCosts: extractAcquisitionCosts(periods || []),
-      availableData: availableData || {}
-    };
-
-    console.log('Analysis data prepared:', {
-      periodsCount: analysisData.periods.length,
-      kpis: kpis,
-      acquisitionCostsCount: analysisData.acquisitionCosts.length,
-      availableData: analysisData.availableData
+      dataSummary: rawDataDump?.dataSummary
     });
 
     // Create a dynamic prompt based on available data
     let dataDescription = '';
-    if (analysisData.availableData.hasPeriods) {
-      dataDescription += `- ${analysisData.availableData.totalPeriods} analysis periods with date ranges\n`;
+    if (rawDataDump?.dataSummary?.hasMultiplePeriods) {
+      dataDescription += `- ${rawDataDump.dataSummary.totalPeriods} analysis periods with date ranges\n`;
     }
-    if (analysisData.availableData.hasGreyfinchData) {
-      dataDescription += `- Greyfinch practice management data (patients, appointments, leads, locations)\n`;
+    if (rawDataDump?.dataSummary?.hasMultipleLocations) {
+      dataDescription += `- ${rawDataDump.dataSummary.totalLocations} practice locations with location-specific data\n`;
     }
-    if (analysisData.availableData.hasAcquisitionCosts) {
-      dataDescription += `- Acquisition cost data from ${analysisData.availableData.totalAcquisitionCosts} sources\n`;
+    if (rawDataDump?.dataSummary?.hasGreyfinchData) {
+      dataDescription += `- Complete Greyfinch practice management data (patients, appointments, leads, locations)\n`;
+    }
+    if (rawDataDump?.dataSummary?.hasAcquisitionCosts) {
+      dataDescription += `- Acquisition cost data from multiple sources\n`;
     }
     if (!dataDescription) {
       dataDescription = '- Basic practice information (no specific data available yet)';
     }
 
     const prompt = `
-You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Analyze the following data and provide comprehensive insights with national benchmarking and marketing spend optimization strategies.
+You are an expert orthodontic practice analyst specializing in marketing analytics, patient acquisition, and practice optimization. Analyze the following raw data dump and provide comprehensive insights with national benchmarking and marketing spend optimization strategies.
 
 AVAILABLE DATA:
 ${dataDescription}
 
-PRACTICE DATA:
-${JSON.stringify(analysisData, null, 2)}
+RAW PRACTICE DATA DUMP:
+${JSON.stringify(rawDataDump, null, 2)}
 
 Please provide a comprehensive analysis in the following JSON format:
 
@@ -124,7 +119,7 @@ Please provide a comprehensive analysis in the following JSON format:
     "conversionRate": ${kpis.conversionRate}
   },
   
-  "acquisitionCosts": ${JSON.stringify(analysisData.acquisitionCosts)},
+  "acquisitionCosts": ${JSON.stringify(rawDataDump?.analysisPeriods?.map((p: any) => p.acquisitionCosts) || [])},
   
   "dataRecommendations": [
     "DATA RECOMMENDATION 1: Specific data to collect for better analysis",
@@ -207,7 +202,7 @@ IMPORTANT GUIDELINES:
         },
         strategicRecommendations: ["Review the generated summary for specific recommendations"],
         kpis: kpis,
-        acquisitionCosts: analysisData.acquisitionCosts,
+        acquisitionCosts: rawDataDump?.analysisPeriods?.map((p: any) => p.acquisitionCosts) || [],
         dataRecommendations: ["Consider collecting more data for better analysis"]
       };
     }
@@ -223,7 +218,7 @@ IMPORTANT GUIDELINES:
   }
 }
 
-function calculateKPIs(periods: any[], greyfinchData: any) {
+function calculateKPIs(analysisPeriods: any[], greyfinchData: any) {
   // Default values
   let totalAcquisitionCost = 0;
   let totalRevenue = 0;
@@ -231,8 +226,8 @@ function calculateKPIs(periods: any[], greyfinchData: any) {
   let totalLeads = 0;
 
   // Calculate from acquisition costs
-  if (periods && periods.length > 0) {
-    periods.forEach(period => {
+  if (analysisPeriods && analysisPeriods.length > 0) {
+    analysisPeriods.forEach(period => {
       if (period.acquisitionCosts) {
         // Manual costs
         if (period.acquisitionCosts.manual) {
@@ -295,11 +290,11 @@ function calculateKPIs(periods: any[], greyfinchData: any) {
   };
 }
 
-function extractAcquisitionCosts(periods: any[]) {
+function extractAcquisitionCosts(analysisPeriods: any[]) {
   const costs: any[] = [];
   
-  if (periods && periods.length > 0) {
-    periods.forEach(period => {
+  if (analysisPeriods && analysisPeriods.length > 0) {
+    analysisPeriods.forEach(period => {
       if (period.acquisitionCosts) {
         // Manual costs
         if (period.acquisitionCosts.manual) {
@@ -307,7 +302,7 @@ function extractAcquisitionCosts(periods: any[]) {
             costs.push({
               source: cost.referralType || 'Manual',
               cost: cost.cost,
-              period: period.startDate ? new Date(period.startDate).toLocaleDateString() : 'Unknown'
+              period: period.periodInfo?.startDate ? new Date(period.periodInfo.startDate).toLocaleDateString() : 'Unknown'
             });
           });
         }
@@ -317,7 +312,7 @@ function extractAcquisitionCosts(periods: any[]) {
             costs.push({
               source: cost.platform || 'API',
               cost: cost.spend,
-              period: period.startDate ? new Date(period.startDate).toLocaleDateString() : 'Unknown'
+              period: period.periodInfo?.startDate ? new Date(period.periodInfo.startDate).toLocaleDateString() : 'Unknown'
             });
           });
         }
