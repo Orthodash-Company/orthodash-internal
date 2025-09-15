@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { CompactDateInput } from "@/components/ui/compact-date-input";
+import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { DataVisualizationModal } from "./DataVisualizationModal";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "./CompactCostManager";
@@ -255,7 +256,24 @@ export function HorizontalFixedColumnLayout({
                     
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="h-4 w-4" />
-                      <span>{location?.name || 'All Locations'}</span>
+                      <button
+                        onClick={() => {
+                          // Toggle edit mode for this period to show location selector
+                          setEditingPeriods(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(period.id)) {
+                              newSet.delete(period.id);
+                            } else {
+                              newSet.add(period.id);
+                            }
+                            return newSet;
+                          });
+                        }}
+                        className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                        title="Click to select locations"
+                      >
+                        {location?.name || 'All Locations'}
+                      </button>
                     </div>
                   </div>
                 </CardHeader>
@@ -285,21 +303,46 @@ export function HorizontalFixedColumnLayout({
                             />
                           </div>
                         </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingPeriods(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(period.id);
-                                return newSet;
-                              });
-                            }}
-                            className="text-blue-700 border-blue-300 hover:bg-blue-100"
-                          >
-                            Done
-                          </Button>
+                        <div className="space-y-3">
+                          {/* Location Selection */}
+                          <div>
+                            <Label className="text-sm font-medium text-blue-800">Select Locations</Label>
+                            <MultiLocationSelector
+                              locations={locations.map(loc => ({
+                                id: loc.id.toString(),
+                                name: loc.name,
+                                isActive: loc.isActive
+                              }))}
+                              selectedLocationIds={period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all')}
+                              onSelectionChange={(locationIds) => {
+                                const primaryLocationId = locationIds.length === 1 ? locationIds[0] : 
+                                                        locationIds.length === 0 ? 'all' : 
+                                                        locationIds.length === locations.length ? 'all' : locationIds[0];
+                                onUpdatePeriod(period.id, { 
+                                  locationIds,
+                                  locationId: primaryLocationId // Keep for backward compatibility
+                                });
+                              }}
+                              placeholder="Select locations"
+                            />
+                          </div>
+                          
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingPeriods(prev => {
+                                  const newSet = new Set(prev);
+                                  newSet.delete(period.id);
+                                  return newSet;
+                                });
+                              }}
+                              className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                            >
+                              Done
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}

@@ -800,7 +800,13 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AISummaryGenerator periods={periods} periodData={{}} />
+              <AISummaryGenerator 
+                periods={periods} 
+                periodData={periodQueries}
+                locations={locations}
+                greyfinchData={greyfinchData}
+                acquisitionCosts={acquisitionCosts}
+              />
             </CardContent>
           </Card>
 
