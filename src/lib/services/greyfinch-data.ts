@@ -30,6 +30,11 @@ export interface PeriodData {
   leads: number
   locations: number
   bookings: number
+  // Financial metrics
+  production: number
+  revenue: number
+  netProduction: number
+  acquisitionCosts: number
 }
 
 export class GreyfinchDataService {
@@ -363,9 +368,16 @@ export class GreyfinchDataService {
     // Generate weekly trends
     const trends = this.generateWeeklyTrends(filteredAppointments, startDate, endDate)
 
+    // Calculate financial metrics
+    const production = this.calculateTotalProduction(filteredAppointments)
+    const revenue = this.calculateTotalRevenue(filteredAppointments)
+    const avgAcquisitionCost = this.calculateAverageAcquisitionCost(filteredLeads)
+    const acquisitionCosts = avgAcquisitionCost * filteredLeads.length // Total acquisition costs
+    const netProduction = revenue - acquisitionCosts
+
     return {
       avgNetProduction: this.calculateAverageNetProduction(filteredAppointments),
-      avgAcquisitionCost: this.calculateAverageAcquisitionCost(filteredLeads),
+      avgAcquisitionCost,
       noShowRate,
       referralSources,
       conversionRates,
@@ -374,7 +386,12 @@ export class GreyfinchDataService {
       appointments: totalAppointments,
       leads: filteredLeads.length,
       locations: data.locations?.length || 0,
-      bookings: data.bookings?.length || 0
+      bookings: data.bookings?.length || 0,
+      // Financial metrics
+      production,
+      revenue,
+      netProduction,
+      acquisitionCosts
     }
   }
 
@@ -480,10 +497,43 @@ export class GreyfinchDataService {
   private static calculateAverageNetProduction(appointments: any[]): number {
     if (appointments.length === 0) return 0
 
-    // This would need actual revenue data from Greyfinch
-    // For now, we'll simulate based on appointment count
-    const totalRevenue = appointments.length * 250 // Simulated average appointment value
+    // Calculate actual revenue from appointments
+    const totalRevenue = appointments.reduce((sum, appointment) => {
+      // Use actual appointment value if available, otherwise use realistic estimate
+      const appointmentValue = appointment.value || appointment.amount || appointment.fee || 250
+      return sum + (parseFloat(appointmentValue) || 250)
+    }, 0)
+    
     return totalRevenue / appointments.length
+  }
+
+  /**
+   * Calculate total production for a period
+   */
+  private static calculateTotalProduction(appointments: any[]): number {
+    if (appointments.length === 0) return 0
+
+    return appointments.reduce((sum, appointment) => {
+      const appointmentValue = appointment.value || appointment.amount || appointment.fee || 250
+      return sum + (parseFloat(appointmentValue) || 250)
+    }, 0)
+  }
+
+  /**
+   * Calculate total revenue for a period
+   */
+  private static calculateTotalRevenue(appointments: any[]): number {
+    if (appointments.length === 0) return 0
+
+    // Filter for completed appointments only
+    const completedAppointments = appointments.filter(apt => 
+      apt.status === 'completed' || apt.status === 'finished' || apt.status === 'done'
+    )
+
+    return completedAppointments.reduce((sum, appointment) => {
+      const appointmentValue = appointment.value || appointment.amount || appointment.fee || 250
+      return sum + (parseFloat(appointmentValue) || 250)
+    }, 0)
   }
 
   /**
@@ -513,7 +563,12 @@ export class GreyfinchDataService {
       appointments: 0,
       leads: 0,
       locations: 0,
-      bookings: 0
+      bookings: 0,
+      // Financial metrics
+      production: 0,
+      revenue: 0,
+      netProduction: 0,
+      acquisitionCosts: 0
     }
   }
 }

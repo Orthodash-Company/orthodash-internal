@@ -172,8 +172,13 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
     revenue: 0,
     production: 0,
     netProduction: 0,
-    acquisitionCosts: totalCosts
+    acquisitionCosts: 0
   };
+
+  // Calculate actual net production using real revenue and user-added acquisition costs
+  const actualRevenue = safeData.revenue || 0;
+  const actualProduction = safeData.production || 0;
+  const actualNetProduction = actualRevenue - totalCosts;
   
   const pieData = [
     { x: 'Digital', y: safeData.referralSources.digital, text: `${safeData.referralSources.digital}%` },
@@ -300,7 +305,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-600">Net Production</p>
-                <p className="text-lg font-semibold">${safeData.netProduction.toLocaleString()}</p>
+                <p className="text-lg font-semibold">${actualNetProduction.toLocaleString()}</p>
               </div>
               <DollarSign className="h-8 w-8 text-[#1d1d52]" />
             </div>
@@ -323,11 +328,11 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Total Production:</span>
-              <span className="font-medium">${safeData.production.toLocaleString()}</span>
+              <span className="font-medium">${actualProduction.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Total Revenue:</span>
-              <span className="font-medium">${safeData.revenue.toLocaleString()}</span>
+              <span className="font-medium">${actualRevenue.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Acquisition Costs:</span>
@@ -336,8 +341,8 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <Separator />
             <div className="flex justify-between text-sm font-semibold">
               <span>Net Production:</span>
-              <span className={`${safeData.netProduction >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ${safeData.netProduction.toLocaleString()}
+              <span className={`${actualNetProduction >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                ${actualNetProduction.toLocaleString()}
               </span>
             </div>
           </div>
