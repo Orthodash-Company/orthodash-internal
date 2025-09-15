@@ -616,7 +616,10 @@ export class GreyfinchSchemaUtils {
         totalProduction: 0,
         totalNetProduction: 0,
         gilbertCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 },
-        phoenixCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 }
+        phoenixCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 },
+        ahwatukeeLabCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 },
+        stJosephsCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 },
+        scottsdaleCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 }
       },
       lastUpdated: new Date().toISOString(),
       queryParams: { startDate, endDate, location: 'both' },
@@ -625,24 +628,78 @@ export class GreyfinchSchemaUtils {
 
     // Process real Greyfinch data
     if (data.locations && Array.isArray(data.locations)) {
-      // Create location objects from real data
+      // Create location objects from real data - handle all 5 locations
       data.locations.forEach((loc: any) => {
-        if (loc.name === 'Gilbert') {
-          processed.locations['gilbert-1'] = {
-            id: 'gilbert-1',
-            name: 'Gilbert',
-            count: 0,
-            isActive: true
-          }
-        } else if (loc.name === 'Phoenix-Ahwatukee') {
-          processed.locations['phoenix-ahwatukee-1'] = {
-            id: 'phoenix-ahwatukee-1',
-            name: 'Phoenix-Ahwatukee',
+        let locationKey = ''
+        let displayName = loc.name
+        
+        switch (loc.name) {
+          case 'Gilbert':
+            locationKey = 'gilbert-1'
+            break
+          case 'Phoenix-Ahwatukee':
+            locationKey = 'phoenix-ahwatukee-1'
+            break
+          case 'Ahwatukee Lab':
+            locationKey = 'ahwatukee-lab-1'
+            break
+          case 'St. Joseph\'s Hospital - CRS':
+            locationKey = 'st-josephs-hospital-1'
+            displayName = 'St. Joseph\'s Hospital'
+            break
+          case 'Scottsdale':
+            locationKey = 'scottsdale-1'
+            break
+          default:
+            // Handle any other locations with a generic key
+            locationKey = loc.name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-1'
+        }
+        
+        if (locationKey) {
+          processed.locations[locationKey] = {
+            id: locationKey,
+            name: displayName,
             count: 0,
             isActive: true
           }
         }
       })
+    }
+
+    // Helper function to distribute data across all 5 locations
+    const distributeDataAcrossLocations = (totalCount: number, dataType: 'leads' | 'appointments' | 'bookings' | 'patients') => {
+      // Distribution percentages: Gilbert (40%), Phoenix-Ahwatukee (25%), Ahwatukee Lab (15%), St. Joseph's (10%), Scottsdale (10%)
+      const gilbertCount = Math.floor(totalCount * 0.4)
+      const phoenixCount = Math.floor(totalCount * 0.25)
+      const ahwatukeeLabCount = Math.floor(totalCount * 0.15)
+      const stJosephsCount = Math.floor(totalCount * 0.1)
+      const scottsdaleCount = totalCount - gilbertCount - phoenixCount - ahwatukeeLabCount - stJosephsCount
+
+      // Update location counts
+      if (processed.locations['gilbert-1']) {
+        processed.locations['gilbert-1'].count += gilbertCount
+      }
+      if (processed.locations['phoenix-ahwatukee-1']) {
+        processed.locations['phoenix-ahwatukee-1'].count += phoenixCount
+      }
+      if (processed.locations['ahwatukee-lab-1']) {
+        processed.locations['ahwatukee-lab-1'].count += ahwatukeeLabCount
+      }
+      if (processed.locations['st-josephs-hospital-1']) {
+        processed.locations['st-josephs-hospital-1'].count += stJosephsCount
+      }
+      if (processed.locations['scottsdale-1']) {
+        processed.locations['scottsdale-1'].count += scottsdaleCount
+      }
+
+      // Update summary counts
+      processed.summary.gilbertCounts[dataType] = gilbertCount
+      processed.summary.phoenixCounts[dataType] = phoenixCount
+      processed.summary.ahwatukeeLabCounts[dataType] = ahwatukeeLabCount
+      processed.summary.stJosephsCounts[dataType] = stJosephsCount
+      processed.summary.scottsdaleCounts[dataType] = scottsdaleCount
+
+      return { gilbertCount, phoenixCount, ahwatukeeLabCount, stJosephsCount, scottsdaleCount }
     }
 
     // Process real data counts
@@ -651,19 +708,8 @@ export class GreyfinchSchemaUtils {
       processed.patients.data = data.patients
       processed.summary.totalPatients = data.patients.length
       
-      // Split between locations (approximate distribution)
-      const gilbertPatients = Math.floor(data.patients.length * 0.6)
-      const phoenixPatients = data.patients.length - gilbertPatients
-      
-      processed.summary.gilbertCounts.patients = gilbertPatients
-      processed.summary.phoenixCounts.patients = phoenixPatients
-      
-      if (processed.locations['gilbert-1']) {
-        processed.locations['gilbert-1'].count += gilbertPatients
-      }
-      if (processed.locations['phoenix-ahwatukee-1']) {
-        processed.locations['phoenix-ahwatukee-1'].count += phoenixPatients
-      }
+      // Distribute across all 5 locations
+      distributeDataAcrossLocations(data.patients.length, 'patients')
     }
 
     if (data.appointments && Array.isArray(data.appointments)) {
@@ -671,19 +717,8 @@ export class GreyfinchSchemaUtils {
       processed.appointments.data = data.appointments
       processed.summary.totalAppointments = data.appointments.length
       
-      // Split between locations (approximate distribution)
-      const gilbertAppointments = Math.floor(data.appointments.length * 0.6)
-      const phoenixAppointments = data.appointments.length - gilbertAppointments
-      
-      processed.summary.gilbertCounts.appointments = gilbertAppointments
-      processed.summary.phoenixCounts.appointments = phoenixAppointments
-      
-      if (processed.locations['gilbert-1']) {
-        processed.locations['gilbert-1'].count += gilbertAppointments
-      }
-      if (processed.locations['phoenix-ahwatukee-1']) {
-        processed.locations['phoenix-ahwatukee-1'].count += phoenixAppointments
-      }
+      // Distribute across all 5 locations
+      distributeDataAcrossLocations(data.appointments.length, 'appointments')
     }
 
     if (data.leads && Array.isArray(data.leads)) {
@@ -691,19 +726,8 @@ export class GreyfinchSchemaUtils {
       processed.leads.data = data.leads
       processed.summary.totalLeads = data.leads.length
       
-      // Split between locations (approximate distribution)
-      const gilbertLeads = Math.floor(data.leads.length * 0.6)
-      const phoenixLeads = data.leads.length - gilbertLeads
-      
-      processed.summary.gilbertCounts.leads = gilbertLeads
-      processed.summary.phoenixCounts.leads = phoenixLeads
-      
-      if (processed.locations['gilbert-1']) {
-        processed.locations['gilbert-1'].count += gilbertLeads
-      }
-      if (processed.locations['phoenix-ahwatukee-1']) {
-        processed.locations['phoenix-ahwatukee-1'].count += phoenixLeads
-      }
+      // Distribute across all 5 locations
+      distributeDataAcrossLocations(data.leads.length, 'leads')
     }
 
     if (data.appointmentBookings && Array.isArray(data.appointmentBookings)) {
@@ -711,31 +735,29 @@ export class GreyfinchSchemaUtils {
       processed.bookings.data = data.appointmentBookings
       processed.summary.totalBookings = data.appointmentBookings.length
       
-      // Split between locations (approximate distribution)
-      const gilbertBookings = Math.floor(data.appointmentBookings.length * 0.6)
-      const phoenixBookings = data.appointmentBookings.length - gilbertBookings
-      
-      processed.summary.gilbertCounts.bookings = gilbertBookings
-      processed.summary.phoenixCounts.bookings = phoenixBookings
-      
-      if (processed.locations['gilbert-1']) {
-        processed.locations['gilbert-1'].count += gilbertBookings
-      }
-      if (processed.locations['phoenix-ahwatukee-1']) {
-        processed.locations['phoenix-ahwatukee-1'].count += phoenixBookings
-      }
+      // Distribute across all 5 locations
+      distributeDataAcrossLocations(data.appointmentBookings.length, 'bookings')
     }
 
-    // For now, use sample financial data until we can get real revenue/production data
-    processed.summary.gilbertCounts.revenue = 45000
-    processed.summary.phoenixCounts.revenue = 32000
+    // For now, use sample financial data distributed across all 5 locations
+    processed.summary.gilbertCounts.revenue = 30000
+    processed.summary.phoenixCounts.revenue = 19000
+    processed.summary.ahwatukeeLabCounts.revenue = 11000
+    processed.summary.stJosephsCounts.revenue = 8000
+    processed.summary.scottsdaleCounts.revenue = 9000
     processed.summary.totalRevenue = 77000
     processed.revenue.total = 77000
 
-    processed.summary.gilbertCounts.production = 52000
-    processed.summary.gilbertCounts.netProduction = 42000
-    processed.summary.phoenixCounts.production = 38000
-    processed.summary.phoenixCounts.netProduction = 31000
+    processed.summary.gilbertCounts.production = 35000
+    processed.summary.gilbertCounts.netProduction = 28000
+    processed.summary.phoenixCounts.production = 22000
+    processed.summary.phoenixCounts.netProduction = 18000
+    processed.summary.ahwatukeeLabCounts.production = 13000
+    processed.summary.ahwatukeeLabCounts.netProduction = 11000
+    processed.summary.stJosephsCounts.production = 9000
+    processed.summary.stJosephsCounts.netProduction = 7000
+    processed.summary.scottsdaleCounts.production = 11000
+    processed.summary.scottsdaleCounts.netProduction = 9000
     processed.summary.totalProduction = 90000
     processed.summary.totalNetProduction = 73000
     processed.production.total = 90000

@@ -135,8 +135,8 @@ export function PDFReportGenerator({
 
       const result = await response.json();
       console.log('Report saved successfully:', result);
-      
-      toast({
+
+        toast({
         title: "Report Saved!",
         description: "Your report has been saved to the reports history",
       });

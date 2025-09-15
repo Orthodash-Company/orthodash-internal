@@ -106,7 +106,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
         if (data.data) {
           const newCounts = {
             patients: data.data.patients?.count || 0,
-            locations: 2, // Gilbert and Phoenix-Ahwatukee locations
+            locations: Object.keys(data.data.locations || {}).length, // All available locations
             appointments: data.data.appointments?.count || 0,
             leads: data.data.leads?.count || 0
           }

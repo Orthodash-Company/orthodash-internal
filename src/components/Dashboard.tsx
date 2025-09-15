@@ -169,7 +169,7 @@ export default function Dashboard() {
           // Convert the locations object to an array
           Object.values(data.data.locations).forEach((location: any) => {
             locationArray.push({
-              id: parseInt(location.id) || Date.now(),
+              id: location.id, // Keep as string ID
               name: location.name,
               greyfinchId: location.id
             })
@@ -293,8 +293,11 @@ export default function Dashboard() {
     const totalBookings = filteredBookings.length;
     
     // Calculate realistic referral sources based on actual data from selected locations
-    const gilbertData = data.gilbertCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
-    const phoenixData = data.phoenixCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
+    const gilbertData = data.gilbertCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0, revenue: 0, production: 0, netProduction: 0 };
+    const phoenixData = data.phoenixCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0, revenue: 0, production: 0, netProduction: 0 };
+    const ahwatukeeLabData = data.ahwatukeeLabCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0, revenue: 0, production: 0, netProduction: 0 };
+    const stJosephsData = data.stJosephsCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0, revenue: 0, production: 0, netProduction: 0 };
+    const scottsdaleData = data.scottsdaleCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0, revenue: 0, production: 0, netProduction: 0 };
     
         // Calculate totals based on selected locations
         let totalPatientsSelected = 0;
@@ -307,13 +310,13 @@ export default function Dashboard() {
         
         if (selectedLocationIds.length === 0) {
           // All locations selected
-          totalPatientsSelected = gilbertData.patients + phoenixData.patients;
-          totalLeadsSelected = gilbertData.leads + phoenixData.leads;
-          totalAppointmentsSelected = gilbertData.appointments + phoenixData.appointments;
-          totalBookingsSelected = gilbertData.bookings + phoenixData.bookings;
-          totalRevenueSelected = gilbertData.revenue + phoenixData.revenue;
-          totalProductionSelected = gilbertData.production + phoenixData.production;
-          totalNetProductionSelected = gilbertData.netProduction + phoenixData.netProduction;
+          totalPatientsSelected = gilbertData.patients + phoenixData.patients + ahwatukeeLabData.patients + stJosephsData.patients + scottsdaleData.patients;
+          totalLeadsSelected = gilbertData.leads + phoenixData.leads + ahwatukeeLabData.leads + stJosephsData.leads + scottsdaleData.leads;
+          totalAppointmentsSelected = gilbertData.appointments + phoenixData.appointments + ahwatukeeLabData.appointments + stJosephsData.appointments + scottsdaleData.appointments;
+          totalBookingsSelected = gilbertData.bookings + phoenixData.bookings + ahwatukeeLabData.bookings + stJosephsData.bookings + scottsdaleData.bookings;
+          totalRevenueSelected = gilbertData.revenue + phoenixData.revenue + ahwatukeeLabData.revenue + stJosephsData.revenue + scottsdaleData.revenue;
+          totalProductionSelected = gilbertData.production + phoenixData.production + ahwatukeeLabData.production + stJosephsData.production + scottsdaleData.production;
+          totalNetProductionSelected = gilbertData.netProduction + phoenixData.netProduction + ahwatukeeLabData.netProduction + stJosephsData.netProduction + scottsdaleData.netProduction;
         } else {
           // Specific locations selected
           if (selectedLocationIds.includes('gilbert-1')) {
@@ -333,6 +336,33 @@ export default function Dashboard() {
             totalRevenueSelected += phoenixData.revenue;
             totalProductionSelected += phoenixData.production;
             totalNetProductionSelected += phoenixData.netProduction;
+          }
+          if (selectedLocationIds.includes('ahwatukee-lab-1')) {
+            totalPatientsSelected += ahwatukeeLabData.patients;
+            totalLeadsSelected += ahwatukeeLabData.leads;
+            totalAppointmentsSelected += ahwatukeeLabData.appointments;
+            totalBookingsSelected += ahwatukeeLabData.bookings;
+            totalRevenueSelected += ahwatukeeLabData.revenue;
+            totalProductionSelected += ahwatukeeLabData.production;
+            totalNetProductionSelected += ahwatukeeLabData.netProduction;
+          }
+          if (selectedLocationIds.includes('st-josephs-hospital-1')) {
+            totalPatientsSelected += stJosephsData.patients;
+            totalLeadsSelected += stJosephsData.leads;
+            totalAppointmentsSelected += stJosephsData.appointments;
+            totalBookingsSelected += stJosephsData.bookings;
+            totalRevenueSelected += stJosephsData.revenue;
+            totalProductionSelected += stJosephsData.production;
+            totalNetProductionSelected += stJosephsData.netProduction;
+          }
+          if (selectedLocationIds.includes('scottsdale-1')) {
+            totalPatientsSelected += scottsdaleData.patients;
+            totalLeadsSelected += scottsdaleData.leads;
+            totalAppointmentsSelected += scottsdaleData.appointments;
+            totalBookingsSelected += scottsdaleData.bookings;
+            totalRevenueSelected += scottsdaleData.revenue;
+            totalProductionSelected += scottsdaleData.production;
+            totalNetProductionSelected += scottsdaleData.netProduction;
           }
         }
     
