@@ -296,33 +296,45 @@ export default function Dashboard() {
     const gilbertData = data.gilbertCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
     const phoenixData = data.phoenixCounts || { patients: 0, leads: 0, appointments: 0, bookings: 0 };
     
-    // Calculate totals based on selected locations
-    let totalPatientsSelected = 0;
-    let totalLeadsSelected = 0;
-    let totalAppointmentsSelected = 0;
-    let totalBookingsSelected = 0;
-    
-    if (selectedLocationIds.length === 0) {
-      // All locations selected
-      totalPatientsSelected = gilbertData.patients + phoenixData.patients;
-      totalLeadsSelected = gilbertData.leads + phoenixData.leads;
-      totalAppointmentsSelected = gilbertData.appointments + phoenixData.appointments;
-      totalBookingsSelected = gilbertData.bookings + phoenixData.bookings;
-    } else {
-      // Specific locations selected
-      if (selectedLocationIds.includes('gilbert-1')) {
-        totalPatientsSelected += gilbertData.patients;
-        totalLeadsSelected += gilbertData.leads;
-        totalAppointmentsSelected += gilbertData.appointments;
-        totalBookingsSelected += gilbertData.bookings;
-      }
-      if (selectedLocationIds.includes('phoenix-ahwatukee-1')) {
-        totalPatientsSelected += phoenixData.patients;
-        totalLeadsSelected += phoenixData.leads;
-        totalAppointmentsSelected += phoenixData.appointments;
-        totalBookingsSelected += phoenixData.bookings;
-      }
-    }
+        // Calculate totals based on selected locations
+        let totalPatientsSelected = 0;
+        let totalLeadsSelected = 0;
+        let totalAppointmentsSelected = 0;
+        let totalBookingsSelected = 0;
+        let totalRevenueSelected = 0;
+        let totalProductionSelected = 0;
+        let totalNetProductionSelected = 0;
+        
+        if (selectedLocationIds.length === 0) {
+          // All locations selected
+          totalPatientsSelected = gilbertData.patients + phoenixData.patients;
+          totalLeadsSelected = gilbertData.leads + phoenixData.leads;
+          totalAppointmentsSelected = gilbertData.appointments + phoenixData.appointments;
+          totalBookingsSelected = gilbertData.bookings + phoenixData.bookings;
+          totalRevenueSelected = gilbertData.revenue + phoenixData.revenue;
+          totalProductionSelected = gilbertData.production + phoenixData.production;
+          totalNetProductionSelected = gilbertData.netProduction + phoenixData.netProduction;
+        } else {
+          // Specific locations selected
+          if (selectedLocationIds.includes('gilbert-1')) {
+            totalPatientsSelected += gilbertData.patients;
+            totalLeadsSelected += gilbertData.leads;
+            totalAppointmentsSelected += gilbertData.appointments;
+            totalBookingsSelected += gilbertData.bookings;
+            totalRevenueSelected += gilbertData.revenue;
+            totalProductionSelected += gilbertData.production;
+            totalNetProductionSelected += gilbertData.netProduction;
+          }
+          if (selectedLocationIds.includes('phoenix-ahwatukee-1')) {
+            totalPatientsSelected += phoenixData.patients;
+            totalLeadsSelected += phoenixData.leads;
+            totalAppointmentsSelected += phoenixData.appointments;
+            totalBookingsSelected += phoenixData.bookings;
+            totalRevenueSelected += phoenixData.revenue;
+            totalProductionSelected += phoenixData.production;
+            totalNetProductionSelected += phoenixData.netProduction;
+          }
+        }
     
     const referralSources = {
       digital: Math.floor((totalLeadsSelected * 0.4) + (totalPatientsSelected * 0.3)),
@@ -345,10 +357,34 @@ export default function Dashboard() {
       conversionRates,
         trends: { 
           weekly: [
-            { week: 'Week 1', patients: Math.floor(totalPatientsSelected * 0.2), appointments: Math.floor(totalAppointmentsSelected * 0.2) },
-            { week: 'Week 2', patients: Math.floor(totalPatientsSelected * 0.25), appointments: Math.floor(totalAppointmentsSelected * 0.25) },
-            { week: 'Week 3', patients: Math.floor(totalPatientsSelected * 0.3), appointments: Math.floor(totalAppointmentsSelected * 0.3) },
-            { week: 'Week 4', patients: Math.floor(totalPatientsSelected * 0.25), appointments: Math.floor(totalAppointmentsSelected * 0.25) }
+            { 
+              week: 'Week 1', 
+              patients: Math.floor(totalPatientsSelected * 0.2), 
+              appointments: Math.floor(totalAppointmentsSelected * 0.2),
+              revenue: Math.floor(totalRevenueSelected * 0.2),
+              production: Math.floor(totalProductionSelected * 0.2)
+            },
+            { 
+              week: 'Week 2', 
+              patients: Math.floor(totalPatientsSelected * 0.25), 
+              appointments: Math.floor(totalAppointmentsSelected * 0.25),
+              revenue: Math.floor(totalRevenueSelected * 0.25),
+              production: Math.floor(totalProductionSelected * 0.25)
+            },
+            { 
+              week: 'Week 3', 
+              patients: Math.floor(totalPatientsSelected * 0.3), 
+              appointments: Math.floor(totalAppointmentsSelected * 0.3),
+              revenue: Math.floor(totalRevenueSelected * 0.3),
+              production: Math.floor(totalProductionSelected * 0.3)
+            },
+            { 
+              week: 'Week 4', 
+              patients: Math.floor(totalPatientsSelected * 0.25), 
+              appointments: Math.floor(totalAppointmentsSelected * 0.25),
+              revenue: Math.floor(totalRevenueSelected * 0.25),
+              production: Math.floor(totalProductionSelected * 0.25)
+            }
           ] 
         },
       patients: filteredPatients.length,
@@ -356,9 +392,9 @@ export default function Dashboard() {
       leads: filteredLeads.length,
       locations: locationCount,
       bookings: filteredBookings.length,
-      revenue: totalRevenue,
-      production: totalProduction,
-      netProduction: totalNetProduction,
+      revenue: totalRevenueSelected,
+      production: totalProductionSelected,
+      netProduction: totalNetProductionSelected,
       acquisitionCosts: 0 // Will be updated by cost management
     };
   };

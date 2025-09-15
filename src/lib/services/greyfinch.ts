@@ -263,41 +263,27 @@ export class GreyfinchService {
     try {
       console.log('Making GraphQL request to Greyfinch...')
       
-      // Try with API key in X-API-Key header
-      let response = await fetch(this.apiUrl, {
+      // Get JWT token if we don't have one
+      if (!this.jwtToken) {
+        console.log('Getting JWT token...')
+        this.jwtToken = await this.getJWTToken()
+        if (!this.jwtToken) {
+          throw new Error('Failed to obtain JWT token')
+        }
+      }
+      
+      // Make request with JWT token
+      const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': this.apiKey,
+          'Authorization': `Bearer ${this.jwtToken}`,
         },
         body: JSON.stringify({
           query,
           variables,
         }),
       })
-
-      // If that fails, try to get JWT token
-      if (!response.ok && response.status === 401) {
-        console.log('API key failed, trying JWT token...')
-        if (!this.jwtToken) {
-          this.jwtToken = await this.getJWTToken()
-          if (!this.jwtToken) {
-            throw new Error('Failed to obtain JWT token')
-          }
-        }
-        
-        response = await fetch(this.apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.jwtToken}`,
-          },
-          body: JSON.stringify({
-            query,
-            variables,
-          }),
-        })
-      }
 
       console.log(`Response status: ${response.status}`)
 

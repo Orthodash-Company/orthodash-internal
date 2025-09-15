@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GreyfinchService } from '@/lib/services/greyfinch'
+import { GreyfinchService, greyfinchService } from '@/lib/services/greyfinch'
 import { GreyfinchSchemaUtils } from '@/lib/services/greyfinch-schema'
 
 export async function GET(request: NextRequest) {
@@ -14,11 +14,46 @@ export async function GET(request: NextRequest) {
     // Get Gilbert-only analytics data
     try {
       console.log('🔍 Fetching Gilbert data...')
-      const result = await GreyfinchSchemaUtils.getAnalyticsData()
+      
+      // Use service directly with working query
+      const query = `
+        query GetAnalyticsData {
+          locations {
+            id
+            name
+          }
+          appointments {
+            id
+          }
+          patients {
+            id
+          }
+          leads {
+            id
+          }
+          appointmentBookings {
+            id
+          }
+        }
+      `
+      
+      // Create a new service instance and update with environment variables
+      const freshService = new GreyfinchService()
+      freshService.updateCredentials(
+        process.env.GREYFINCH_API_KEY || '', 
+        process.env.GREYFINCH_API_SECRET || ''
+      )
+      const result = await freshService.makeGraphQLRequest(query)
       console.log('📊 Gilbert data received:', result)
       
-      // Process the Gilbert data
-      const processedData = GreyfinchSchemaUtils.processDataByLocation(result, startDate, endDate, location)
+      // Check if we have data regardless of success flag
+      if (!result.data && !result.locations && !result.appointments) {
+        throw new Error(result.error || 'Failed to fetch Gilbert data')
+      }
+      
+      // Process the Gilbert data - use result.data if available, otherwise result
+      const dataToProcess = result.data || result
+      const processedData = GreyfinchSchemaUtils.processDataByLocation(dataToProcess, startDate, endDate, location)
       
       // Add metadata
       processedData.lastUpdated = new Date().toISOString()
@@ -76,18 +111,20 @@ export async function GET(request: NextRequest) {
 
       console.log('✅ Gilbert data processed successfully')
       
-      return NextResponse.json({
-        success: true,
+  return NextResponse.json({
+    success: true,
         message: 'Gilbert data retrieved successfully',
         data: processedData
       })
 
     } catch (graphqlError) {
-      console.log('⚠️ Gilbert data fetch failed, using fallback data:', graphqlError)
+      console.error('❌ Gilbert data fetch failed with error:', graphqlError)
+      console.error('❌ Error details:', JSON.stringify(graphqlError, null, 2))
+      console.error('❌ Error stack:', graphqlError instanceof Error ? graphqlError.stack : 'No stack trace')
       
-      // Return Gilbert fallback data with realistic sample counts for testing
+      // Return Gilbert fallback data with realistic sample counts and financial data for testing
       const fallbackData = {
-        locations: {
+      locations: {
           'gilbert-1': { id: 'gilbert-1', name: 'Gilbert', count: 1250, isActive: true },
           'phoenix-ahwatukee-1': { id: 'phoenix-ahwatukee-1', name: 'Phoenix-Ahwatukee', count: 850, isActive: true }
         },
@@ -95,37 +132,54 @@ export async function GET(request: NextRequest) {
           patients: 1250,
           appointments: 89,
           leads: 45,
-          bookings: 67
+          bookings: 67,
+          revenue: 45000, // Sample revenue data
+          production: 52000, // Sample production data
+          netProduction: 42000 // Sample net production data
         },
         phoenixCounts: {
           patients: 850,
           appointments: 62,
           leads: 32,
-          bookings: 45
+          bookings: 45,
+          revenue: 32000, // Sample revenue data
+          production: 38000, // Sample production data
+          netProduction: 31000 // Sample net production data
         },
-        leads: { count: 45, data: [] },
-        appointments: { count: 89, data: [] },
-        bookings: { count: 67, data: [] },
-        patients: { count: 1250, data: [] },
-        revenue: { total: 0, data: [] },
+        leads: { count: 77, data: [] },
+        appointments: { count: 151, data: [] },
+        bookings: { count: 112, data: [] },
+        patients: { count: 2100, data: [] },
+        revenue: { total: 77000, data: [] }, // Combined revenue
+        production: { total: 90000, netProduction: 73000, data: [] }, // Combined production
         summary: {
-          totalLeads: 45,
-          totalAppointments: 89,
-          totalBookings: 67,
-          totalPatients: 1250,
-          totalRevenue: 0,
-          gilbertCounts: { leads: 45, appointments: 89, bookings: 67, patients: 1250, revenue: 0, production: 0, netProduction: 0 },
-          scottsdaleCounts: { leads: 0, appointments: 0, bookings: 0, patients: 0, revenue: 0, production: 0, netProduction: 0 }
+          totalLeads: 77,
+          totalAppointments: 151,
+          totalBookings: 112,
+          totalPatients: 2100,
+          totalRevenue: 77000,
+          totalProduction: 90000,
+          totalNetProduction: 73000,
+          gilbertCounts: { leads: 45, appointments: 89, bookings: 67, patients: 1250, revenue: 45000, production: 52000, netProduction: 42000 },
+          phoenixCounts: { leads: 32, appointments: 62, bookings: 45, patients: 850, revenue: 32000, production: 38000, netProduction: 31000 }
         },
         lastUpdated: new Date().toISOString(),
         queryParams: { startDate, endDate, location },
-        apiStatus: 'Gilbert Fallback Data'
+        apiStatus: 'Both Locations Fallback Data with Financials'
       }
 
       return NextResponse.json({
         success: true,
         message: 'Gilbert data retrieved with fallback',
-        data: fallbackData
+        data: fallbackData,
+        error: graphqlError instanceof Error ? graphqlError.message : String(graphqlError),
+        errorStack: graphqlError instanceof Error ? graphqlError.stack : undefined,
+        debug: {
+          hasApiKey: !!process.env.GREYFINCH_API_KEY,
+          hasApiSecret: !!process.env.GREYFINCH_API_SECRET,
+          apiKeyPrefix: process.env.GREYFINCH_API_KEY?.substring(0, 10) + '...',
+          timestamp: new Date().toISOString()
+        }
       })
     }
 
