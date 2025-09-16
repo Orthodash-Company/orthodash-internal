@@ -80,6 +80,10 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
       const acquisitionCostData = await Promise.all(acquisitionCostPromises);
       const allAcquisitionCosts = acquisitionCostData.filter(data => data !== null);
 
+      // Get location breakdown data from GreyfinchDataService
+      const { GreyfinchDataService } = require('@/lib/services/greyfinch-data');
+      const locationBreakdown = GreyfinchDataService.aggregateDataByLocation(greyfinchData || greyfinchAnalytics);
+
       // Prepare raw data dump for AI analysis - let ChatGPT create its own context
       const rawDataDump = {
         // All periods with their complete data
@@ -106,6 +110,9 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
         // Complete Greyfinch data
         greyfinchData: greyfinchData || greyfinchAnalytics || {},
         
+        // Location breakdown data (aggregated by location)
+        locationBreakdown: locationBreakdown,
+        
         // All period queries (raw data)
         allPeriodQueries: periodData || [],
         
@@ -120,6 +127,7 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
           hasAcquisitionCosts: allAcquisitionCosts.length > 0,
           hasMultiplePeriods: (periods || []).length > 1,
           hasMultipleLocations: (locations || []).length > 1,
+          hasLocationBreakdown: !!(locationBreakdown?.locationBreakdown?.length > 0),
           dateRanges: (periods || []).map(p => ({
             period: p.title,
             start: p.startDate,

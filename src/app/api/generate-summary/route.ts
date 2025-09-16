@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     console.log('Raw data dump prepared for AI analysis:', {
       periodsCount: rawDataDump?.analysisPeriods?.length || 0,
       locationsCount: rawDataDump?.allLocations?.length || 0,
+      hasLocationBreakdown: !!rawDataDump?.locationBreakdown,
       kpis: kpis,
       dataSummary: rawDataDump?.dataSummary
     });
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
     }
     if (rawDataDump?.dataSummary?.hasAcquisitionCosts) {
       dataDescription += `- Acquisition cost data from multiple sources\n`;
+    }
+    if (rawDataDump?.dataSummary?.hasLocationBreakdown) {
+      dataDescription += `- Detailed location breakdown with individual performance metrics\n`;
     }
     if (!dataDescription) {
       dataDescription = '- Basic practice information (no specific data available yet)';
