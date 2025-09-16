@@ -126,8 +126,96 @@ export const GREYFINCH_FIELD_PATTERNS = {
 // Comprehensive GraphQL queries for real data extraction
 // Following Apollo GraphQL best practices with proper field selection and filtering
 export const GREYFINCH_QUERIES = {
-  // Gilbert-only analytics data query with proper field selection
+  // ALL locations analytics data query - fetches data from all 5 locations
   GET_ANALYTICS_DATA: `
+    query GetAllLocationsData {
+      # Get ALL location details
+      locations {
+        id
+        name
+        address
+        isActive
+        createdAt
+        updatedAt
+      }
+      
+      # Get ALL patients from all locations
+      patients {
+        id
+        firstName
+        lastName
+        primaryLocation {
+          id
+          name
+        }
+        createdAt
+        updatedAt
+      }
+      
+      # Get ALL appointments from all locations
+      appointments {
+        id
+        patient {
+          id
+          firstName
+          lastName
+        }
+        location {
+          id
+          name
+        }
+        appointmentType
+        status
+        scheduledDate
+        actualDate
+        duration
+        revenue
+        value
+        amount
+        fee
+        createdAt
+        updatedAt
+      }
+      
+      # Get ALL leads from all locations
+      leads {
+        id
+        firstName
+        lastName
+        email
+        phone
+        source
+        status
+        location {
+          id
+          name
+        }
+        createdAt
+        updatedAt
+      }
+      
+      # Get ALL appointment bookings from all locations
+      appointmentBookings {
+        id
+        appointment {
+          id
+          location {
+            name
+          }
+        }
+        startTime
+        endTime
+        localStartDate
+        localStartTime
+        timezone
+        createdAt
+        updatedAt
+      }
+    }
+  `,
+
+  // Gilbert-only analytics data query with proper field selection (kept for backward compatibility)
+  GET_GILBERT_DATA: `
     query GetGilbertData($locationName: String = "Gilbert") {
       # Get Gilbert location details
       locations(where: { name: { _eq: $locationName } }) {
@@ -211,8 +299,48 @@ export const GREYFINCH_QUERIES = {
     }
   `,
 
-  // Gilbert-only basic counts query with proper aggregation
+  // ALL locations basic counts query with proper aggregation
   GET_BASIC_COUNTS: `
+    query GetAllLocationsBasicCounts {
+      # Get ALL locations
+      locations {
+        id
+        name
+        isActive
+      }
+      
+      # Get patient count for ALL locations
+      patients_aggregate {
+        aggregate {
+          count
+        }
+      }
+      
+      # Get appointment count for ALL locations
+      appointments_aggregate {
+        aggregate {
+          count
+        }
+      }
+      
+      # Get lead count for ALL locations
+      leads_aggregate {
+        aggregate {
+          count
+        }
+      }
+      
+      # Get booking count for ALL locations
+      appointmentBookings_aggregate {
+        aggregate {
+          count
+        }
+      }
+    }
+  `,
+
+  // Gilbert-only basic counts query with proper aggregation (kept for backward compatibility)
+  GET_GILBERT_BASIC_COUNTS: `
     query GetGilbertBasicCounts($locationName: String = "Gilbert") {
       # Get Gilbert location
       locations(where: { name: { _eq: $locationName } }) {

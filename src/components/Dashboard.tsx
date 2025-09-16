@@ -157,25 +157,38 @@ export default function Dashboard() {
       const data = await response.json()
       
       if (data.success) {
-        console.log('✅ Gilbert Greyfinch data loaded:', data.data)
+        console.log('✅ All locations Greyfinch data loaded:', data.data)
         
-        // Update dashboard with Gilbert data
+        // Update dashboard with all locations data
         setGreyfinchData(data.data)
         
-        // Extract and set locations from the data (Gilbert + Phoenix-Ahwatukee)
+        // Extract and set locations from the data (all 5 locations)
         if (data.data && data.data.locations) {
           const locationArray: Location[] = []
           
-          // Convert the locations object to an array
-          Object.values(data.data.locations).forEach((location: any) => {
-            locationArray.push({
-              id: location.id, // Keep as string ID
-              name: location.name,
-              greyfinchId: location.id
+          // Convert the locations array to our Location format
+          if (Array.isArray(data.data.locations)) {
+            data.data.locations.forEach((location: any) => {
+              locationArray.push({
+                id: parseInt(location.id) || Date.now(), // Convert to number ID
+                name: location.name,
+                greyfinchId: location.id,
+                isActive: location.isActive !== false
+              })
             })
-          })
+          } else {
+            // Fallback for object format
+            Object.values(data.data.locations).forEach((location: any) => {
+              locationArray.push({
+                id: parseInt(location.id) || Date.now(),
+                name: location.name,
+                greyfinchId: location.id,
+                isActive: location.isActive !== false
+              })
+            })
+          }
           
-          console.log('📍 Setting locations:', locationArray)
+          console.log('📍 Setting all locations:', locationArray)
           setLocations(locationArray)
         }
       } else {
@@ -195,7 +208,7 @@ export default function Dashboard() {
     }));
   }, []);
 
-  // Generate data for a specific period - memoized for performance
+  // Generate data for a specific period using GreyfinchDataService - memoized for performance
   const generatePeriodData = useCallback((period: PeriodConfig, greyfinchData: any) => {
     if (!greyfinchData || !greyfinchData.data) {
       return {
@@ -217,26 +230,17 @@ export default function Dashboard() {
       };
     }
 
-    // Generate data based on location and period
-    const { data } = greyfinchData;
-    
-    // Filter data based on location if specified
-    let filteredLeads = data.leads?.data || [];
-    let filteredAppointments = data.appointments?.data || [];
-    let filteredBookings = data.bookings?.data || [];
-    let filteredPatients = data.patients?.data || [];
-    let filteredRevenue = data.revenue?.data || [];
-    let filteredProduction = data.production?.data || [];
-    
-    // Handle multiple location filtering
-    const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
-    if (selectedLocationIds.length > 0) {
-      // Filter by selected locations
-      filteredLeads = filteredLeads.filter((lead: any) => selectedLocationIds.includes(lead.locationId));
-      filteredAppointments = filteredAppointments.filter((apt: any) => selectedLocationIds.includes(apt.locationId));
-      filteredRevenue = filteredRevenue.filter((rev: any) => selectedLocationIds.includes(rev.locationId));
-      filteredProduction = filteredProduction.filter((prod: any) => selectedLocationIds.includes(prod.locationId));
-    }
+    // Use GreyfinchDataService to generate period data with proper multi-location support
+    const periodConfig = {
+      startDate: period.startDate,
+      endDate: period.endDate,
+      locationId: period.locationId,
+      locationIds: period.locationIds
+    };
+
+    // Import GreyfinchDataService dynamically to avoid circular imports
+    const { GreyfinchDataService } = require('@/lib/services/greyfinch-data');
+    return GreyfinchDataService.generatePeriodData(periodConfig, greyfinchData);
     
     // Filter by date range if specified
     if (period.startDate && period.endDate) {

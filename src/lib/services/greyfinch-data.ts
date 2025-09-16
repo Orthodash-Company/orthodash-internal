@@ -320,7 +320,7 @@ export class GreyfinchDataService {
    * Generate period-specific analytics data
    */
   static generatePeriodData(
-    period: { startDate: string; endDate: string; locationId?: string },
+    period: { startDate: string; endDate: string; locationId?: string; locationIds?: string[] },
     greyfinchData: any
   ): PeriodData {
     if (!greyfinchData || !greyfinchData.data) {
@@ -328,28 +328,33 @@ export class GreyfinchDataService {
     }
 
     const { data } = greyfinchData
-    const { startDate, endDate, locationId } = period
+    const { startDate, endDate, locationId, locationIds } = period
 
-    // Filter data by date range and location
-    const filteredAppointments = this.filterDataByPeriod(
+    // Handle multiple location selection
+    const selectedLocationIds = locationIds && locationIds.length > 0 
+      ? locationIds 
+      : (locationId ? [locationId] : [])
+
+    // Filter data by date range and location(s)
+    const filteredAppointments = this.filterDataByPeriodAndLocations(
       data.appointments || [],
       startDate,
       endDate,
-      locationId
+      selectedLocationIds
     )
 
-    const filteredPatients = this.filterDataByPeriod(
+    const filteredPatients = this.filterDataByPeriodAndLocations(
       data.patients || [],
       startDate,
       endDate,
-      locationId
+      selectedLocationIds
     )
 
-    const filteredLeads = this.filterDataByPeriod(
+    const filteredLeads = this.filterDataByPeriodAndLocations(
       data.leads || [],
       startDate,
       endDate,
-      locationId
+      selectedLocationIds
     )
 
     // Calculate metrics
@@ -396,9 +401,9 @@ export class GreyfinchDataService {
   }
 
   /**
-   * Filter data by date range and location
+   * Filter data by date range and location(s)
    */
-  private static filterDataByPeriod(data: any[], startDate: string, endDate: string, locationId?: string) {
+  private static filterDataByPeriodAndLocations(data: any[], startDate: string, endDate: string, locationIds: string[]) {
     const start = new Date(startDate)
     const end = new Date(endDate)
 
@@ -407,14 +412,32 @@ export class GreyfinchDataService {
       const itemDate = new Date(item.createdAt || item.scheduledDate || item.startTime)
       const inDateRange = itemDate >= start && itemDate <= end
 
-      // Check location if specified
-      if (locationId) {
-        const itemLocationId = item.locationId || item.primaryLocation?.id
-        return inDateRange && itemLocationId === locationId
+      // Check location(s) if specified
+      if (locationIds && locationIds.length > 0) {
+        const itemLocationId = item.locationId || item.primaryLocation?.id || item.location?.id
+        const itemLocationName = item.location?.name || item.primaryLocation?.name
+        
+        // Check if item belongs to any of the selected locations
+        const matchesLocation = locationIds.some(locId => {
+          // Match by ID or name
+          return itemLocationId === locId || 
+                 itemLocationName === locId ||
+                 (typeof locId === 'string' && itemLocationName?.toLowerCase().includes(locId.toLowerCase()))
+        })
+        
+        return inDateRange && matchesLocation
       }
 
       return inDateRange
     })
+  }
+
+  /**
+   * Filter data by date range and location (backward compatibility)
+   */
+  private static filterDataByPeriod(data: any[], startDate: string, endDate: string, locationId?: string) {
+    const locationIds = locationId ? [locationId] : []
+    return this.filterDataByPeriodAndLocations(data, startDate, endDate, locationIds)
   }
 
   /**
@@ -546,6 +569,103 @@ export class GreyfinchDataService {
     // For now, we'll simulate based on lead count
     const totalCost = leads.length * 150 // Simulated average cost per lead
     return totalCost / leads.length
+  }
+
+  /**
+   * Aggregate data by location for Live Data Integrations counters
+   */
+  static aggregateDataByLocation(greyfinchData: any): any {
+    if (!greyfinchData || !greyfinchData.data) {
+      return {
+        totalCounts: {
+          patients: 0,
+          locations: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0
+        },
+        locationBreakdown: []
+      }
+    }
+
+    const { data } = greyfinchData
+    const locations = data.locations || []
+    const patients = data.patients || []
+    const appointments = data.appointments || []
+    const leads = data.leads || []
+    const bookings = data.appointmentBookings || []
+
+    // Calculate total counts across all locations
+    const totalCounts = {
+      patients: patients.length,
+      locations: locations.length,
+      appointments: appointments.length,
+      leads: leads.length,
+      bookings: bookings.length
+    }
+
+    // Create breakdown by location
+    const locationBreakdown = locations.map((location: any) => {
+      const locationId = location.id
+      const locationName = location.name
+
+      // Count patients for this location
+      const locationPatients = patients.filter((patient: any) => 
+        patient.primaryLocation?.id === locationId || 
+        patient.primaryLocation?.name === locationName
+      )
+
+      // Count appointments for this location
+      const locationAppointments = appointments.filter((appointment: any) => 
+        appointment.location?.id === locationId || 
+        appointment.location?.name === locationName
+      )
+
+      // Count leads for this location
+      const locationLeads = leads.filter((lead: any) => 
+        lead.location?.id === locationId || 
+        lead.location?.name === locationName
+      )
+
+      // Count bookings for this location
+      const locationBookings = bookings.filter((booking: any) => 
+        booking.appointment?.location?.id === locationId || 
+        booking.appointment?.location?.name === locationName
+      )
+
+      // Calculate financial metrics for this location
+      const locationRevenue = locationAppointments.reduce((sum: number, appointment: any) => {
+        const value = appointment.revenue || appointment.value || appointment.amount || appointment.fee || 0
+        return sum + (parseFloat(value) || 0)
+      }, 0)
+
+      const locationProduction = locationAppointments.reduce((sum: number, appointment: any) => {
+        const value = appointment.revenue || appointment.value || appointment.amount || appointment.fee || 0
+        return sum + (parseFloat(value) || 0)
+      }, 0)
+
+      return {
+        id: locationId,
+        name: locationName,
+        address: location.address,
+        isActive: location.isActive,
+        counts: {
+          patients: locationPatients.length,
+          appointments: locationAppointments.length,
+          leads: locationLeads.length,
+          bookings: locationBookings.length
+        },
+        financial: {
+          revenue: locationRevenue,
+          production: locationProduction
+        }
+      }
+    })
+
+    return {
+      totalCounts,
+      locationBreakdown
+    }
   }
 
   /**
