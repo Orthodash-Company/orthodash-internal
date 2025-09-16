@@ -7,7 +7,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Brain, TrendingUp, DollarSign, Users, Calendar, Target, Eye, EyeOff } from 'lucide-react';
 import { greyfinchService } from '@/lib/services/greyfinch';
-import { GreyfinchDataService } from '@/lib/services/greyfinch-data';
 
 interface AISummaryGeneratorProps {
   periods: any[];
@@ -33,6 +32,101 @@ interface AISummary {
   dataRecommendations?: string[];
   nationalComparison?: any;
   marketingOptimization?: any;
+}
+
+// Helper function to create location breakdown data
+function createLocationBreakdown(greyfinchData: any, locations: any[]) {
+  if (!greyfinchData || !greyfinchData.data) {
+    return {
+      totalCounts: {
+        patients: 0,
+        locations: 0,
+        appointments: 0,
+        leads: 0,
+        bookings: 0
+      },
+      locationBreakdown: []
+    };
+  }
+
+  const { data } = greyfinchData;
+  const allLocations = data.locations || [];
+  const patients = data.patients || [];
+  const appointments = data.appointments || [];
+  const leads = data.leads || [];
+  const bookings = data.appointmentBookings || [];
+
+  // Calculate total counts across all locations
+  const totalCounts = {
+    patients: patients.length,
+    locations: allLocations.length,
+    appointments: appointments.length,
+    leads: leads.length,
+    bookings: bookings.length
+  };
+
+  // Create breakdown by location
+  const locationBreakdown = allLocations.map((location: any) => {
+    const locationId = location.id;
+    const locationName = location.name;
+
+    // Count patients for this location
+    const locationPatients = patients.filter((patient: any) => 
+      patient.primaryLocation?.id === locationId || 
+      patient.primaryLocation?.name === locationName
+    );
+
+    // Count appointments for this location
+    const locationAppointments = appointments.filter((appointment: any) => 
+      appointment.location?.id === locationId || 
+      appointment.location?.name === locationName
+    );
+
+    // Count leads for this location
+    const locationLeads = leads.filter((lead: any) => 
+      lead.location?.id === locationId || 
+      lead.location?.name === locationName
+    );
+
+    // Count bookings for this location
+    const locationBookings = bookings.filter((booking: any) => 
+      booking.appointment?.location?.id === locationId || 
+      booking.appointment?.location?.name === locationName
+    );
+
+    // Calculate financial metrics for this location
+    const locationRevenue = locationAppointments.reduce((sum: number, appointment: any) => {
+      const value = appointment.revenue || appointment.value || appointment.amount || appointment.fee || 0;
+      return sum + (parseFloat(value) || 0);
+    }, 0);
+
+    const locationProduction = locationAppointments.reduce((sum: number, appointment: any) => {
+      const value = appointment.revenue || appointment.value || appointment.amount || appointment.fee || 0;
+      return sum + (parseFloat(value) || 0);
+    }, 0);
+
+    return {
+      id: locationId,
+      name: locationName,
+      address: location.address,
+      isActive: location.isActive,
+      counts: {
+        patients: locationPatients.length,
+        appointments: locationAppointments.length,
+        leads: locationLeads.length,
+        bookings: locationBookings.length
+      },
+      financial: {
+        revenue: locationRevenue,
+        production: locationProduction
+      }
+    };
+  });
+
+  return {
+    totalCounts,
+    locationBreakdown
+  };
 }
 
 export function AISummaryGenerator({ periods, periodData, locations, greyfinchData, acquisitionCosts }: AISummaryGeneratorProps) {
@@ -81,8 +175,8 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
       const acquisitionCostData = await Promise.all(acquisitionCostPromises);
       const allAcquisitionCosts = acquisitionCostData.filter(data => data !== null);
 
-      // Get location breakdown data from GreyfinchDataService
-      const locationBreakdown = GreyfinchDataService.aggregateDataByLocation(greyfinchData || greyfinchAnalytics);
+      // Create simple location breakdown data for AI analysis
+      const locationBreakdown = createLocationBreakdown(greyfinchData || greyfinchAnalytics, locations);
 
       // Prepare raw data dump for AI analysis - let ChatGPT create its own context
       const rawDataDump = {
