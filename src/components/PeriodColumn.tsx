@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { MultiLocationComparisonChart } from './MultiLocationComparisonChart';
 
 interface PeriodData {
   avgNetProduction: number;
@@ -179,6 +180,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   const actualRevenue = safeData.revenue || 0;
   const actualProduction = safeData.production || 0;
   const actualNetProduction = actualRevenue - totalCosts;
+
+  // Check if multiple locations are selected
+  const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
+  const hasMultipleLocations = selectedLocationIds.length > 1;
   
   const pieData = [
     { x: 'Digital', y: safeData.referralSources.digital, text: `${safeData.referralSources.digital}%` },
@@ -347,6 +352,15 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             </div>
           </div>
         </div>
+
+        {/* Multi-Location Comparison Chart */}
+        {hasMultipleLocations && (
+          <MultiLocationComparisonChart
+            locationData={[]} // This will be populated with actual location data
+            selectedLocationIds={selectedLocationIds}
+            periodTitle={period.title}
+          />
+        )}
 
         {/* Charts - Compact */}
         <div className="space-y-4">
