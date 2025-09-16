@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Brain, TrendingUp, DollarSign, Users, Calendar, Target, Eye, EyeOff } from 'lucide-react';
 import { greyfinchService } from '@/lib/services/greyfinch';
+import { GreyfinchDataService } from '@/lib/services/greyfinch-data';
 
 interface AISummaryGeneratorProps {
   periods: any[];
@@ -81,7 +82,6 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
       const allAcquisitionCosts = acquisitionCostData.filter(data => data !== null);
 
       // Get location breakdown data from GreyfinchDataService
-      const { GreyfinchDataService } = require('@/lib/services/greyfinch-data');
       const locationBreakdown = GreyfinchDataService.aggregateDataByLocation(greyfinchData || greyfinchAnalytics);
 
       // Prepare raw data dump for AI analysis - let ChatGPT create its own context

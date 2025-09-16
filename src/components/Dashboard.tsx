@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
 import { useSessionManager } from '@/hooks/use-session-manager';
+import { GreyfinchDataService } from '@/lib/services/greyfinch-data';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -232,14 +233,13 @@ export default function Dashboard() {
 
     // Use GreyfinchDataService to generate period data with proper multi-location support
     const periodConfig = {
-      startDate: period.startDate,
-      endDate: period.endDate,
+      startDate: period.startDate instanceof Date ? period.startDate.toISOString() : period.startDate,
+      endDate: period.endDate instanceof Date ? period.endDate.toISOString() : period.endDate,
       locationId: period.locationId,
       locationIds: period.locationIds
     };
 
-    // Import GreyfinchDataService dynamically to avoid circular imports
-    const { GreyfinchDataService } = require('@/lib/services/greyfinch-data');
+    // Use GreyfinchDataService to generate period data with proper multi-location support
     return GreyfinchDataService.generatePeriodData(periodConfig, greyfinchData);
   }, []);
 
