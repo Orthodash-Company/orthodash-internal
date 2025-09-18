@@ -1,41 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GreyfinchService, greyfinchService } from '@/lib/services/greyfinch'
-import { GreyfinchSchemaUtils } from '@/lib/services/greyfinch-schema'
+import { GreyfinchSchemaUtils, GREYFINCH_QUERIES } from '@/lib/services/greyfinch-schema'
+import { MultiLocationDataProcessor } from '@/lib/services/multi-location-data-processor'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    const location = 'gilbert' // Always Gilbert only
+    const location = searchParams.get('location') || 'all'
     
-    console.log('📊 Fetching Gilbert-only Greyfinch data...', { startDate, endDate, location })
+    console.log('📊 Fetching multi-location Greyfinch data...', { startDate, endDate, location })
     
-    // Get Gilbert-only analytics data
+    // Get multi-location analytics data
     try {
-      console.log('🔍 Fetching Gilbert data...')
+      console.log('🔍 Fetching Gilbert and Phoenix-Ahwatukee data...')
       
-      // Use service directly with working query
-      const query = `
-        query GetAnalyticsData {
-          locations {
-            id
-            name
-          }
-          appointments {
-            id
-          }
-          patients {
-            id
-          }
-          leads {
-            id
-          }
-          appointmentBookings {
-            id
-          }
-        }
-      `
+      // Use comprehensive multi-location query
+      const query = GREYFINCH_QUERIES.GET_ANALYTICS_DATA
       
       // Create a new service instance and update with environment variables
       const freshService = new GreyfinchService()
@@ -44,16 +26,16 @@ export async function GET(request: NextRequest) {
         process.env.GREYFINCH_API_SECRET || ''
       )
       const result = await freshService.makeGraphQLRequest(query)
-      console.log('📊 Gilbert data received:', result)
+      console.log('📊 Multi-location data received:', result)
       
       // Check if we have data regardless of success flag
       if (!result.data && !result.locations && !result.appointments) {
-        throw new Error(result.error || 'Failed to fetch Gilbert data')
+        throw new Error(result.error || 'Failed to fetch multi-location data')
       }
       
-      // Process the Gilbert data - use result.data if available, otherwise result
+      // Process the multi-location data using the new processor
       const dataToProcess = result.data || result
-      const processedData = GreyfinchSchemaUtils.processDataByLocation(dataToProcess, startDate, endDate, location)
+      const processedData = MultiLocationDataProcessor.processMultiLocationData(dataToProcess, startDate, endDate)
       
       // Add metadata
       processedData.lastUpdated = new Date().toISOString()

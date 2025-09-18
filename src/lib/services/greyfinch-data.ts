@@ -9,6 +9,9 @@ export interface GreyfinchDataResult {
 }
 
 export interface PeriodData {
+  period: string
+  startDate: string
+  endDate: string
   avgNetProduction: number
   avgAcquisitionCost: number
   noShowRate: number
@@ -35,6 +38,29 @@ export interface PeriodData {
   revenue: number
   netProduction: number
   acquisitionCosts: number
+  // Location-specific data
+  locationData: {
+    gilbert: {
+      patients: number
+      appointments: number
+      leads: number
+      bookings: number
+      production: number
+      revenue: number
+      netProduction: number
+      acquisitionCosts: number
+    }
+    phoenix: {
+      patients: number
+      appointments: number
+      leads: number
+      bookings: number
+      production: number
+      revenue: number
+      netProduction: number
+      acquisitionCosts: number
+    }
+  }
 }
 
 export class GreyfinchDataService {

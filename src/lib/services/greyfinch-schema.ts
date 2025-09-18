@@ -126,11 +126,11 @@ export const GREYFINCH_FIELD_PATTERNS = {
 // Comprehensive GraphQL queries for real data extraction
 // Following Apollo GraphQL best practices with proper field selection and filtering
 export const GREYFINCH_QUERIES = {
-  // ALL locations analytics data query - fetches data from all 5 locations
+  // Gilbert and Phoenix-Ahwatukee locations analytics data query with comprehensive revenue/production data
   GET_ANALYTICS_DATA: `
-    query GetAllLocationsData {
-      # Get ALL location details
-      locations {
+    query GetGilbertAndPhoenixData($gilbertName: String = "Gilbert", $phoenixName: String = "Phoenix-Ahwatukee") {
+      # Get both location details
+      locations(where: { name: { _in: [$gilbertName, $phoenixName] } }) {
         id
         name
         address
@@ -139,8 +139,8 @@ export const GREYFINCH_QUERIES = {
         updatedAt
       }
       
-      # Get ALL patients from all locations
-      patients {
+      # Get patients from both locations
+      patients(where: { primaryLocation: { name: { _in: [$gilbertName, $phoenixName] } } }) {
         id
         firstName
         lastName
@@ -152,8 +152,8 @@ export const GREYFINCH_QUERIES = {
         updatedAt
       }
       
-      # Get ALL appointments from all locations
-      appointments {
+      # Get appointments from both locations with comprehensive financial data
+      appointments(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
         id
         patient {
           id
@@ -173,12 +173,17 @@ export const GREYFINCH_QUERIES = {
         value
         amount
         fee
+        production
+        productionAmount
+        netProduction
+        cost
+        profit
         createdAt
         updatedAt
       }
       
-      # Get ALL leads from all locations
-      leads {
+      # Get leads from both locations
+      leads(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
         id
         firstName
         lastName
@@ -194,8 +199,8 @@ export const GREYFINCH_QUERIES = {
         updatedAt
       }
       
-      # Get ALL appointment bookings from all locations
-      appointmentBookings {
+      # Get appointment bookings from both locations
+      appointmentBookings(where: { appointment: { location: { name: { _in: [$gilbertName, $phoenixName] } } } }) {
         id
         appointment {
           id
@@ -208,6 +213,36 @@ export const GREYFINCH_QUERIES = {
         localStartDate
         localStartTime
         timezone
+        createdAt
+        updatedAt
+      }
+      
+      # Get revenue data for both locations
+      revenue(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
+        id
+        location {
+          id
+          name
+        }
+        amount
+        date
+        source
+        type
+        createdAt
+        updatedAt
+      }
+      
+      # Get production data for both locations
+      production(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
+        id
+        location {
+          id
+          name
+        }
+        productionAmount
+        date
+        source
+        type
         createdAt
         updatedAt
       }

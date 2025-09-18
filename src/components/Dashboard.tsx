@@ -6,6 +6,7 @@ import { SimpleHeader } from './SimpleHeader';
 import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
 import { AISummaryGenerator } from './AISummaryGenerator';
+import { EnhancedAIAnalysis } from './EnhancedAIAnalysis';
 import { LocationsManager } from './LocationsManager';
 import { SessionManager } from './SessionManager';
 import { PDFReportGenerator } from './PDFReportGenerator';
@@ -143,50 +144,32 @@ export default function Dashboard() {
     }
   };
 
-  // Load Greyfinch data from localStorage and API - memoized to prevent unnecessary re-renders
+  // Load multi-location Greyfinch data from API - memoized to prevent unnecessary re-renders
   const loadGreyfinchData = useCallback(async () => {
     try {
-      console.log('🔄 Fetching Gilbert Greyfinch data...')
-      const response = await fetch('/api/greyfinch/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      })
+      console.log('🔄 Fetching Gilbert and Phoenix-Ahwatukee Greyfinch data...')
+      const response = await fetch('/api/greyfinch/analytics?location=all')
       const data = await response.json()
       
-      if (data.success) {
-        console.log('✅ All locations Greyfinch data loaded:', data.data)
+      if (data && (data.locations || data.data)) {
+        console.log('✅ Multi-location Greyfinch data loaded:', data)
         
-        // Update dashboard with all locations data
-        setGreyfinchData(data.data)
+        // Update dashboard with multi-location data
+        setGreyfinchData(data)
         
-        // Extract and set locations from the data (all 5 locations)
-        if (data.data && data.data.locations) {
+        // Extract and set locations from the data (Gilbert and Phoenix-Ahwatukee)
+        if (data.locations && Array.isArray(data.locations)) {
           const locationArray: Location[] = []
           
           // Convert the locations array to our Location format
-          if (Array.isArray(data.data.locations)) {
-            data.data.locations.forEach((location: any) => {
-              locationArray.push({
-                id: parseInt(location.id) || Date.now(), // Convert to number ID
-                name: location.name,
-                greyfinchId: location.id,
-                isActive: location.isActive !== false
-              })
+          data.locations.forEach((location: any) => {
+            locationArray.push({
+              id: parseInt(location.id) || Date.now(), // Convert to number ID
+              name: location.name,
+              greyfinchId: location.id,
+              isActive: location.isActive !== false
             })
-          } else {
-            // Fallback for object format
-            Object.values(data.data.locations).forEach((location: any) => {
-              locationArray.push({
-                id: parseInt(location.id) || Date.now(),
-                name: location.name,
-                greyfinchId: location.id,
-                isActive: location.isActive !== false
-              })
-            })
-          }
+          })
           
           console.log('📍 Setting all locations:', locationArray)
           setLocations(locationArray)
@@ -306,18 +289,43 @@ export default function Dashboard() {
     ).length;
     const noShowRate = totalAppointments > 0 ? (noShowAppointments / totalAppointments) * 100 : 0;
     
-    // Calculate revenue and production
-    const revenue = filteredAppointments.reduce((sum: number, apt: any) => {
-      const value = apt.revenue || apt.value || apt.amount || apt.fee || 0;
+    // Calculate revenue and production with comprehensive financial data
+    let revenue = filteredAppointments.reduce((sum: number, apt: any) => {
+      const value = apt.revenue || apt.fee || apt.amount || 0;
       return sum + (parseFloat(value) || 0);
     }, 0);
     
-    const production = filteredAppointments.reduce((sum: number, apt: any) => {
-      const value = apt.revenue || apt.value || apt.amount || apt.fee || 0;
+    let production = filteredAppointments.reduce((sum: number, apt: any) => {
+      const value = apt.production || apt.productionAmount || apt.value || apt.amount || 0;
       return sum + (parseFloat(value) || 0);
     }, 0);
     
-    const netProduction = revenue; // Will be adjusted by acquisition costs
+    // Add revenue and production from dedicated tables if available
+    if (data.revenue) {
+      data.revenue.forEach((rev: any) => {
+        const revDate = new Date(rev.date || rev.createdAt);
+        if (revDate >= startDate && revDate <= endDate) {
+          revenue += parseFloat(rev.amount || 0);
+        }
+      });
+    }
+    
+    if (data.production) {
+      data.production.forEach((prod: any) => {
+        const prodDate = new Date(prod.date || prod.createdAt);
+        if (prodDate >= startDate && prodDate <= endDate) {
+          production += parseFloat(prod.productionAmount || 0);
+        }
+      });
+    }
+    
+    // Calculate net production (revenue - costs)
+    const totalCosts = filteredAppointments.reduce((sum: number, apt: any) => {
+      const cost = apt.cost || 0;
+      return sum + (parseFloat(cost) || 0);
+    }, 0);
+    
+    const netProduction = production - totalCosts;
     
     // Calculate location count
     const locationCount = selectedLocationIds.length === 0 ? 
@@ -742,24 +750,16 @@ export default function Dashboard() {
             </CardContent>
           </Card> */}
 
-          {/* AI Summary Generator */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">AI-Powered Analytics Summary</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
-                Generate comprehensive insights and recommendations using AI
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AISummaryGenerator 
-                periods={periods} 
-                periodData={periodQueries}
-                locations={locations}
-                greyfinchData={greyfinchData}
-                acquisitionCosts={acquisitionCosts}
-              />
-            </CardContent>
-          </Card>
+          {/* Enhanced AI Analysis */}
+          <EnhancedAIAnalysis 
+            selectedPeriods={periods.map(p => p.startDate?.toISOString().split('T')[0] || '')}
+            selectedLocations={locations.map(l => l.name)}
+            onAnalysisComplete={(data) => {
+              console.log('AI Analysis completed:', data)
+              // Store analysis data for potential use in other components
+              localStorage.setItem('orthodash-ai-analysis', JSON.stringify(data))
+            }}
+          />
 
           {/* PDF Report Generator */}
           <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
