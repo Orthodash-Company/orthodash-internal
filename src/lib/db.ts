@@ -35,11 +35,12 @@ if (!process.env.DATABASE_URL) {
   };
 } else {
   try {
-    // Create the connection
+    // Create the connection with proper error handling
     const client = postgres(process.env.DATABASE_URL, {
       max: 10,
       idle_timeout: 20,
-      connect_timeout: 10
+      connect_timeout: 10,
+      ssl: { rejectUnauthorized: false } // Add SSL configuration for Supabase
     })
     db = drizzle(client, { schema })
     console.log("Database connected successfully");
