@@ -33,7 +33,7 @@ export function MultiLocationSelector({
   const [open, setOpen] = useState(false);
 
   const activeLocations = locations.filter(loc => loc.isActive !== false);
-  const selectedLocations = activeLocations.filter(loc => selectedLocationIds.includes(loc.id));
+  const selectedLocations = activeLocations.filter(loc => selectedLocationIds.includes(String(loc.id)));
 
   const handleLocationToggle = (locationId: string) => {
     const isSelected = selectedLocationIds.includes(locationId);
