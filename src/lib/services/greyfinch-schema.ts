@@ -179,6 +179,127 @@ export const GREYFINCH_QUERIES = {
     }
   `,
 
+  // Schema introspection query to discover available fields
+  SCHEMA_INTROSPECTION: `
+    query IntrospectionQuery {
+      __schema {
+        queryType {
+          name
+          fields {
+            name
+            description
+            type {
+              name
+              kind
+              ofType {
+                name
+                kind
+              }
+            }
+            args {
+              name
+              type {
+                name
+                kind
+              }
+            }
+          }
+        }
+        types {
+          name
+          kind
+          description
+          fields {
+            name
+            description
+            type {
+              name
+              kind
+              ofType {
+                name
+                kind
+              }
+            }
+          }
+        }
+      }
+    }
+  `,
+
+  // Test query to discover what fields actually exist
+  TEST_AVAILABLE_FIELDS: `
+    query TestAvailableFields {
+      # Test appointments with only basic fields that we know exist
+      appointments(limit: 1) {
+        id
+        createdAt
+        updatedAt
+      }
+      
+      # Test patients with only basic fields
+      patients(limit: 1) {
+        id
+        createdAt
+        updatedAt
+      }
+      
+      # Test locations with only basic fields
+      locations(limit: 1) {
+        id
+        name
+        createdAt
+        updatedAt
+      }
+    }
+  `,
+
+  // Test query to discover other possible query types
+  TEST_OTHER_QUERIES: `
+    query TestOtherQueries {
+      # Test if there are any treatment-related queries
+      treatments {
+        id
+        createdAt
+      }
+      
+      # Test if there are any procedure-related queries
+      procedures {
+        id
+        createdAt
+      }
+      
+      # Test if there are any service-related queries
+      services {
+        id
+        createdAt
+      }
+      
+      # Test if there are any plan-related queries
+      plans {
+        id
+        createdAt
+      }
+      
+      # Test if there are any case-related queries
+      cases {
+        id
+        createdAt
+      }
+      
+      # Test if there are any visit-related queries
+      visits {
+        id
+        createdAt
+      }
+      
+      # Test if there are any session-related queries
+      sessions {
+        id
+        createdAt
+      }
+    }
+  `,
+
   // Gilbert-only analytics data query with proper field selection (kept for backward compatibility)
   GET_GILBERT_DATA: `
     query GetGilbertData($locationName: String = "Gilbert") {

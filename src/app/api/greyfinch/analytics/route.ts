@@ -65,40 +65,40 @@ export async function GET(request: NextRequest) {
           'gilbert-1': { id: 'gilbert-1', name: 'Gilbert', count: 1250, isActive: true },
           'phoenix-ahwatukee-1': { id: 'phoenix-ahwatukee-1', name: 'Phoenix-Ahwatukee', count: 850, isActive: true }
         },
-        gilbertCounts: {
-          patients: 1250,
-          appointments: 89,
-          leads: 45,
-          bookings: 67,
-          revenue: 45000, // Sample revenue data
-          production: 52000, // Sample production data
-          netProduction: 42000 // Sample net production data
-        },
-        phoenixCounts: {
-          patients: 850,
-          appointments: 62,
-          leads: 32,
-          bookings: 45,
-          revenue: 32000, // Sample revenue data
-          production: 38000, // Sample production data
-          netProduction: 31000 // Sample net production data
-        },
+            gilbertCounts: {
+              patients: 1250,
+              appointments: 89,
+              leads: 45,
+              bookings: 67,
+              revenue: 0, // Revenue fallback set to $0
+              production: 0, // Production fallback set to $0
+              netProduction: 0 // Net production fallback set to $0
+            },
+            phoenixCounts: {
+              patients: 850,
+              appointments: 62,
+              leads: 32,
+              bookings: 45,
+              revenue: 0, // Revenue fallback set to $0
+              production: 0, // Production fallback set to $0
+              netProduction: 0 // Net production fallback set to $0
+            },
         leads: { count: 77, data: [] },
         appointments: { count: 151, data: [] },
         bookings: { count: 112, data: [] },
         patients: { count: 2100, data: [] },
-        revenue: { total: 77000, data: [] }, // Combined revenue
-        production: { total: 90000, netProduction: 73000, data: [] }, // Combined production
+        revenue: { total: 0, data: [] }, // Combined revenue set to $0
+        production: { total: 0, netProduction: 0, data: [] }, // Combined production set to $0
         summary: {
           totalLeads: 77,
           totalAppointments: 151,
           totalBookings: 112,
           totalPatients: 2100,
-          totalRevenue: 77000,
-          totalProduction: 90000,
-          totalNetProduction: 73000,
-          gilbertCounts: { leads: 45, appointments: 89, bookings: 67, patients: 1250, revenue: 45000, production: 52000, netProduction: 42000 },
-          phoenixCounts: { leads: 32, appointments: 62, bookings: 45, patients: 850, revenue: 32000, production: 38000, netProduction: 31000 }
+          totalRevenue: 0,
+          totalProduction: 0,
+          totalNetProduction: 0,
+          gilbertCounts: { leads: 45, appointments: 89, bookings: 67, patients: 1250, revenue: 0, production: 0, netProduction: 0 },
+          phoenixCounts: { leads: 32, appointments: 62, bookings: 45, patients: 850, revenue: 0, production: 0, netProduction: 0 }
         },
         lastUpdated: new Date().toISOString(),
         queryParams: { startDate, endDate, location },

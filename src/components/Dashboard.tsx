@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
 import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
-import { EnhancedAIAnalysis } from './EnhancedAIAnalysis';
+import { EnhancedAIAnalysis } from './EnhancedAIAnalysis'
+import QuickBooksSetup from './QuickBooksSetup';
 import { LocationsManager } from './LocationsManager';
 import { SessionManager } from './SessionManager';
 import { PDFReportGenerator } from './PDFReportGenerator';
@@ -28,17 +29,22 @@ import {
   Calendar,
   Building2,
   Save,
-  Trash2
+  Trash2,
+  DollarSign,
+  CheckCircle
 } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
 import { useSessionManager } from '@/hooks/use-session-manager';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { cacheSessionData } = useSessionManager();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null)
+  const [showQuickBooksSetup, setShowQuickBooksSetup] = useState(false)
+  const [quickBooksRevenueData, setQuickBooksRevenueData] = useState<any>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [periods, setPeriods] = useState<PeriodConfig[]>([]);
   const [periodQueries, setPeriodQueries] = useState<any[]>([]);
@@ -788,16 +794,90 @@ export default function Dashboard() {
             </CardContent>
           </Card> */}
 
-          {/* Enhanced AI Analysis */}
-          <EnhancedAIAnalysis 
-            selectedPeriods={periods.map(p => p.startDate?.toISOString().split('T')[0] || '')}
-            selectedLocations={locations.map(l => l.name)}
-            onAnalysisComplete={(data) => {
-              console.log('AI Analysis completed:', data)
-              // Store analysis data for potential use in other components
-              localStorage.setItem('orthodash-ai-analysis', JSON.stringify(data))
+    {/* QuickBooks Integration */}
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            QuickBooks Revenue Integration
+          </div>
+          <Button
+            onClick={() => setShowQuickBooksSetup(!showQuickBooksSetup)}
+            variant={showQuickBooksSetup ? "secondary" : "outline"}
+            size="sm"
+          >
+            {showQuickBooksSetup ? 'Hide Setup' : 'Setup QuickBooks'}
+          </Button>
+        </CardTitle>
+        <CardDescription>
+          Connect QuickBooks Desktop to pull real revenue data and replace fallback values
+        </CardDescription>
+      </CardHeader>
+      {showQuickBooksSetup && (
+        <CardContent>
+          <QuickBooksSetup
+            onSetupComplete={(config) => {
+              console.log('QuickBooks setup completed:', config)
+              setShowQuickBooksSetup(false)
+              toast.success('QuickBooks integration configured successfully!')
+            }}
+            onRevenueDataLoaded={(data) => {
+              console.log('QuickBooks revenue data loaded:', data)
+              setQuickBooksRevenueData(data)
+              toast.success('Revenue data loaded from QuickBooks!')
             }}
           />
+        </CardContent>
+      )}
+      {quickBooksRevenueData && !showQuickBooksSetup && (
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                ${quickBooksRevenueData.revenueMetrics?.totalRevenue?.toLocaleString() || '0'}
+              </div>
+              <div className="text-sm text-gray-600">Total Revenue</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {quickBooksRevenueData.revenueData?.length || 0}
+              </div>
+              <div className="text-sm text-gray-600">Transactions</div>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                {quickBooksRevenueData.locationRevenue?.length || 0}
+              </div>
+              <div className="text-sm text-gray-600">Locations</div>
+            </div>
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">
+                ${quickBooksRevenueData.revenueMetrics?.averageRevenuePerTransaction?.toLocaleString() || '0'}
+              </div>
+              <div className="text-sm text-gray-600">Avg per Transaction</div>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <Badge variant="default" className="bg-green-600">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              QuickBooks Connected - Real Revenue Data
+            </Badge>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+
+    {/* Enhanced AI Analysis */}
+    <EnhancedAIAnalysis 
+      selectedPeriods={periods.map(p => p.startDate?.toISOString().split('T')[0] || '')}
+      selectedLocations={locations.map(l => l.name)}
+      onAnalysisComplete={(data) => {
+        console.log('AI Analysis completed:', data)
+        // Store analysis data for potential use in other components
+        localStorage.setItem('orthodash-ai-analysis', JSON.stringify(data))
+      }}
+    />
 
           {/* PDF Report Generator */}
           <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
