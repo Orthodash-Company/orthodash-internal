@@ -689,6 +689,7 @@ export default function Dashboard() {
                         </CardContent>
                       </Card>
 
+                      {/* Enhanced QuickBooks connection card */}
                       <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
                         <CardHeader>
                           <CardTitle className="text-[#1C1F4F] flex items-center justify-between">
