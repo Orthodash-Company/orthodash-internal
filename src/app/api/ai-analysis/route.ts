@@ -259,7 +259,17 @@ async function callOpenAI(prompt: string): Promise<any> {
     }
 
     try {
-      return JSON.parse(content)
+      // Clean the content by removing markdown formatting
+      let cleanContent = content.trim()
+      
+      // Remove ```json and ``` blocks if present
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '')
+      }
+      
+      return JSON.parse(cleanContent)
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError)
       console.log('Raw response:', content)
