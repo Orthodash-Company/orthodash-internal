@@ -149,38 +149,27 @@ export const GREYFINCH_QUERIES = {
       }
       
       # Get appointments from both locations with only existing fields
-      appointments(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
+      appointments {
         id
         patient {
           id
-        }
-        location {
-          id
-          name
         }
         createdAt
         updatedAt
       }
       
       # Get leads from both locations with only existing fields
-      leads(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
+      leads {
         id
-        location {
-          id
-          name
-        }
         createdAt
         updatedAt
       }
       
       # Get appointment bookings from both locations with only existing fields
-      appointmentBookings(where: { appointment: { location: { name: { _in: [$gilbertName, $phoenixName] } } } }) {
+      appointmentBookings {
         id
         appointment {
           id
-          location {
-            name
-          }
         }
         startTime
         endTime
