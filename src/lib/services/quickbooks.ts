@@ -214,9 +214,9 @@ export class QuickBooksService {
   }
 
   // Get revenue data
-  async getRevenueData(startDate: string, endDate: string, location?: string): Promise<QuickBooksRevenueData[]> {
+  async getRevenueData(startDate: string, endDate: string, locationFilter?: string): Promise<QuickBooksRevenueData[]> {
     try {
-      console.log('Getting QuickBooks revenue data...', { startDate, endDate, location })
+      console.log('Getting QuickBooks revenue data...', { startDate, endDate, locationFilter })
 
       // Get invoices
       const invoicesResponse = await this.makeAuthenticatedRequest(
@@ -242,8 +242,8 @@ export class QuickBooksService {
       const revenueData = QuickBooksSchemaUtils.processRevenueData(qbData)
 
       // Filter by location if specified
-      if (location) {
-        return revenueData.filter(item => item.location.toLowerCase().includes(location.toLowerCase()))
+      if (locationFilter) {
+        return revenueData.filter(item => item.location.toLowerCase().includes(locationFilter.toLowerCase()))
       }
 
       console.log('Revenue data processed:', revenueData.length, 'records')
@@ -255,9 +255,9 @@ export class QuickBooksService {
   }
 
   // Get customer data
-  async getCustomerData(location?: string): Promise<QuickBooksCustomerData[]> {
+  async getCustomerData(locationFilter?: string): Promise<QuickBooksCustomerData[]> {
     try {
-      console.log('Getting QuickBooks customer data...', { location })
+      console.log('Getting QuickBooks customer data...', { locationFilter })
 
       const response = await this.makeAuthenticatedRequest(
         `/companies/${this.config.companyId}/customers`
@@ -272,7 +272,7 @@ export class QuickBooksService {
         email: customer.PrimaryEmailAddr?.Address || '',
         phone: customer.PrimaryPhone?.FreeFormNumber || '',
         address: this.formatAddress(customer.BillAddr),
-        location: location || 'Unknown', // QuickBooks doesn't have location field by default
+        location: locationFilter || 'Unknown', // QuickBooks doesn't have location field by default
         totalRevenue: 0, // This would need to be calculated from invoices
         lastPaymentDate: '', // This would need to be calculated from payments
         outstandingBalance: parseFloat(customer.Balance) || 0
@@ -369,14 +369,14 @@ export class QuickBooksService {
   }
 
   // Get revenue metrics
-  async getRevenueMetrics(location?: string): Promise<any> {
+  async getRevenueMetrics(locationFilter?: string): Promise<any> {
     try {
-      console.log('Getting QuickBooks revenue metrics...', { location })
+      console.log('Getting QuickBooks revenue metrics...', { locationFilter })
 
       const endDate = new Date().toISOString().split('T')[0]
       const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 1 year ago
 
-      const revenueData = await this.getRevenueData(startDate, endDate, location)
+      const revenueData = await this.getRevenueData(startDate, endDate, locationFilter)
       const metrics = QuickBooksSchemaUtils.calculateRevenueMetrics(revenueData)
 
       console.log('Revenue metrics calculated:', metrics)

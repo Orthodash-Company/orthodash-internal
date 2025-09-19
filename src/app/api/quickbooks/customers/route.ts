@@ -4,15 +4,15 @@ import { QuickBooksService } from '@/lib/services/quickbooks'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const location = searchParams.get('location') || undefined
+    const locationFilter = searchParams.get('location') || undefined
 
-    console.log('Fetching QuickBooks customer data...', { location })
+    console.log('Fetching QuickBooks customer data...', { locationFilter })
 
     const quickbooksService = new QuickBooksService()
 
     try {
       // Get customer data from QuickBooks
-      const customerData = await quickbooksService.getCustomerData(location)
+      const customerData = await quickbooksService.getCustomerData(locationFilter)
 
       console.log('QuickBooks customer data fetched successfully:', {
         customerCount: customerData.length
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         message: 'QuickBooks customer data retrieved successfully',
         data: {
           customers: customerData,
-          queryParams: { location },
+          queryParams: { locationFilter },
           lastUpdated: new Date().toISOString()
         }
       })
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       // Return fallback data
       const fallbackData = {
         customers: [],
-        queryParams: { location },
+          queryParams: { locationFilter },
         lastUpdated: new Date().toISOString(),
         apiStatus: 'QuickBooks Fallback Data (No Customers)'
       }

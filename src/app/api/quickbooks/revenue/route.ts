@@ -6,9 +6,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    const location = searchParams.get('location') || undefined
+    const locationFilter = searchParams.get('location') || undefined
 
-    console.log('Fetching QuickBooks revenue data...', { startDate, endDate, location })
+    console.log('Fetching QuickBooks revenue data...', { startDate, endDate, locationFilter })
 
     // Validate date parameters
     if (!startDate || !endDate) {
@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
 
     try {
       // Get revenue data from QuickBooks
-      const revenueData = await quickbooksService.getRevenueData(startDate, endDate, location)
+      const revenueData = await quickbooksService.getRevenueData(startDate, endDate, locationFilter)
       
       // Get location-based revenue summary
       const locationRevenue = await quickbooksService.getLocationRevenue(startDate, endDate)
       
       // Get revenue metrics
-      const revenueMetrics = await quickbooksService.getRevenueMetrics(location)
+      const revenueMetrics = await quickbooksService.getRevenueMetrics(locationFilter)
 
       console.log('QuickBooks revenue data fetched successfully:', {
         revenueRecords: revenueData.length,
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
           revenueData,
           locationRevenue,
           revenueMetrics,
-          queryParams: { startDate, endDate, location },
+          queryParams: { startDate, endDate, locationFilter },
           lastUpdated: new Date().toISOString()
         }
       })
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
           averageRevenuePerTransaction: 0,
           totalTransactions: 0
         },
-        queryParams: { startDate, endDate, location },
+        queryParams: { startDate, endDate, locationFilter },
         lastUpdated: new Date().toISOString(),
         apiStatus: 'QuickBooks Fallback Data (Revenue = $0)'
       }

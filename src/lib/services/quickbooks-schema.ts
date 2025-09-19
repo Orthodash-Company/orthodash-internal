@@ -48,11 +48,10 @@ export interface QuickBooksLocationData {
 export const QUICKBOOKS_QUERIES = {
   // Get revenue data by date range and location
   GET_REVENUE_DATA: `
-    query GetRevenueData($startDate: String!, $endDate: String!, $location: String) {
+    query GetRevenueData($startDate: String!, $endDate: String!, $locationFilter: String) {
       # Get invoices and payments for revenue tracking
       invoices(where: { 
         date: { gte: $startDate, lte: $endDate }
-        ${location ? 'location: { eq: $location }' : ''}
       }) {
         id
         date
@@ -76,7 +75,6 @@ export const QUICKBOOKS_QUERIES = {
       # Get payments for revenue tracking
       payments(where: { 
         date: { gte: $startDate, lte: $endDate }
-        ${location ? 'location: { eq: $location }' : ''}
       }) {
         id
         date
@@ -99,7 +97,6 @@ export const QUICKBOOKS_QUERIES = {
       # Get credit memos and refunds
       creditMemos(where: { 
         date: { gte: $startDate, lte: $endDate }
-        ${location ? 'location: { eq: $location }' : ''}
       }) {
         id
         date
@@ -119,9 +116,8 @@ export const QUICKBOOKS_QUERIES = {
 
   // Get customer data with revenue metrics
   GET_CUSTOMER_DATA: `
-    query GetCustomerData($location: String) {
+    query GetCustomerData($locationFilter: String) {
       customers(where: { 
-        ${location ? 'location: { eq: $location }' : ''}
         isActive: { eq: true }
       }) {
         id
@@ -229,10 +225,8 @@ export const QUICKBOOKS_QUERIES = {
 
   // Get real-time revenue metrics
   GET_REVENUE_METRICS: `
-    query GetRevenueMetrics($location: String) {
-      revenueMetrics(where: { 
-        ${location ? 'location: { eq: $location }' : ''}
-      }) {
+    query GetRevenueMetrics($locationFilter: String) {
+      revenueMetrics {
         totalRevenue
         monthlyRevenue
         weeklyRevenue
@@ -424,15 +418,15 @@ export class QuickBooksSchemaUtils {
 
     // Process locations
     if (qbData.locations) {
-      qbData.locations.forEach((location: any) => {
+      qbData.locations.forEach((locationItem: any) => {
         locationData.push({
-          id: location.id,
-          name: location.name,
-          totalRevenue: parseFloat(location.totalRevenue) || 0,
-          monthlyRevenue: parseFloat(location.monthlyRevenue) || 0,
-          customerCount: parseInt(location.customerCount) || 0,
-          averageRevenuePerCustomer: parseFloat(location.averageRevenuePerCustomer) || 0,
-          lastUpdated: location.lastUpdated || new Date().toISOString()
+          id: locationItem.id,
+          name: locationItem.name,
+          totalRevenue: parseFloat(locationItem.totalRevenue) || 0,
+          monthlyRevenue: parseFloat(locationItem.monthlyRevenue) || 0,
+          customerCount: parseInt(locationItem.customerCount) || 0,
+          averageRevenuePerCustomer: parseFloat(locationItem.averageRevenuePerCustomer) || 0,
+          lastUpdated: locationItem.lastUpdated || new Date().toISOString()
         })
       })
     }
