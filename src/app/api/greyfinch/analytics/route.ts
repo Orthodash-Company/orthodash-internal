@@ -105,10 +105,20 @@ export async function GET(request: NextRequest) {
         apiStatus: 'Both Locations Fallback Data with Financials'
       }
 
+      // Process the fallback data through MultiLocationDataProcessor
+      const processedFallbackData = MultiLocationDataProcessor.processMultiLocationData(fallbackData, startDate || undefined, endDate || undefined)
+      
+      const responseFallbackData = {
+        ...processedFallbackData,
+        lastUpdated: new Date().toISOString(),
+        queryParams: { startDate, endDate, location },
+        apiStatus: 'Both Locations Fallback Data with Financials'
+      }
+      
       return NextResponse.json({
         success: true,
-        message: 'Gilbert data retrieved with fallback',
-        data: fallbackData,
+        message: 'Multi-location data retrieved with fallback',
+        data: responseFallbackData,
         error: graphqlError instanceof Error ? graphqlError.message : String(graphqlError),
         errorStack: graphqlError instanceof Error ? graphqlError.stack : undefined,
         debug: {

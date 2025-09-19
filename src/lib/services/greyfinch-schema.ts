@@ -126,24 +126,20 @@ export const GREYFINCH_FIELD_PATTERNS = {
 // Comprehensive GraphQL queries for real data extraction
 // Following Apollo GraphQL best practices with proper field selection and filtering
 export const GREYFINCH_QUERIES = {
-  // Gilbert and Phoenix-Ahwatukee locations analytics data query with comprehensive revenue/production data
+  // Gilbert and Phoenix-Ahwatukee locations analytics data query with corrected field names
   GET_ANALYTICS_DATA: `
     query GetGilbertAndPhoenixData($gilbertName: String = "Gilbert", $phoenixName: String = "Phoenix-Ahwatukee") {
-      # Get both location details
+      # Get both location details with only existing fields
       locations(where: { name: { _in: [$gilbertName, $phoenixName] } }) {
         id
         name
-        address
-        isActive
         createdAt
         updatedAt
       }
       
-      # Get patients from both locations
+      # Get patients from both locations with only existing fields
       patients(where: { primaryLocation: { name: { _in: [$gilbertName, $phoenixName] } } }) {
         id
-        firstName
-        lastName
         primaryLocation {
           id
           name
@@ -152,45 +148,23 @@ export const GREYFINCH_QUERIES = {
         updatedAt
       }
       
-      # Get appointments from both locations with comprehensive financial data
+      # Get appointments from both locations with only existing fields
       appointments(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
         id
         patient {
           id
-          firstName
-          lastName
         }
         location {
           id
           name
         }
-        appointmentType
-        status
-        scheduledDate
-        actualDate
-        duration
-        revenue
-        value
-        amount
-        fee
-        production
-        productionAmount
-        netProduction
-        cost
-        profit
         createdAt
         updatedAt
       }
       
-      # Get leads from both locations
+      # Get leads from both locations with only existing fields
       leads(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
         id
-        firstName
-        lastName
-        email
-        phone
-        source
-        status
         location {
           id
           name
@@ -199,7 +173,7 @@ export const GREYFINCH_QUERIES = {
         updatedAt
       }
       
-      # Get appointment bookings from both locations
+      # Get appointment bookings from both locations with only existing fields
       appointmentBookings(where: { appointment: { location: { name: { _in: [$gilbertName, $phoenixName] } } } }) {
         id
         appointment {
@@ -210,39 +184,6 @@ export const GREYFINCH_QUERIES = {
         }
         startTime
         endTime
-        localStartDate
-        localStartTime
-        timezone
-        createdAt
-        updatedAt
-      }
-      
-      # Get revenue data for both locations
-      revenue(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
-        id
-        location {
-          id
-          name
-        }
-        amount
-        date
-        source
-        type
-        createdAt
-        updatedAt
-      }
-      
-      # Get production data for both locations
-      production(where: { location: { name: { _in: [$gilbertName, $phoenixName] } } }) {
-        id
-        location {
-          id
-          name
-        }
-        productionAmount
-        date
-        source
-        type
         createdAt
         updatedAt
       }
