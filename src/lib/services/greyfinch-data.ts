@@ -407,6 +407,9 @@ export class GreyfinchDataService {
     const netProduction = revenue - acquisitionCosts
 
     return {
+      period: 'Current Period',
+      startDate: '',
+      endDate: '',
       avgNetProduction: this.calculateAverageNetProduction(filteredAppointments),
       avgAcquisitionCost,
       noShowRate,
@@ -422,7 +425,29 @@ export class GreyfinchDataService {
       production,
       revenue,
       netProduction,
-      acquisitionCosts
+      acquisitionCosts,
+      locationData: {
+        gilbert: {
+          patients: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0,
+          production: 0,
+          revenue: 0,
+          netProduction: 0,
+          acquisitionCosts: 0
+        },
+        phoenix: {
+          patients: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0,
+          production: 0,
+          revenue: 0,
+          netProduction: 0,
+          acquisitionCosts: 0
+        }
+      }
     }
   }
 
@@ -699,6 +724,9 @@ export class GreyfinchDataService {
    */
   private static getDefaultPeriodData(): PeriodData {
     return {
+      period: 'No Data',
+      startDate: '',
+      endDate: '',
       avgNetProduction: 0,
       avgAcquisitionCost: 0,
       noShowRate: 0,
@@ -714,7 +742,29 @@ export class GreyfinchDataService {
       production: 0,
       revenue: 0,
       netProduction: 0,
-      acquisitionCosts: 0
+      acquisitionCosts: 0,
+      locationData: {
+        gilbert: {
+          patients: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0,
+          production: 0,
+          revenue: 0,
+          netProduction: 0,
+          acquisitionCosts: 0
+        },
+        phoenix: {
+          patients: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0,
+          production: 0,
+          revenue: 0,
+          netProduction: 0,
+          acquisitionCosts: 0
+        }
+      }
     }
   }
 }

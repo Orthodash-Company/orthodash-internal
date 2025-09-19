@@ -158,11 +158,14 @@ export default function Dashboard() {
         setGreyfinchData(data)
         
         // Extract and set locations from the data (Gilbert and Phoenix-Ahwatukee)
-        if (data.locations && Array.isArray(data.locations)) {
+        if (data.locations) {
           const locationArray: Location[] = []
           
-          // Convert the locations array to our Location format
-          data.locations.forEach((location: any) => {
+          // Handle both array and object formats for locations
+          const locationsData = Array.isArray(data.locations) ? data.locations : Object.values(data.locations)
+          
+          // Convert the locations to our Location format
+          locationsData.forEach((location: any) => {
             locationArray.push({
               id: parseInt(location.id) || Date.now(), // Convert to number ID
               name: location.name,

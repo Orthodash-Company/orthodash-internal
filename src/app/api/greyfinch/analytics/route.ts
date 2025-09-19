@@ -35,68 +35,23 @@ export async function GET(request: NextRequest) {
       
       // Process the multi-location data using the new processor
       const dataToProcess = result.data || result
-      const processedData = MultiLocationDataProcessor.processMultiLocationData(dataToProcess, startDate, endDate)
+      const processedData = MultiLocationDataProcessor.processMultiLocationData(dataToProcess, startDate || undefined, endDate || undefined)
       
-      // Add metadata
-      processedData.lastUpdated = new Date().toISOString()
-      processedData.queryParams = { startDate, endDate, location }
-      
-      // Filter by date range if specified
-      if (startDate || endDate) {
-        const filterByDateRange = (data: any[], dateField: string) => {
-          return data.filter((item: any) => {
-            const itemDate = new Date(item[dateField])
-            const start = startDate ? new Date(startDate) : null
-            const end = endDate ? new Date(endDate) : null
-            
-            if (start && itemDate < start) return false
-            if (end && itemDate > end) return false
-            return true
-          })
-        }
-
-        // Apply date filtering to Gilbert data
-        if (processedData.leads.data) {
-          const filteredLeads = filterByDateRange(processedData.leads.data, 'createdAt')
-          processedData.leads.data = filteredLeads
-          processedData.leads.count = filteredLeads.length
-          processedData.summary.gilbertCounts.leads = filteredLeads.length
-        }
-
-        if (processedData.appointments.data) {
-          const filteredAppointments = filterByDateRange(processedData.appointments.data, 'scheduledDate')
-          processedData.appointments.data = filteredAppointments
-          processedData.appointments.count = filteredAppointments.length
-          processedData.summary.gilbertCounts.appointments = filteredAppointments.length
-        }
-
-        if (processedData.bookings.data) {
-          const filteredBookings = filterByDateRange(processedData.bookings.data, 'startTime')
-          processedData.bookings.data = filteredBookings
-          processedData.bookings.count = filteredBookings.length
-          processedData.summary.gilbertCounts.bookings = filteredBookings.length
-        }
-
-        if (processedData.patients.data) {
-          const filteredPatients = filterByDateRange(processedData.patients.data, 'createdAt')
-          processedData.patients.data = filteredPatients
-          processedData.patients.count = filteredPatients.length
-          processedData.summary.gilbertCounts.patients = filteredPatients.length
-        }
-
-        // Update total counts
-        processedData.summary.totalLeads = processedData.summary.gilbertCounts.leads
-        processedData.summary.totalAppointments = processedData.summary.gilbertCounts.appointments
-        processedData.summary.totalBookings = processedData.summary.gilbertCounts.bookings
-        processedData.summary.totalPatients = processedData.summary.gilbertCounts.patients
+      // Add metadata to the response
+      const responseData = {
+        ...processedData,
+        lastUpdated: new Date().toISOString(),
+        queryParams: { startDate, endDate, location }
       }
+      
+      // Date filtering is now handled by the MultiLocationDataProcessor
 
       console.log('✅ Gilbert data processed successfully')
       
-  return NextResponse.json({
+      return NextResponse.json({
     success: true,
-        message: 'Gilbert data retrieved successfully',
-        data: processedData
+        message: 'Multi-location data retrieved successfully',
+        data: responseData
       })
 
     } catch (graphqlError) {
