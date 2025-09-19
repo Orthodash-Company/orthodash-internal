@@ -47,7 +47,7 @@ export function MultiLocationSelector({
   };
 
   const handleSelectAll = () => {
-    const allLocationIds = activeLocations.map(loc => loc.id);
+    const allLocationIds = activeLocations.map(loc => String(loc.id));
     onSelectionChange(allLocationIds);
   };
 
