@@ -31,7 +31,8 @@ import {
   Save,
   Trash2,
   DollarSign,
-  CheckCircle
+  CheckCircle,
+  RefreshCw
 } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
 import { useSessionManager } from '@/hooks/use-session-manager';
@@ -690,20 +691,118 @@ export default function Dashboard() {
 
                       <Card className="bg-white border-[#1C1F4F]/20 hover:shadow-lg transition-shadow">
                         <CardHeader>
-                          <CardTitle className="text-[#1C1F4F] flex items-center">
-                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
-                              <BarChart3 className="h-4 w-4 text-white" />
+                          <CardTitle className="text-[#1C1F4F] flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
+                                <BarChart3 className="h-4 w-4 text-white" />
+                              </div>
+                              QuickBooks Desktop
                             </div>
-                            QuickBooks
+                            <Badge 
+                              variant={quickBooksRevenueData ? "default" : "secondary"}
+                              className={quickBooksRevenueData ? "bg-green-600" : "bg-gray-400"}
+                            >
+                              {quickBooksRevenueData ? "Connected" : "Not Connected"}
+                            </Badge>
                           </CardTitle>
                           <CardDescription className="text-[#1C1F4F]/70">
-                            Connect QuickBooks for vendor and revenue data
+                            Connect QuickBooks Desktop API for real revenue data
                           </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                          <Button className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white">
-                            Connect QuickBooks
-                          </Button>
+                        <CardContent className="space-y-4">
+                          {quickBooksRevenueData ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Total Revenue:</span>
+                                  <span className="font-semibold text-green-600">
+                                    ${quickBooksRevenueData.revenueMetrics?.totalRevenue?.toLocaleString() || '0'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Transactions:</span>
+                                  <span className="font-semibold text-blue-600">
+                                    {quickBooksRevenueData.revenueData?.length || 0}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Locations:</span>
+                                  <span className="font-semibold text-purple-600">
+                                    {quickBooksRevenueData.locationRevenue?.length || 0}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Avg/Transaction:</span>
+                                  <span className="font-semibold text-orange-600">
+                                    ${quickBooksRevenueData.revenueMetrics?.averageRevenuePerTransaction?.toLocaleString() || '0'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="pt-2 border-t border-gray-200">
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  <span>Last updated: {new Date(quickBooksRevenueData.lastUpdated).toLocaleDateString()}</span>
+                                  <div className="flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                    <span>Live Data</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 pt-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="flex-1"
+                                  onClick={() => setShowQuickBooksSetup(true)}
+                                >
+                                  <Settings className="h-3 w-3 mr-1" />
+                                  Manage
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={async () => {
+                                    try {
+                                      const endDate = new Date().toISOString().split('T')[0]
+                                      const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                                      const response = await fetch(`/api/quickbooks/revenue?startDate=${startDate}&endDate=${endDate}`)
+                                      const data = await response.json()
+                                      if (data.success) {
+                                        setQuickBooksRevenueData(data.data)
+                                        toast.success('Revenue data refreshed!')
+                                      }
+                                    } catch (error) {
+                                      toast.error('Failed to refresh revenue data')
+                                    }
+                                  }}
+                                >
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                  Refresh
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="text-center py-4 text-gray-500">
+                                <BarChart3 className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                                <p className="text-sm">No QuickBooks connection</p>
+                                <p className="text-xs">Revenue data showing as $0</p>
+                              </div>
+                              <div className="space-y-2">
+                                <Button 
+                                  className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white"
+                                  onClick={() => setShowQuickBooksSetup(true)}
+                                >
+                                  <Settings className="h-4 w-4 mr-2" />
+                                  Setup QuickBooks API
+                                </Button>
+                                <div className="text-xs text-gray-500 text-center">
+                                  <p>• Connect to QuickBooks Desktop</p>
+                                  <p>• Pull real revenue data</p>
+                                  <p>• Replace $0 fallback values</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
 
@@ -732,6 +831,38 @@ export default function Dashboard() {
                     {/* Greyfinch API is automatically connected using environment variables */}
                   </div>
                 </TabsContent>
+
+                {/* QuickBooks Setup Modal */}
+                {showQuickBooksSetup && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                      <div className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-xl font-semibold">QuickBooks Desktop API Setup</h2>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowQuickBooksSetup(false)}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                        <QuickBooksSetup
+                          onSetupComplete={(config) => {
+                            console.log('QuickBooks setup completed:', config)
+                            setShowQuickBooksSetup(false)
+                            toast.success('QuickBooks integration configured successfully!')
+                          }}
+                          onRevenueDataLoaded={(data) => {
+                            console.log('QuickBooks revenue data loaded:', data)
+                            setQuickBooksRevenueData(data)
+                            toast.success('Revenue data loaded from QuickBooks!')
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <TabsContent value="export" className="mt-6">
                   <SessionManager 
@@ -794,79 +925,6 @@ export default function Dashboard() {
             </CardContent>
           </Card> */}
 
-    {/* QuickBooks Integration */}
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            QuickBooks Revenue Integration
-          </div>
-          <Button
-            onClick={() => setShowQuickBooksSetup(!showQuickBooksSetup)}
-            variant={showQuickBooksSetup ? "secondary" : "outline"}
-            size="sm"
-          >
-            {showQuickBooksSetup ? 'Hide Setup' : 'Setup QuickBooks'}
-          </Button>
-        </CardTitle>
-        <CardDescription>
-          Connect QuickBooks Desktop to pull real revenue data and replace fallback values
-        </CardDescription>
-      </CardHeader>
-      {showQuickBooksSetup && (
-        <CardContent>
-          <QuickBooksSetup
-            onSetupComplete={(config) => {
-              console.log('QuickBooks setup completed:', config)
-              setShowQuickBooksSetup(false)
-              toast.success('QuickBooks integration configured successfully!')
-            }}
-            onRevenueDataLoaded={(data) => {
-              console.log('QuickBooks revenue data loaded:', data)
-              setQuickBooksRevenueData(data)
-              toast.success('Revenue data loaded from QuickBooks!')
-            }}
-          />
-        </CardContent>
-      )}
-      {quickBooksRevenueData && !showQuickBooksSetup && (
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
-                ${quickBooksRevenueData.revenueMetrics?.totalRevenue?.toLocaleString() || '0'}
-              </div>
-              <div className="text-sm text-gray-600">Total Revenue</div>
-            </div>
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
-                {quickBooksRevenueData.revenueData?.length || 0}
-              </div>
-              <div className="text-sm text-gray-600">Transactions</div>
-            </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
-                {quickBooksRevenueData.locationRevenue?.length || 0}
-              </div>
-              <div className="text-sm text-gray-600">Locations</div>
-            </div>
-            <div className="text-center p-4 bg-orange-50 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">
-                ${quickBooksRevenueData.revenueMetrics?.averageRevenuePerTransaction?.toLocaleString() || '0'}
-              </div>
-              <div className="text-sm text-gray-600">Avg per Transaction</div>
-            </div>
-          </div>
-          <div className="mt-4 text-center">
-            <Badge variant="default" className="bg-green-600">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              QuickBooks Connected - Real Revenue Data
-            </Badge>
-          </div>
-        </CardContent>
-      )}
-    </Card>
 
     {/* Enhanced AI Analysis */}
     <EnhancedAIAnalysis 
