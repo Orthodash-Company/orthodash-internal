@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 interface Location {
-  id: string;
+  id: string | number;
   name: string;
   isActive?: boolean;
 }
@@ -117,21 +117,22 @@ export function MultiLocationSelector({
           
           <div className="max-h-60 overflow-y-auto">
             {activeLocations.map((location) => {
-              const isSelected = selectedLocationIds.includes(location.id);
+              const locationIdStr = String(location.id);
+              const isSelected = selectedLocationIds.includes(locationIdStr);
               return (
                 <div
                   key={location.id}
                   className="flex items-center space-x-2 p-3 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleLocationToggle(location.id)}
+                  onClick={() => handleLocationToggle(locationIdStr)}
                 >
                   <Checkbox
-                    id={location.id}
+                    id={locationIdStr}
                     checked={isSelected}
-                    onChange={() => handleLocationToggle(location.id)}
+                    onChange={() => handleLocationToggle(locationIdStr)}
                     className="flex-shrink-0"
                   />
                   <Label
-                    htmlFor={location.id}
+                    htmlFor={locationIdStr}
                     className="flex-1 cursor-pointer text-sm font-normal"
                   >
                     {location.name}
@@ -158,7 +159,7 @@ export function MultiLocationSelector({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleLocationToggle(location.id);
+                        handleLocationToggle(String(location.id));
                       }}
                       className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
                     >

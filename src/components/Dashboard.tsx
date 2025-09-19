@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
 import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
 import { CostManagementEnhanced } from './CostManagementEnhanced';
-import { AISummaryGenerator } from './AISummaryGenerator';
 import { EnhancedAIAnalysis } from './EnhancedAIAnalysis';
 import { LocationsManager } from './LocationsManager';
 import { SessionManager } from './SessionManager';
@@ -39,6 +38,7 @@ export default function Dashboard() {
   const { cacheSessionData } = useSessionManager();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [periods, setPeriods] = useState<PeriodConfig[]>([]);
   const [periodQueries, setPeriodQueries] = useState<any[]>([]);
@@ -61,6 +61,12 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.id) {
       loadGreyfinchData();
+    } else {
+      // If no user, stop loading after a short delay
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [user?.id]);
 
@@ -180,8 +186,11 @@ export default function Dashboard() {
       } else {
         console.error('❌ Failed to load Greyfinch analytics data:', data.message)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching Greyfinch analytics data:', error)
+      setError(error?.message || 'Error fetching Greyfinch analytics data')
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
@@ -544,6 +553,32 @@ export default function Dashboard() {
         <div className="bg-white border border-[#1C1F4F]/20 rounded-2xl p-8 shadow-xl">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#1C1F4F]/20 border-t-[#1C1F4F] mx-auto"></div>
           <p className="text-[#1C1F4F] text-center mt-4 font-medium">Loading Orthodash...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <div className="bg-white border border-red-200 rounded-2xl p-8 shadow-xl max-w-md">
+          <div className="text-red-600 text-center">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h2 className="text-xl font-semibold mb-2">Error Loading Dashboard</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button 
+              onClick={() => {
+                setError(null);
+                setIsLoading(true);
+                if (user?.id) {
+                  loadGreyfinchData();
+                }
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     );
