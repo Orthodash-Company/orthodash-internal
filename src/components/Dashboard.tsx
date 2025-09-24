@@ -162,40 +162,96 @@ export default function Dashboard() {
     try {
       console.log('🔄 Fetching Gilbert and Phoenix-Ahwatukee Greyfinch data...')
       const response = await fetch('/api/greyfinch/analytics?location=all')
-      const data = await response.json()
+      const apiResponse = await response.json()
       
-      if (data && (data.locations || data.data)) {
-        console.log('✅ Multi-location Greyfinch data loaded:', data)
+      if (apiResponse && apiResponse.data) {
+        console.log('✅ Multi-location Greyfinch data loaded:', apiResponse)
         
         // Update dashboard with multi-location data
-        setGreyfinchData(data)
+        setGreyfinchData(apiResponse)
         
-        // Extract and set locations from the data (Gilbert and Phoenix-Ahwatukee)
-        if (data.locations) {
-          const locationArray: Location[] = []
-          
-          // Handle both array and object formats for locations
-          const locationsData = Array.isArray(data.locations) ? data.locations : Object.values(data.locations)
-          
-          // Convert the locations to our Location format
-          locationsData.forEach((location: any) => {
-              locationArray.push({
-                id: parseInt(location.id) || Date.now(), // Convert to number ID
-                name: location.name,
-                greyfinchId: location.id,
-                isActive: location.isActive !== false
-              })
-            })
-          
-          console.log('📍 Setting all locations:', locationArray)
-          setLocations(locationArray)
+        // Extract and set locations from the processed data
+        const data = apiResponse.data
+        const locationArray: Location[] = []
+        
+        // Create Gilbert and Phoenix-Ahwatukee locations from the processed data
+        if (data.locations?.gilbert || data.locationData?.gilbert) {
+          locationArray.push({
+            id: 'gilbert-1',
+            name: 'Gilbert',
+            greyfinchId: 'gilbert-1',
+            isActive: true
+          })
         }
+        
+        if (data.locations?.phoenix || data.locationData?.phoenix) {
+          locationArray.push({
+            id: 'phoenix-ahwatukee-1', 
+            name: 'Phoenix-Ahwatukee',
+            greyfinchId: 'phoenix-ahwatukee-1',
+            isActive: true
+          })
+        }
+        
+        // If no location data found, create default locations for fallback
+        if (locationArray.length === 0) {
+          locationArray.push(
+            {
+              id: 'gilbert-1',
+              name: 'Gilbert',
+              greyfinchId: 'gilbert-1',
+              isActive: true
+            },
+            {
+              id: 'phoenix-ahwatukee-1',
+              name: 'Phoenix-Ahwatukee', 
+              greyfinchId: 'phoenix-ahwatukee-1',
+              isActive: true
+            }
+          )
+        }
+        
+        console.log('📍 Setting all locations:', locationArray)
+        setLocations(locationArray)
       } else {
-        console.error('❌ Failed to load Greyfinch analytics data:', data.message)
+        console.error('❌ Failed to load Greyfinch analytics data:', apiResponse.message)
+        // Set default locations even on error
+        const defaultLocations: Location[] = [
+          {
+            id: 'gilbert-1',
+            name: 'Gilbert',
+            greyfinchId: 'gilbert-1',
+            isActive: true
+          },
+          {
+            id: 'phoenix-ahwatukee-1',
+            name: 'Phoenix-Ahwatukee',
+            greyfinchId: 'phoenix-ahwatukee-1', 
+            isActive: true
+          }
+        ]
+        setLocations(defaultLocations)
       }
     } catch (error: any) {
       console.error('❌ Error fetching Greyfinch analytics data:', error)
       setError(error?.message || 'Error fetching Greyfinch analytics data')
+      
+      // Set default locations even on error
+      const defaultLocations: Location[] = [
+        {
+          id: 'gilbert-1',
+          name: 'Gilbert',
+          greyfinchId: 'gilbert-1',
+          isActive: true
+        },
+        {
+          id: 'phoenix-ahwatukee-1',
+          name: 'Phoenix-Ahwatukee',
+          greyfinchId: 'phoenix-ahwatukee-1',
+          isActive: true
+        }
+      ]
+      setLocations(defaultLocations)
     } finally {
       setIsLoading(false)
     }
@@ -263,9 +319,17 @@ export default function Dashboard() {
     // Handle multiple location selection
     const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
     
-    // Use the processed data from the API response
+    // Use the processed data from the API response - handle both structure formats
     const gilbertData = data.locationData?.gilbert || data.locations?.gilbert || {};
     const phoenixData = data.locationData?.phoenix || data.locations?.phoenix || {};
+    
+    console.log('🔍 Location data debug:', {
+      hasLocationData: !!data.locationData,
+      hasLocations: !!data.locations,
+      gilbertData,
+      phoenixData,
+      totalData: data.total
+    });
     
     // Calculate totals for selected locations
     let totalPatients = 0;
@@ -277,9 +341,17 @@ export default function Dashboard() {
     let totalNetProduction = 0;
     let totalAcquisitionCosts = 0;
     
-    // Apply location filtering
+    // Apply location filtering - use the correct location IDs
     const includeGilbert = selectedLocationIds.length === 0 || selectedLocationIds.includes('gilbert-1') || selectedLocationIds.includes('gilbert');
     const includePhoenix = selectedLocationIds.length === 0 || selectedLocationIds.includes('phoenix-ahwatukee-1') || selectedLocationIds.includes('phoenix');
+    
+    console.log('🎯 Location filtering:', {
+      selectedLocationIds,
+      includeGilbert,
+      includePhoenix,
+      gilbertPatients: gilbertData.patients || 0,
+      phoenixPatients: phoenixData.patients || 0
+    });
     
     if (includeGilbert) {
       totalPatients += gilbertData.patients || 0;

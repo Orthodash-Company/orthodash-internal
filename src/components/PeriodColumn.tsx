@@ -31,6 +31,7 @@ import {
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { MultiLocationComparisonChart } from './MultiLocationComparisonChart';
+import { ChartSelectorModal } from './ui/chart-selector-modal';
 
 interface PeriodData {
   avgNetProduction: number;
@@ -72,6 +73,7 @@ interface PeriodColumnProps {
   onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
   isCompact?: boolean;
   periodCosts?: CompactCost[];
+  selectedCharts?: string[];
 }
 
 interface PeriodColumnPropsExtended extends PeriodColumnProps {
@@ -79,10 +81,11 @@ interface PeriodColumnPropsExtended extends PeriodColumnProps {
   isFirstPeriod?: boolean;
 }
 
-export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false, periodCosts = [] }: PeriodColumnPropsExtended) {
+export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false, periodCosts = [], selectedCharts = [] }: PeriodColumnPropsExtended) {
   const data = query?.data;
   const isLoading = query?.isLoading;
   const error = query?.error;
+  const [localSelectedCharts, setLocalSelectedCharts] = useState<string[]>(selectedCharts);
   
   // Calculate total costs for this period
   const totalCosts = periodCosts.reduce((sum, cost) => sum + cost.amount, 0);
@@ -95,6 +98,123 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
 
   // Always render charts, even with no data - show loading indicator only during initial load
   const showLoadingIndicator = isLoading && !data;
+
+  // Helper function to render individual charts based on selection
+  const renderChart = (chartId: string, chartData: any, chartTitle: string) => {
+    switch (chartId) {
+      case 'referral-sources':
+        return (
+          <div key={chartId}>
+            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="y"
+                >
+                  {chartData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      
+      case 'conversion-rates':
+        return (
+          <div key={chartId}>
+            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} layout="vertical">
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="x" />
+                <Tooltip />
+                <Bar dataKey="digital" fill="#8884d8" />
+                <Bar dataKey="professional" fill="#82ca9d" />
+                <Bar dataKey="direct" fill="#ffc658" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      
+      case 'weekly-trends':
+        return (
+          <div key={chartId}>
+            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="x" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="digital" stroke="#8884d8" />
+                <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
+                <Line type="monotone" dataKey="direct" stroke="#ffc658" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      
+      case 'financial-summary':
+        return (
+          <div key={chartId}>
+            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} layout="vertical">
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="x" />
+                <Tooltip />
+                <Bar dataKey="digital" fill="#8884d8" />
+                <Bar dataKey="professional" fill="#82ca9d" />
+                <Bar dataKey="direct" fill="#ffc658" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      
+      case 'patient-metrics':
+        return (
+          <div key={chartId}>
+            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} layout="vertical">
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="x" />
+                <Tooltip />
+                <Bar dataKey="digital" fill="#8884d8" />
+                <Bar dataKey="professional" fill="#82ca9d" />
+                <Bar dataKey="direct" fill="#ffc658" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      
+      case 'no-show-analysis':
+        return (
+          <div key={chartId}>
+            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
+            <div className="flex items-center justify-center h-48 text-gray-500">
+              <div className="text-center">
+                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No-show analysis chart</p>
+                <p className="text-xs text-gray-400">Rate: {safeData.noShowRate}%</p>
+              </div>
+            </div>
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
 
   // Ensure we have valid data from API - only use live data, no fallbacks
   const safeData: PeriodData = data || {
@@ -321,44 +441,101 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           />
         )}
 
-        {/* Charts - Compact - Always render */}
+        {/* Charts - Compact - Only render selected charts */}
         <div className="space-y-4">
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-2">Referral Sources</h4>
-            <ResponsiveContainer width="100%" height={150}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={60}
-                  fill="#8884d8"
-                  dataKey="y"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-2">Conversion Rates</h4>
-            <ResponsiveContainer width="100%" height={150}>
-              <BarChart data={conversionData} layout="vertical">
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="x" />
-                <Tooltip />
-                <Bar dataKey="digital" fill="#8884d8" />
-                <Bar dataKey="professional" fill="#82ca9d" />
-                <Bar dataKey="direct" fill="#ffc658" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {localSelectedCharts.length > 0 ? (
+            <>
+              {/* Compact Chart Selector */}
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Charts</h4>
+                <ChartSelectorModal
+                  selectedCharts={localSelectedCharts}
+                  onChartsChange={setLocalSelectedCharts}
+                  trigger={
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1">
+                      <Settings className="h-3 w-3" />
+                      ({localSelectedCharts.length})
+                    </Button>
+                  }
+                />
+              </div>
+              
+              {/* Render selected charts in compact format */}
+              {localSelectedCharts.includes('referral-sources') && (
+                <div className="bg-white p-4 rounded-lg border">
+                  <h4 className="text-sm font-medium mb-2">Referral Sources</h4>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={60}
+                        fill="#8884d8"
+                        dataKey="y"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              
+              {localSelectedCharts.includes('conversion-rates') && (
+                <div className="bg-white p-4 rounded-lg border">
+                  <h4 className="text-sm font-medium mb-2">Conversion Rates</h4>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <BarChart data={conversionData} layout="vertical">
+                      <XAxis type="number" />
+                      <YAxis type="category" dataKey="x" />
+                      <Tooltip />
+                      <Bar dataKey="digital" fill="#8884d8" />
+                      <Bar dataKey="professional" fill="#82ca9d" />
+                      <Bar dataKey="direct" fill="#ffc658" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              
+              {localSelectedCharts.includes('weekly-trends') && (
+                <div className="bg-white p-4 rounded-lg border">
+                  <h4 className="text-sm font-medium mb-2">Weekly Trends</h4>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <LineChart data={trendsData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="x" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="digital" stroke="#8884d8" />
+                      <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
+                      <Line type="monotone" dataKey="direct" stroke="#ffc658" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          ) : (
+            /* No charts selected - show compact chart selector */
+            <div className="text-center py-8">
+              <BarChart3 className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+              <h4 className="text-sm font-medium text-gray-700 mb-2">No Charts Selected</h4>
+              <ChartSelectorModal
+                selectedCharts={localSelectedCharts}
+                onChartsChange={setLocalSelectedCharts}
+                trigger={
+                  <Button size="sm" className="gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Select Charts
+                  </Button>
+                }
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -499,60 +676,65 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           </ResponsiveContainer>
         </div>
 
-        {/* Charts - Always render, even with empty data */}
+        {/* Charts - Only render selected charts */}
         <div className="space-y-6">
-          <div>
-            <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="y"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div>
-            <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={conversionData} layout="vertical">
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="x" />
-                <Tooltip />
-                <Bar dataKey="digital" fill="#8884d8" />
-                <Bar dataKey="professional" fill="#82ca9d" />
-                <Bar dataKey="direct" fill="#ffc658" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          
-          {/* Weekly Trends - Always render, even if empty */}
-          <div>
-            <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={trendsData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="x" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="digital" stroke="#8884d8" />
-                <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
-                <Line type="monotone" dataKey="direct" stroke="#ffc658" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {localSelectedCharts.length > 0 ? (
+            <>
+              {/* Chart Selector */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Analytics Charts</h3>
+                <ChartSelectorModal
+                  selectedCharts={localSelectedCharts}
+                  onChartsChange={setLocalSelectedCharts}
+                  trigger={
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Settings className="h-4 w-4" />
+                      Manage Charts ({localSelectedCharts.length})
+                    </Button>
+                  }
+                />
+              </div>
+              
+              {/* Render selected charts */}
+              <div className="space-y-6">
+                {localSelectedCharts.includes('referral-sources') && 
+                  renderChart('referral-sources', pieData, 'Referral Sources')
+                }
+                {localSelectedCharts.includes('conversion-rates') && 
+                  renderChart('conversion-rates', conversionData, 'Conversion Rates')
+                }
+                {localSelectedCharts.includes('weekly-trends') && 
+                  renderChart('weekly-trends', trendsData, 'Weekly Trends')
+                }
+                {localSelectedCharts.includes('financial-summary') && 
+                  renderChart('financial-summary', conversionData, 'Financial Summary')
+                }
+                {localSelectedCharts.includes('patient-metrics') && 
+                  renderChart('patient-metrics', conversionData, 'Patient Metrics')
+                }
+                {localSelectedCharts.includes('no-show-analysis') && 
+                  renderChart('no-show-analysis', [], 'No-Show Analysis')
+                }
+              </div>
+            </>
+          ) : (
+            /* No charts selected - show chart selector */
+            <div className="text-center py-12">
+              <BarChart3 className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Charts Selected</h3>
+              <p className="text-gray-500 mb-6">Select charts to display your analytics data</p>
+              <ChartSelectorModal
+                selectedCharts={localSelectedCharts}
+                onChartsChange={setLocalSelectedCharts}
+                trigger={
+                  <Button className="gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Select Charts
+                  </Button>
+                }
+              />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
