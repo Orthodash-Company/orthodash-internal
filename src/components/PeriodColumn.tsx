@@ -125,7 +125,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 selectedCharts={localSelectedCharts}
                 onChartsChange={setLocalSelectedCharts}
                 trigger={
-                  <Button variant="outline" size={buttonSize} className={buttonClass}>
+                  <Button variant="outline" size={buttonSize} className={`${buttonClass} touch-manipulation`}>
                     <Settings className={iconSize} />
                     {isCompact ? `(${localSelectedCharts.length})` : `Manage Charts (${localSelectedCharts.length})`}
                   </Button>
@@ -134,7 +134,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             </div>
             
             {/* Render selected charts using single renderer */}
-            <div className={isCompact ? '' : 'space-y-6'}>
+            <div className={isCompact ? 'space-y-3' : 'space-y-4 sm:space-y-6'}>
               {localSelectedCharts.map(chartId => renderChart(chartId))}
             </div>
           </>
@@ -148,10 +148,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               selectedCharts={localSelectedCharts}
               onChartsChange={setLocalSelectedCharts}
               trigger={
-                <Button size={buttonSize} className="gap-2 mb-4">
-                  <BarChart3 className={iconSize} />
-                  Select Charts
-                </Button>
+                  <Button size={buttonSize} className="gap-2 mb-4 touch-manipulation">
+                    <BarChart3 className={iconSize} />
+                    Select Charts
+                  </Button>
               }
             />
           </div>
@@ -162,7 +162,9 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
 
   // Single chart renderer that works with actual data structure
   const renderChart = (chartId: string) => {
-    const chartHeight = isCompact ? 150 : 200;
+    // Mobile-optimized chart heights - use responsive design
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const chartHeight = isCompact ? 120 : (isMobile ? 180 : 220);
     
     // Debug logging
     console.log(`🔍 Rendering chart ${chartId} with data:`, {
@@ -189,17 +191,17 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         ];
         
         return (
-          <div key={chartId} className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
+          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
+            <h4 className="text-sm sm:text-base font-medium mb-3">Referral Sources</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <PieChart>
+              <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <Pie
                   data={displayData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => hasData ? `${name} ${(percent * 100).toFixed(0)}%` : name}
-                  outerRadius={isCompact ? 60 : 80}
+                  outerRadius={isCompact ? 50 : (isMobile ? 70 : 80)}
                   fill="#8884d8"
                   dataKey="value"
                 >
@@ -231,10 +233,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         ];
         
         return (
-          <div key={chartId} className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
+          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
+            <h4 className="text-sm sm:text-base font-medium mb-3">Conversion Rates</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={displayConversionData} layout="vertical">
+              <BarChart data={displayConversionData} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="source" />
                 <Tooltip />
@@ -260,8 +262,8 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         // If no trends data, show placeholder
         if (trendsData.length === 0) {
           return (
-            <div key={chartId} className="bg-white p-4 rounded-lg border">
-              <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
+            <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
+              <h4 className="text-sm sm:text-base font-medium mb-3">Weekly Trends</h4>
               <div className="flex items-center justify-center h-48 text-gray-500">
                 <div className="text-center">
                   <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -273,10 +275,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         }
         
         return (
-          <div key={chartId} className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
+          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
+            <h4 className="text-sm sm:text-base font-medium mb-3">Weekly Trends</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <LineChart data={trendsData}>
+              <LineChart data={trendsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="week" />
                 <YAxis />
@@ -303,10 +305,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         ];
         
         return (
-          <div key={chartId} className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-3">Financial Summary</h4>
+          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
+            <h4 className="text-sm sm:text-base font-medium mb-3">Financial Summary</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={displayFinancialData} layout="vertical">
+              <BarChart data={displayFinancialData} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="metric" />
                 <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
@@ -335,10 +337,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         ];
         
         return (
-          <div key={chartId} className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-3">Patient Metrics</h4>
+          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
+            <h4 className="text-sm sm:text-base font-medium mb-3">Patient Metrics</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={displayPatientData} layout="vertical">
+              <BarChart data={displayPatientData} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="metric" />
                 <Tooltip />
@@ -358,8 +360,8 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         const totalAppointments = safeData.appointments || 0;
         
         return (
-          <div key={chartId} className="bg-white p-4 rounded-lg border">
-            <h4 className="text-sm font-medium mb-3">No-Show Analysis</h4>
+          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
+            <h4 className="text-sm sm:text-base font-medium mb-3">No-Show Analysis</h4>
             <div className="flex items-center justify-center h-48 text-gray-500">
               <div className="text-center">
                 <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />

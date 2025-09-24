@@ -142,7 +142,7 @@ export function MultiLocationComparisonChart({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={typeof window !== 'undefined' && window.innerWidth < 768 ? 250 : 300}>
               <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
@@ -165,15 +165,15 @@ export function MultiLocationComparisonChart({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
+            <ResponsiveContainer width="100%" height={typeof window !== 'undefined' && window.innerWidth < 768 ? 250 : 300}>
+              <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <Pie
                   data={pieChartData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
+                  outerRadius={typeof window !== 'undefined' && window.innerWidth < 768 ? 70 : 80}
                   fill="#8884d8"
                   dataKey="value"
                 >
