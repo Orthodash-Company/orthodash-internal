@@ -93,69 +93,8 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   console.log(`Period data:`, data);
   console.log(`Period costs:`, periodCosts, `Total: $${totalCosts}`);
 
-  // Handle loading and error states for live data
-  if (isLoading) {
-    return (
-      <Card className={isCompact ? "h-auto" : "h-[500px]"}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{period.title}</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading live data from Greyfinch API...</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className={isCompact ? "h-auto" : "h-[500px]"}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{period.title}</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="text-red-500 mb-4">⚠️</div>
-              <p className="text-gray-600">Error loading data</p>
-              <p className="text-sm text-gray-500 mt-2">{error.message}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // If no data, show empty state with option to add data
-  if (!data) {
-    return (
-      <Card className={isCompact ? "h-auto" : "h-[500px]"}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{period.title}</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="text-gray-400 mb-4">📊</div>
-              <p className="text-gray-600">No data available</p>
-              <p className="text-sm text-gray-500 mt-2">Add data sources to see analytics</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Always render charts, even with no data - show loading indicator only during initial load
+  const showLoadingIndicator = isLoading && !data;
 
   // Ensure we have valid data from API - only use live data, no fallbacks
   const safeData: PeriodData = data || {
@@ -303,7 +242,27 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
 
   if (isCompact) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 relative">
+        {/* Loading overlay for compact view */}
+        {showLoadingIndicator && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Loading...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error indicator for compact view */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+            <div className="flex items-center gap-2">
+              <div className="text-red-500 text-sm">⚠️</div>
+              <p className="text-xs text-red-700">Data error</p>
+            </div>
+          </div>
+        )}
+
         {/* Key Metrics - Compact View with Production Data */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-lg border">
@@ -362,23 +321,43 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           />
         )}
 
-        {/* Charts - Compact */}
+        {/* Charts - Compact - Always render */}
         <div className="space-y-4">
           <div className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-2">Referral Sources</h4>
-            <PieChart data={pieData} />
+            <ResponsiveContainer width="100%" height={150}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={60}
+                  fill="#8884d8"
+                  dataKey="y"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
           
           <div className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-2">Conversion Rates</h4>
-            <BarChart data={conversionData} layout="vertical">
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="x" />
-              <Tooltip />
-              <Bar dataKey="digital" fill="#8884d8" />
-              <Bar dataKey="professional" fill="#82ca9d" />
-              <Bar dataKey="direct" fill="#ffc658" />
-            </BarChart>
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={conversionData} layout="vertical">
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="x" />
+                <Tooltip />
+                <Bar dataKey="digital" fill="#8884d8" />
+                <Bar dataKey="professional" fill="#82ca9d" />
+                <Bar dataKey="direct" fill="#ffc658" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
@@ -448,119 +427,133 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <CardContent className="space-y-6 relative">
+        {/* Loading overlay - only show during initial load when no data exists */}
+        {showLoadingIndicator && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading data...</p>
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Key Metrics Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600">Avg Net Production</p>
-                    <p className="text-xl font-bold">${safeData.avgNetProduction.toLocaleString()}</p>
-                  </div>
-                  <DollarSign className="h-8 w-8 text-[#1d1d52]" />
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600">Acquisition Cost</p>
-                    <p className="text-xl font-bold">${safeData.avgAcquisitionCost}</p>
-                  </div>
-                  <Target className="h-8 w-8 text-green-500" />
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg col-span-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600">No-Show Rate</p>
-                    <p className="text-xl font-bold">{safeData.noShowRate}%</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-red-500" />
-                </div>
-              </div>
-            </div>
-
-            {/* Data Summary Chart */}
-            <div className="bg-white p-4 rounded-lg border">
-              <h4 className="text-sm font-medium mb-3">Data Summary</h4>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={conversionData} layout="vertical">
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="x" />
-                  <Tooltip />
-                  <Bar dataKey="digital" fill="#8884d8" />
-                  <Bar dataKey="professional" fill="#82ca9d" />
-                  <Bar dataKey="direct" fill="#ffc658" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Charts */}
-            <div className="space-y-6">
-              <div>
-                <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={conversionData} layout="vertical">
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="x" />
-                    <Tooltip />
-                    <Bar dataKey="digital" fill="#8884d8" />
-                    <Bar dataKey="professional" fill="#82ca9d" />
-                    <Bar dataKey="direct" fill="#ffc658" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              
-              {safeData.trends.weekly.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={trendsData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="x" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="digital" stroke="#8884d8" />
-                      <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
-                      <Line type="monotone" dataKey="direct" stroke="#ffc658" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </>
         )}
+
+        {/* Error indicator - show as badge if there's an error */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <div className="text-red-500">⚠️</div>
+              <div>
+                <p className="text-sm text-red-700">Data loading error</p>
+                <p className="text-xs text-red-600">{error.message}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Key Metrics Grid - Always show, even with zero values */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600">Avg Net Production</p>
+                <p className="text-xl font-bold">${safeData.avgNetProduction.toLocaleString()}</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-[#1d1d52]" />
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600">Acquisition Cost</p>
+                <p className="text-xl font-bold">${safeData.avgAcquisitionCost}</p>
+              </div>
+              <Target className="h-8 w-8 text-green-500" />
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-lg col-span-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600">No-Show Rate</p>
+                <p className="text-xl font-bold">{safeData.noShowRate}%</p>
+              </div>
+              <Clock className="h-8 w-8 text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Data Summary Chart - Always render */}
+        <div className="bg-white p-4 rounded-lg border">
+          <h4 className="text-sm font-medium mb-3">Data Summary</h4>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={conversionData} layout="vertical">
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="x" />
+              <Tooltip />
+              <Bar dataKey="digital" fill="#8884d8" />
+              <Bar dataKey="professional" fill="#82ca9d" />
+              <Bar dataKey="direct" fill="#ffc658" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Charts - Always render, even with empty data */}
+        <div className="space-y-6">
+          <div>
+            <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="y"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={conversionData} layout="vertical">
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="x" />
+                <Tooltip />
+                <Bar dataKey="digital" fill="#8884d8" />
+                <Bar dataKey="professional" fill="#82ca9d" />
+                <Bar dataKey="direct" fill="#ffc658" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          {/* Weekly Trends - Always render, even if empty */}
+          <div>
+            <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={trendsData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="x" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="digital" stroke="#8884d8" />
+                <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
+                <Line type="monotone" dataKey="direct" stroke="#ffc658" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

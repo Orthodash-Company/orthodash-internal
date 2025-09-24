@@ -179,13 +179,13 @@ export default function Dashboard() {
           
           // Convert the locations to our Location format
           locationsData.forEach((location: any) => {
-            locationArray.push({
-              id: parseInt(location.id) || Date.now(), // Convert to number ID
-              name: location.name,
-              greyfinchId: location.id,
-              isActive: location.isActive !== false
+              locationArray.push({
+                id: parseInt(location.id) || Date.now(), // Convert to number ID
+                name: location.name,
+                greyfinchId: location.id,
+                isActive: location.isActive !== false
+              })
             })
-          })
           
           console.log('📍 Setting all locations:', locationArray)
           setLocations(locationArray)
@@ -644,9 +644,9 @@ export default function Dashboard() {
                         <CardHeader>
                           <CardTitle className="text-[#1C1F4F] flex items-center justify-between">
                             <div className="flex items-center">
-                              <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
-                                <BarChart3 className="h-4 w-4 text-white" />
-                              </div>
+                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
+                              <BarChart3 className="h-4 w-4 text-white" />
+                            </div>
                               QuickBooks Desktop
                             </div>
                             <Badge 
@@ -707,7 +707,7 @@ export default function Dashboard() {
                                 >
                                   <Settings className="h-3 w-3 mr-1" />
                                   Manage
-                                </Button>
+                          </Button>
                                 <Button 
                                   size="sm" 
                                   variant="outline"
