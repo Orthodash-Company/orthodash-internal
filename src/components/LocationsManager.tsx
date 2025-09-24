@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, RefreshCw, MapPin, Database, Users, Calendar, DollarSign, BookOpen } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Location {
   id: string;
@@ -40,7 +41,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     { id: 'gilbert-1', name: 'Gilbert', address: 'Gilbert, AZ', isActive: true },
     { id: 'phoenix-ahwatukee-1', name: 'Phoenix-Ahwatukee', address: 'Phoenix-Ahwatukee, AZ', isActive: true }
   ]);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(['gilbert-1', 'phoenix-ahwatukee-1']);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [dataCounts, setDataCounts] = useState<DataCounts>({ locations: 2 });
@@ -448,15 +449,22 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
                   </div>
                   <div className="flex items-center space-x-2">
                     {location.isActive ? (
-                      <Select value={selectedLocation || ''} onValueChange={setSelectedLocation}>
-                        <SelectTrigger className="w-32">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={location.id}>Use</SelectItem>
-                          <SelectItem value="none">Don't use</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`location-${location.id}`}
+                          checked={selectedLocations.includes(location.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedLocations(prev => [...prev, location.id]);
+                            } else {
+                              setSelectedLocations(prev => prev.filter(id => id !== location.id));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`location-${location.id}`} className="text-sm text-gray-600">
+                          Use
+                        </Label>
+                      </div>
                     ) : (
                       <div className="text-sm text-gray-500 px-3 py-1 bg-gray-100 rounded">
                         Unavailable
@@ -466,7 +474,28 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
                 </div>
               ))}
             </div>
-          ) : (
+          ) : null}
+          
+          {/* Selection Summary */}
+          {locations.length > 0 && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900">
+                    {selectedLocations.length} of {locations.length} locations selected
+                  </span>
+                </div>
+                {selectedLocations.length > 0 && (
+                  <div className="text-xs text-blue-700">
+                    {selectedLocations.map(id => locations.find(l => l.id === id)?.name).filter(Boolean).join(', ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {locations.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No locations found</p>
