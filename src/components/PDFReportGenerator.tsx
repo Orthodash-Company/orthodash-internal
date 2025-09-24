@@ -15,6 +15,9 @@ interface PDFReportGeneratorProps {
   periods: any[];
   acquisitionCosts: any[];
   aiSummary: any;
+  selectedPeriod?: any; // The specific period to generate charts for
+  selectedCharts?: string[]; // The charts selected for this period
+  periodData?: any; // The processed data for the selected period
   onSaveReport?: (reportData: any) => void;
 }
 
@@ -32,6 +35,9 @@ export function PDFReportGenerator({
   periods, 
   acquisitionCosts, 
   aiSummary, 
+  selectedPeriod,
+  selectedCharts = [],
+  periodData,
   onSaveReport 
 }: PDFReportGeneratorProps) {
   const { user } = useAuth();
@@ -54,6 +60,82 @@ export function PDFReportGenerator({
       locations: data.locations?.length || 0
     };
   }, [greyfinchData]);
+
+  // Generate chart data for PDF - similar to PeriodColumn renderChart
+  const generateChartData = (chartId: string, data: any) => {
+    switch (chartId) {
+      case 'referral-sources':
+        return {
+          title: 'Referral Sources',
+          type: 'pie',
+          data: [
+            { name: 'Digital', value: data.referralSources?.digital || 0 },
+            { name: 'Professional', value: data.referralSources?.professional || 0 },
+            { name: 'Direct', value: data.referralSources?.direct || 0 }
+          ]
+        };
+      
+      case 'conversion-rates':
+        return {
+          title: 'Conversion Rates',
+          type: 'bar',
+          data: [
+            { source: 'Digital', rate: data.conversionRates?.digital || 0 },
+            { source: 'Professional', rate: data.conversionRates?.professional || 0 },
+            { source: 'Direct', rate: data.conversionRates?.direct || 0 }
+          ]
+        };
+      
+      case 'weekly-trends':
+        return {
+          title: 'Weekly Trends',
+          type: 'line',
+          data: (data.trends?.weekly || []).map((week: any) => ({
+            week: week.week || 'Week',
+            gilbert: week.gilbert || 0,
+            phoenix: week.phoenix || 0,
+            total: week.total || 0
+          }))
+        };
+      
+      case 'financial-summary':
+        return {
+          title: 'Financial Summary',
+          type: 'bar',
+          data: [
+            { metric: 'Revenue', value: data.revenue || 0 },
+            { metric: 'Production', value: data.production || 0 },
+            { metric: 'Net Production', value: data.netProduction || 0 },
+            { metric: 'Acquisition Costs', value: data.acquisitionCosts || 0 }
+          ]
+        };
+      
+      case 'patient-metrics':
+        return {
+          title: 'Patient Metrics',
+          type: 'bar',
+          data: [
+            { metric: 'Patients', value: data.patients || 0 },
+            { metric: 'Appointments', value: data.appointments || 0 },
+            { metric: 'Leads', value: data.leads || 0 },
+            { metric: 'Bookings', value: data.bookings || 0 }
+          ]
+        };
+      
+      case 'no-show-analysis':
+        return {
+          title: 'No-Show Analysis',
+          type: 'metric',
+          data: {
+            noShowRate: data.noShowRate || 0,
+            totalAppointments: data.appointments || 0
+          }
+        };
+      
+      default:
+        return null;
+    }
+  };
 
   // Extract analysis data for a specific period
   const getPeriodAnalysisData = (period: any) => {
@@ -101,6 +183,93 @@ export function PDFReportGenerator({
     }
     
     return filteredData;
+  };
+
+  // Add charts section to PDF
+  const addChartsToPDF = (doc: jsPDF, yPosition: number, pageWidth: number, pageHeight: number) => {
+    let currentY = yPosition;
+    
+    if (selectedPeriod && selectedCharts.length > 0 && periodData) {
+      // Add new page for charts if needed
+      if (currentY > pageHeight - 100) {
+        doc.addPage();
+        currentY = 20;
+      }
+      
+      doc.setFontSize(16);
+      doc.setTextColor(29, 29, 82);
+      doc.text('Analytics Charts', 20, currentY);
+      currentY += 15;
+      
+      // Period info
+      doc.setFontSize(12);
+      doc.setTextColor(29, 29, 82);
+      doc.text(`${selectedPeriod.title || 'Selected Period'}`, 20, currentY);
+      currentY += 8;
+      
+      if (selectedPeriod.startDate && selectedPeriod.endDate) {
+        const startDate = new Date(selectedPeriod.startDate).toLocaleDateString();
+        const endDate = new Date(selectedPeriod.endDate).toLocaleDateString();
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Date Range: ${startDate} - ${endDate}`, 20, currentY);
+        currentY += 6;
+      }
+      
+      // Generate chart tables
+      selectedCharts.forEach((chartId) => {
+        if (currentY > pageHeight - 80) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        const chartData = generateChartData(chartId, periodData);
+        if (!chartData) return;
+        
+        doc.setFontSize(14);
+        doc.setTextColor(29, 29, 82);
+        doc.text(chartData.title, 20, currentY);
+        currentY += 10;
+        
+        if (chartData.type === 'metric') {
+          // Special handling for no-show analysis
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          doc.text(`No-Show Rate: ${chartData.data.noShowRate.toFixed(1)}%`, 25, currentY);
+          currentY += 6;
+          doc.text(`Total Appointments: ${chartData.data.totalAppointments}`, 25, currentY);
+          currentY += 10;
+        } else {
+          // Create table for chart data
+          const tableData = [['Metric', 'Value']];
+          
+          chartData.data.forEach((item: any) => {
+            if (chartData.type === 'pie') {
+              tableData.push([item.name, item.value.toString()]);
+            } else if (chartData.type === 'bar' && item.metric) {
+              tableData.push([item.metric, item.value.toString()]);
+            } else if (chartData.type === 'bar' && item.source) {
+              tableData.push([item.source, `${item.rate.toFixed(1)}%`]);
+            } else if (chartData.type === 'line') {
+              tableData.push([item.week, `Gilbert: ${item.gilbert}, Phoenix: ${item.phoenix}, Total: ${item.total}`]);
+            }
+          });
+          
+          autoTable(doc, {
+            head: [tableData[0]],
+            body: tableData.slice(1),
+            startY: currentY,
+            theme: 'grid',
+            headStyles: { fillColor: [29, 29, 82] },
+            styles: { fontSize: 9 }
+          });
+          
+          currentY = (doc as any).lastAutoTable.finalY + 15;
+        }
+      });
+    }
+    
+    return currentY;
   };
 
   // Save report to database - memoized for performance
@@ -309,6 +478,9 @@ export function PDFReportGenerator({
         yPosition = (doc as any).lastAutoTable.finalY + 15;
       }
       
+      // Add Charts Section
+      yPosition = addChartsToPDF(doc, yPosition, pageWidth, pageHeight);
+      
       // AI Summary Section
       if (aiSummary) {
         if (yPosition > pageHeight - 80) {
@@ -316,43 +488,55 @@ export function PDFReportGenerator({
           yPosition = 20;
         }
         
-        doc.setFontSize(14);
+        doc.setFontSize(16);
         doc.setTextColor(29, 29, 82);
-        doc.text('AI Analysis Summary', 20, yPosition);
+        doc.text('AI Analysis & Insights', 20, yPosition);
         
-        yPosition += 10;
+        yPosition += 15;
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
         
-        // Summary text
+        // Executive Summary
         if (aiSummary.summary) {
-          const summaryLines = doc.splitTextToSize(aiSummary.summary, pageWidth - 40);
-          doc.text(summaryLines, 20, yPosition);
-          yPosition += (summaryLines.length * 6) + 10;
-        }
-        
-        // Key insights
-        if (aiSummary.insights && aiSummary.insights.length > 0) {
           doc.setFontSize(12);
           doc.setTextColor(29, 29, 82);
-          doc.text('Key Insights:', 20, yPosition);
+          doc.text('Executive Summary:', 20, yPosition);
+          yPosition += 8;
+          
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          const summaryLines = doc.splitTextToSize(aiSummary.summary, pageWidth - 40);
+          doc.text(summaryLines, 20, yPosition);
+          yPosition += (summaryLines.length * 6) + 15;
+        }
+        
+        // Key Performance Indicators
+        if (aiSummary.insights && aiSummary.insights.length > 0) {
+          if (yPosition > pageHeight - 60) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFontSize(12);
+          doc.setTextColor(29, 29, 82);
+          doc.text('Key Performance Indicators:', 20, yPosition);
           yPosition += 8;
           
           doc.setFontSize(10);
           doc.setTextColor(100, 100, 100);
           
-          aiSummary.insights.forEach((insight: string) => {
-            const insightLines = doc.splitTextToSize(`• ${insight}`, pageWidth - 40);
-            doc.text(insightLines, 25, yPosition);
-            yPosition += (insightLines.length * 6) + 2;
+          aiSummary.insights.forEach((insight: string, index: number) => {
+            const insightLines = doc.splitTextToSize(`${index + 1}. ${insight}`, pageWidth - 40);
+            doc.text(insightLines, 20, yPosition);
+            yPosition += (insightLines.length * 6) + 3;
           });
           
-          yPosition += 5;
+          yPosition += 10;
         }
         
-        // Strategic recommendations
+        // Strategic Recommendations
         if (aiSummary.strategicRecommendations && aiSummary.strategicRecommendations.length > 0) {
-          if (yPosition > pageHeight - 60) {
+          if (yPosition > pageHeight - 80) {
             doc.addPage();
             yPosition = 20;
           }
@@ -365,11 +549,32 @@ export function PDFReportGenerator({
           doc.setFontSize(10);
           doc.setTextColor(100, 100, 100);
           
-          aiSummary.strategicRecommendations.forEach((rec: string) => {
-            const recLines = doc.splitTextToSize(`• ${rec}`, pageWidth - 40);
-            doc.text(recLines, 25, yPosition);
-            yPosition += (recLines.length * 6) + 2;
+          aiSummary.strategicRecommendations.forEach((rec: string, index: number) => {
+            const recLines = doc.splitTextToSize(`${index + 1}. ${rec}`, pageWidth - 40);
+            doc.text(recLines, 20, yPosition);
+            yPosition += (recLines.length * 6) + 3;
           });
+          
+          yPosition += 10;
+        }
+        
+        // Additional Analysis (if available)
+        if (aiSummary.analysis) {
+          if (yPosition > pageHeight - 80) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFontSize(12);
+          doc.setTextColor(29, 29, 82);
+          doc.text('Detailed Analysis:', 20, yPosition);
+          yPosition += 8;
+          
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          const analysisLines = doc.splitTextToSize(aiSummary.analysis, pageWidth - 40);
+          doc.text(analysisLines, 20, yPosition);
+          yPosition += (analysisLines.length * 6) + 10;
         }
       }
       

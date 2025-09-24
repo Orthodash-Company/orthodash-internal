@@ -974,6 +974,9 @@ export default function Dashboard() {
                 periods={periods}
                 acquisitionCosts={acquisitionCosts}
                 aiSummary={aiSummary}
+                selectedPeriod={periods.length > 0 ? periods[0] : undefined}
+                selectedCharts={[]} // Charts are managed locally in PeriodColumn components
+                periodData={periods.length > 0 ? generatePeriodData(periods[0], greyfinchData) : undefined}
                 onSaveReport={handleSaveReport}
               />
             </CardContent>
