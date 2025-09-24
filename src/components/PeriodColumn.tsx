@@ -99,6 +99,67 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   // Always render charts, even with no data - show loading indicator only during initial load
   const showLoadingIndicator = isLoading && !data;
 
+  // Consolidated charts section renderer for both compact and full views
+  const renderChartsSection = (isCompact: boolean) => {
+    const sectionSpacing = isCompact ? 'space-y-4' : 'space-y-6';
+    const headerSize = isCompact ? 'text-sm font-medium' : 'text-lg font-semibold';
+    const buttonSize = isCompact ? 'sm' : 'sm';
+    const buttonClass = isCompact ? 'h-7 px-2 text-xs gap-1' : 'gap-2';
+    const iconSize = isCompact ? 'h-3 w-3' : 'h-4 w-4';
+    const emptyIconSize = isCompact ? 'h-12 w-12' : 'h-16 w-16';
+    const emptyPadding = isCompact ? 'py-8' : 'py-12';
+    const emptyMargin = isCompact ? 'mb-3' : 'mb-4';
+    const emptyTextSize = isCompact ? 'text-sm font-medium' : 'text-lg font-semibold';
+    const emptyDescClass = isCompact ? 'hidden' : 'text-gray-500 mb-6';
+
+    return (
+      <div className={sectionSpacing}>
+        {localSelectedCharts.length > 0 ? (
+          <>
+            {/* Chart Selector Header */}
+            <div className="flex items-center justify-between">
+              <h3 className={headerSize}>
+                {isCompact ? 'Charts' : 'Analytics Charts'}
+              </h3>
+              <ChartSelectorModal
+                selectedCharts={localSelectedCharts}
+                onChartsChange={setLocalSelectedCharts}
+                trigger={
+                  <Button variant="outline" size={buttonSize} className={buttonClass}>
+                    <Settings className={iconSize} />
+                    {isCompact ? `(${localSelectedCharts.length})` : `Manage Charts (${localSelectedCharts.length})`}
+                  </Button>
+                }
+              />
+            </div>
+            
+            {/* Render selected charts using single renderer */}
+            <div className={isCompact ? '' : 'space-y-6'}>
+              {localSelectedCharts.map(chartId => renderChart(chartId))}
+            </div>
+          </>
+        ) : (
+          /* No charts selected - show chart selector */
+          <div className={`text-center ${emptyPadding}`}>
+            <BarChart3 className={`${emptyIconSize} mx-auto ${emptyMargin} text-gray-400`} />
+            <h3 className={`${emptyTextSize} text-gray-700 mb-2`}>No Charts Selected</h3>
+            {!isCompact && <p className={emptyDescClass}>Select charts to display your analytics data</p>}
+            <ChartSelectorModal
+              selectedCharts={localSelectedCharts}
+              onChartsChange={setLocalSelectedCharts}
+              trigger={
+                <Button size={buttonSize} className="gap-2">
+                  <BarChart3 className={iconSize} />
+                  Select Charts
+                </Button>
+              }
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Single chart renderer that works with actual data structure
   const renderChart = (chartId: string) => {
     const chartHeight = isCompact ? 150 : 200;
@@ -480,46 +541,8 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           />
         )}
 
-        {/* Charts - Compact - Use single renderer */}
-        <div className="space-y-4">
-          {localSelectedCharts.length > 0 ? (
-            <>
-              {/* Compact Chart Selector */}
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">Charts</h4>
-                <ChartSelectorModal
-                  selectedCharts={localSelectedCharts}
-                  onChartsChange={setLocalSelectedCharts}
-                  trigger={
-                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1">
-                      <Settings className="h-3 w-3" />
-                      ({localSelectedCharts.length})
-                    </Button>
-                  }
-                />
-              </div>
-              
-              {/* Render selected charts using single renderer */}
-              {localSelectedCharts.map(chartId => renderChart(chartId))}
-            </>
-          ) : (
-            /* No charts selected - show compact chart selector */
-            <div className="text-center py-8">
-              <BarChart3 className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-              <h4 className="text-sm font-medium text-gray-700 mb-2">No Charts Selected</h4>
-              <ChartSelectorModal
-                selectedCharts={localSelectedCharts}
-                onChartsChange={setLocalSelectedCharts}
-                trigger={
-                  <Button size="sm" className="gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Select Charts
-                  </Button>
-                }
-              />
-            </div>
-          )}
-        </div>
+        {/* Charts - Compact */}
+        {renderChartsSection(true)}
       </div>
     );
   }
@@ -645,49 +668,8 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         </div>
 
 
-        {/* Charts - Only render selected charts */}
-        <div className="space-y-6">
-          {localSelectedCharts.length > 0 ? (
-            <>
-              {/* Chart Selector */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Analytics Charts</h3>
-                <ChartSelectorModal
-                  selectedCharts={localSelectedCharts}
-                  onChartsChange={setLocalSelectedCharts}
-                  trigger={
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Settings className="h-4 w-4" />
-                      Manage Charts ({localSelectedCharts.length})
-                    </Button>
-                  }
-                />
-              </div>
-              
-              {/* Render selected charts using single renderer */}
-              <div className="space-y-6">
-                {localSelectedCharts.map(chartId => renderChart(chartId))}
-              </div>
-            </>
-          ) : (
-            /* No charts selected - show chart selector */
-            <div className="text-center py-12">
-              <BarChart3 className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Charts Selected</h3>
-              <p className="text-gray-500 mb-6">Select charts to display your analytics data</p>
-              <ChartSelectorModal
-                selectedCharts={localSelectedCharts}
-                onChartsChange={setLocalSelectedCharts}
-                trigger={
-                  <Button className="gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Select Charts
-                  </Button>
-                }
-              />
-            </div>
-          )}
-        </div>
+        {/* Charts - Full View */}
+        {renderChartsSection(false)}
       </CardContent>
     </Card>
   );
