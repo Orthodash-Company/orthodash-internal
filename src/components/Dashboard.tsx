@@ -341,11 +341,18 @@ export default function Dashboard() {
     let totalNetProduction = 0;
     let totalAcquisitionCosts = 0;
     
-    // Apply location filtering - use the correct location IDs
-    const includeGilbert = selectedLocationIds.length === 0 || selectedLocationIds.includes('1') || selectedLocationIds.includes('gilbert');
-    const includePhoenix = selectedLocationIds.length === 0 || selectedLocationIds.includes('2') || selectedLocationIds.includes('phoenix');
+    // Apply location filtering - use the correct location IDs (handle both string and numeric)
+    const selectedLocationIdsStr = selectedLocationIds.map(id => String(id));
+    const includeGilbert = selectedLocationIds.length === 0 || 
+      selectedLocationIdsStr.includes('1') || 
+      selectedLocationIdsStr.includes('gilbert');
+    const includePhoenix = selectedLocationIds.length === 0 || 
+      selectedLocationIdsStr.includes('2') || 
+      selectedLocationIdsStr.includes('phoenix');
     
     console.log('🎯 Location filtering:', {
+      periodId: period.id,
+      periodLocationId: period.locationId,
       selectedLocationIds,
       includeGilbert,
       includePhoenix,
