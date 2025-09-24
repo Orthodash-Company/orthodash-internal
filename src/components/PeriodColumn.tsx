@@ -103,13 +103,25 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   const renderChart = (chartId: string) => {
     const chartHeight = isCompact ? 150 : 200;
     
+    // Debug logging
+    console.log(`🔍 Rendering chart ${chartId} with data:`, {
+      referralSources: safeData.referralSources,
+      conversionRates: safeData.conversionRates,
+      trends: safeData.trends,
+      revenue: safeData.revenue,
+      patients: safeData.patients,
+      noShowRate: safeData.noShowRate
+    });
+    
     switch (chartId) {
       case 'referral-sources':
         const referralData = [
-          { name: 'Digital', value: safeData.referralSources.digital, color: '#8884d8' },
-          { name: 'Professional', value: safeData.referralSources.professional, color: '#82ca9d' },
-          { name: 'Direct', value: safeData.referralSources.direct, color: '#ffc658' }
+          { name: 'Digital', value: safeData.referralSources?.digital || 0, color: '#8884d8' },
+          { name: 'Professional', value: safeData.referralSources?.professional || 0, color: '#82ca9d' },
+          { name: 'Direct', value: safeData.referralSources?.direct || 0, color: '#ffc658' }
         ];
+        
+        // Show chart even with zero data
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
@@ -137,9 +149,9 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
       
       case 'conversion-rates':
         const conversionData = [
-          { source: 'Digital', rate: safeData.conversionRates.digital },
-          { source: 'Professional', rate: safeData.conversionRates.professional },
-          { source: 'Direct', rate: safeData.conversionRates.direct }
+          { source: 'Digital', rate: safeData.conversionRates?.digital || 0 },
+          { source: 'Professional', rate: safeData.conversionRates?.professional || 0 },
+          { source: 'Direct', rate: safeData.conversionRates?.direct || 0 }
         ];
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
@@ -156,12 +168,28 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         );
       
       case 'weekly-trends':
-        const trendsData = safeData.trends.weekly.map((week: any) => ({
+        const trendsData = (safeData.trends?.weekly || []).map((week: any) => ({
           week: week.week || 'Week',
           gilbert: week.gilbert || 0,
           phoenix: week.phoenix || 0,
           total: week.total || 0
         }));
+        
+        // If no trends data, show placeholder
+        if (trendsData.length === 0) {
+          return (
+            <div key={chartId} className="bg-white p-4 rounded-lg border">
+              <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
+              <div className="flex items-center justify-center h-48 text-gray-500">
+                <div className="text-center">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No trend data available</p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
@@ -181,10 +209,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
       
       case 'financial-summary':
         const financialData = [
-          { metric: 'Revenue', value: safeData.revenue },
-          { metric: 'Production', value: safeData.production },
-          { metric: 'Net Production', value: safeData.netProduction },
-          { metric: 'Acquisition Costs', value: safeData.acquisitionCosts }
+          { metric: 'Revenue', value: safeData.revenue || 0 },
+          { metric: 'Production', value: safeData.production || 0 },
+          { metric: 'Net Production', value: safeData.netProduction || 0 },
+          { metric: 'Acquisition Costs', value: safeData.acquisitionCosts || 0 }
         ];
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
@@ -193,7 +221,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               <BarChart data={financialData} layout="vertical">
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="metric" />
-                <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, '']} />
+                <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
                 <Bar dataKey="value" fill="#8884d8" />
               </BarChart>
             </ResponsiveContainer>
@@ -202,10 +230,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
       
       case 'patient-metrics':
         const patientData = [
-          { metric: 'Patients', value: safeData.patients },
-          { metric: 'Appointments', value: safeData.appointments },
-          { metric: 'Leads', value: safeData.leads },
-          { metric: 'Bookings', value: safeData.bookings }
+          { metric: 'Patients', value: safeData.patients || 0 },
+          { metric: 'Appointments', value: safeData.appointments || 0 },
+          { metric: 'Leads', value: safeData.leads || 0 },
+          { metric: 'Bookings', value: safeData.bookings || 0 }
         ];
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
@@ -222,6 +250,9 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         );
       
       case 'no-show-analysis':
+        const noShowRate = safeData.noShowRate || 0;
+        const totalAppointments = safeData.appointments || 0;
+        
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-3">No-Show Analysis</h4>
@@ -229,9 +260,9 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               <div className="text-center">
                 <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p className="text-sm font-medium">No-Show Rate</p>
-                <p className="text-2xl font-bold text-red-500">{safeData.noShowRate.toFixed(1)}%</p>
+                <p className="text-2xl font-bold text-red-500">{noShowRate.toFixed(1)}%</p>
                 <p className="text-xs text-gray-400 mt-2">
-                  {safeData.appointments} total appointments
+                  {totalAppointments} total appointments
                 </p>
               </div>
             </div>
