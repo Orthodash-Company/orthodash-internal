@@ -2,7 +2,6 @@ import { useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DataVisualizationModal } from "./DataVisualizationModal";
 import { VisualizationSection } from "./VisualizationSection";
 import { PeriodColumn } from "./PeriodColumn";
 import { AddColumnModal } from "./AddColumnModal";
@@ -209,17 +208,6 @@ export function HorizontalPeriodLayout({
                   </div>
                 </CardHeader>
 
-                {/* Add Visualization Button */}
-                <div className="px-6 pb-4">
-                  <DataVisualizationModal
-                    onSelectVisualization={(viz) => {
-                      const currentViz = period.visualizations || [];
-                      onUpdatePeriod(period.id, { 
-                        visualizations: [...currentViz, viz] 
-                      });
-                    }}
-                  />
-                </div>
 
                 {/* Period Content */}
                 <CardContent className="pt-0">

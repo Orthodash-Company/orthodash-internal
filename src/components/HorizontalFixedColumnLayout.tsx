@@ -5,12 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { CompactDateInput } from "@/components/ui/compact-date-input";
 import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
-import { DataVisualizationModal } from "./DataVisualizationModal";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "./CompactCostManager";
 import { Plus, X, Edit3, Calendar, MapPin, Save, Minus } from "lucide-react";
 import { format } from "date-fns";
-import { PeriodConfig, Location, VisualizationOption, CompactCost } from "@/shared/types";
+import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 
 interface HorizontalFixedColumnLayoutProps {
   periods: PeriodConfig[];
@@ -207,23 +206,6 @@ export function HorizontalFixedColumnLayout({
                         </Button>
                       )}
                       
-                      {/* Add Visualization button */}
-                      <DataVisualizationModal
-                        onSelectVisualization={(viz) => {
-                          const currentViz = period.visualizations || [];
-                          onUpdatePeriod(period.id, { 
-                            visualizations: [...currentViz, viz] 
-                          });
-                        }}
-                        trigger={
-                          <Button
-                            size="sm"
-                            className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 rounded-lg"
-                          >
-                            <Plus className="h-4 w-4 text-white" />
-                          </Button>
-                        }
-                      />
                     </div>
                   </div>
 
