@@ -177,7 +177,7 @@ export default function Dashboard() {
         // Create Gilbert and Phoenix-Ahwatukee locations from the processed data
         if (data.locations?.gilbert || data.locationData?.gilbert) {
           locationArray.push({
-            id: 'gilbert-1',
+            id: 1,
             name: 'Gilbert',
             greyfinchId: 'gilbert-1',
             isActive: true
@@ -186,7 +186,7 @@ export default function Dashboard() {
         
         if (data.locations?.phoenix || data.locationData?.phoenix) {
           locationArray.push({
-            id: 'phoenix-ahwatukee-1', 
+            id: 2, 
             name: 'Phoenix-Ahwatukee',
             greyfinchId: 'phoenix-ahwatukee-1',
             isActive: true
@@ -197,13 +197,13 @@ export default function Dashboard() {
         if (locationArray.length === 0) {
           locationArray.push(
             {
-              id: 'gilbert-1',
+              id: 1,
               name: 'Gilbert',
               greyfinchId: 'gilbert-1',
               isActive: true
             },
             {
-              id: 'phoenix-ahwatukee-1',
+              id: 2,
               name: 'Phoenix-Ahwatukee', 
               greyfinchId: 'phoenix-ahwatukee-1',
               isActive: true
@@ -218,13 +218,13 @@ export default function Dashboard() {
         // Set default locations even on error
         const defaultLocations: Location[] = [
           {
-            id: 'gilbert-1',
+            id: 1,
             name: 'Gilbert',
             greyfinchId: 'gilbert-1',
             isActive: true
           },
           {
-            id: 'phoenix-ahwatukee-1',
+            id: 2,
             name: 'Phoenix-Ahwatukee',
             greyfinchId: 'phoenix-ahwatukee-1', 
             isActive: true
@@ -239,13 +239,13 @@ export default function Dashboard() {
       // Set default locations even on error
       const defaultLocations: Location[] = [
         {
-          id: 'gilbert-1',
+          id: 1,
           name: 'Gilbert',
           greyfinchId: 'gilbert-1',
           isActive: true
         },
         {
-          id: 'phoenix-ahwatukee-1',
+          id: 2,
           name: 'Phoenix-Ahwatukee',
           greyfinchId: 'phoenix-ahwatukee-1',
           isActive: true
@@ -342,8 +342,8 @@ export default function Dashboard() {
     let totalAcquisitionCosts = 0;
     
     // Apply location filtering - use the correct location IDs
-    const includeGilbert = selectedLocationIds.length === 0 || selectedLocationIds.includes('gilbert-1') || selectedLocationIds.includes('gilbert');
-    const includePhoenix = selectedLocationIds.length === 0 || selectedLocationIds.includes('phoenix-ahwatukee-1') || selectedLocationIds.includes('phoenix');
+    const includeGilbert = selectedLocationIds.length === 0 || selectedLocationIds.includes('1') || selectedLocationIds.includes('gilbert');
+    const includePhoenix = selectedLocationIds.length === 0 || selectedLocationIds.includes('2') || selectedLocationIds.includes('phoenix');
     
     console.log('🎯 Location filtering:', {
       selectedLocationIds,
