@@ -99,27 +99,34 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   // Always render charts, even with no data - show loading indicator only during initial load
   const showLoadingIndicator = isLoading && !data;
 
-  // Helper function to render individual charts based on selection
-  const renderChart = (chartId: string, chartData: any, chartTitle: string) => {
+  // Single chart renderer that works with actual data structure
+  const renderChart = (chartId: string) => {
+    const chartHeight = isCompact ? 150 : 200;
+    
     switch (chartId) {
       case 'referral-sources':
+        const referralData = [
+          { name: 'Digital', value: safeData.referralSources.digital, color: '#8884d8' },
+          { name: 'Professional', value: safeData.referralSources.professional, color: '#82ca9d' },
+          { name: 'Direct', value: safeData.referralSources.direct, color: '#ffc658' }
+        ];
         return (
-          <div key={chartId}>
-            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
-            <ResponsiveContainer width="100%" height={200}>
+          <div key={chartId} className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <PieChart>
                 <Pie
-                  data={chartData}
+                  data={referralData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
+                  outerRadius={isCompact ? 60 : 80}
                   fill="#8884d8"
-                  dataKey="y"
+                  dataKey="value"
                 >
-                  {chartData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
+                  {referralData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -129,69 +136,86 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         );
       
       case 'conversion-rates':
+        const conversionData = [
+          { source: 'Digital', rate: safeData.conversionRates.digital },
+          { source: 'Professional', rate: safeData.conversionRates.professional },
+          { source: 'Direct', rate: safeData.conversionRates.direct }
+        ];
         return (
-          <div key={chartId}>
-            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData} layout="vertical">
+          <div key={chartId} className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <BarChart data={conversionData} layout="vertical">
                 <XAxis type="number" />
-                <YAxis type="category" dataKey="x" />
+                <YAxis type="category" dataKey="source" />
                 <Tooltip />
-                <Bar dataKey="digital" fill="#8884d8" />
-                <Bar dataKey="professional" fill="#82ca9d" />
-                <Bar dataKey="direct" fill="#ffc658" />
+                <Bar dataKey="rate" fill="#8884d8" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         );
       
       case 'weekly-trends':
+        const trendsData = safeData.trends.weekly.map((week: any) => ({
+          week: week.week || 'Week',
+          gilbert: week.gilbert || 0,
+          phoenix: week.phoenix || 0,
+          total: week.total || 0
+        }));
         return (
-          <div key={chartId}>
-            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData}>
+          <div key={chartId} className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-3">Weekly Trends</h4>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <LineChart data={trendsData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="x" />
+                <XAxis dataKey="week" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="digital" stroke="#8884d8" />
-                <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
-                <Line type="monotone" dataKey="direct" stroke="#ffc658" />
+                <Line type="monotone" dataKey="gilbert" stroke="#8884d8" name="Gilbert" />
+                <Line type="monotone" dataKey="phoenix" stroke="#82ca9d" name="Phoenix" />
+                <Line type="monotone" dataKey="total" stroke="#ffc658" name="Total" />
               </LineChart>
             </ResponsiveContainer>
           </div>
         );
       
       case 'financial-summary':
+        const financialData = [
+          { metric: 'Revenue', value: safeData.revenue },
+          { metric: 'Production', value: safeData.production },
+          { metric: 'Net Production', value: safeData.netProduction },
+          { metric: 'Acquisition Costs', value: safeData.acquisitionCosts }
+        ];
         return (
-          <div key={chartId}>
-            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData} layout="vertical">
+          <div key={chartId} className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-3">Financial Summary</h4>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <BarChart data={financialData} layout="vertical">
                 <XAxis type="number" />
-                <YAxis type="category" dataKey="x" />
-                <Tooltip />
-                <Bar dataKey="digital" fill="#8884d8" />
-                <Bar dataKey="professional" fill="#82ca9d" />
-                <Bar dataKey="direct" fill="#ffc658" />
+                <YAxis type="category" dataKey="metric" />
+                <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, '']} />
+                <Bar dataKey="value" fill="#8884d8" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         );
       
       case 'patient-metrics':
+        const patientData = [
+          { metric: 'Patients', value: safeData.patients },
+          { metric: 'Appointments', value: safeData.appointments },
+          { metric: 'Leads', value: safeData.leads },
+          { metric: 'Bookings', value: safeData.bookings }
+        ];
         return (
-          <div key={chartId}>
-            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData} layout="vertical">
+          <div key={chartId} className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-3">Patient Metrics</h4>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <BarChart data={patientData} layout="vertical">
                 <XAxis type="number" />
-                <YAxis type="category" dataKey="x" />
+                <YAxis type="category" dataKey="metric" />
                 <Tooltip />
-                <Bar dataKey="digital" fill="#8884d8" />
-                <Bar dataKey="professional" fill="#82ca9d" />
-                <Bar dataKey="direct" fill="#ffc658" />
+                <Bar dataKey="value" fill="#82ca9d" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -199,13 +223,16 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
       
       case 'no-show-analysis':
         return (
-          <div key={chartId}>
-            <h4 className="text-sm font-medium mb-3">{chartTitle}</h4>
+          <div key={chartId} className="bg-white p-4 rounded-lg border">
+            <h4 className="text-sm font-medium mb-3">No-Show Analysis</h4>
             <div className="flex items-center justify-center h-48 text-gray-500">
               <div className="text-center">
                 <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No-show analysis chart</p>
-                <p className="text-xs text-gray-400">Rate: {safeData.noShowRate}%</p>
+                <p className="text-sm font-medium">No-Show Rate</p>
+                <p className="text-2xl font-bold text-red-500">{safeData.noShowRate.toFixed(1)}%</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  {safeData.appointments} total appointments
+                </p>
               </div>
             </div>
           </div>
@@ -243,25 +270,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   // Check if multiple locations are selected
   const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
   const hasMultipleLocations = selectedLocationIds.length > 1;
-  
-  const pieData = [
-    { x: 'Digital', y: safeData.referralSources.digital, text: `${safeData.referralSources.digital}%` },
-    { x: 'Professional', y: safeData.referralSources.professional, text: `${safeData.referralSources.professional}%` },
-    { x: 'Direct', y: safeData.referralSources.direct, text: `${safeData.referralSources.direct}%` }
-  ];
-
-  const conversionData = [
-    { x: 'Digital', digital: safeData.conversionRates.digital, professional: 0, direct: 0 },
-    { x: 'Professional', digital: 0, professional: safeData.conversionRates.professional, direct: 0 },
-    { x: 'Direct', digital: 0, professional: 0, direct: safeData.conversionRates.direct }
-  ];
-
-  const trendsData = safeData.trends.weekly.map(week => ({
-    x: week.week,
-    digital: week.digital,
-    professional: week.professional,
-    direct: week.direct
-  }));
 
   // Check for empty state (no dates selected)
   if (!period.startDate || !period.endDate) {
@@ -441,7 +449,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           />
         )}
 
-        {/* Charts - Compact - Only render selected charts */}
+        {/* Charts - Compact - Use single renderer */}
         <div className="space-y-4">
           {localSelectedCharts.length > 0 ? (
             <>
@@ -460,64 +468,8 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 />
               </div>
               
-              {/* Render selected charts in compact format */}
-              {localSelectedCharts.includes('referral-sources') && (
-                <div className="bg-white p-4 rounded-lg border">
-                  <h4 className="text-sm font-medium mb-2">Referral Sources</h4>
-                  <ResponsiveContainer width="100%" height={150}>
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={60}
-                        fill="#8884d8"
-                        dataKey="y"
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={['#8884d8', '#82ca9d', '#ffc658'][index % 3]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-              
-              {localSelectedCharts.includes('conversion-rates') && (
-                <div className="bg-white p-4 rounded-lg border">
-                  <h4 className="text-sm font-medium mb-2">Conversion Rates</h4>
-                  <ResponsiveContainer width="100%" height={150}>
-                    <BarChart data={conversionData} layout="vertical">
-                      <XAxis type="number" />
-                      <YAxis type="category" dataKey="x" />
-                      <Tooltip />
-                      <Bar dataKey="digital" fill="#8884d8" />
-                      <Bar dataKey="professional" fill="#82ca9d" />
-                      <Bar dataKey="direct" fill="#ffc658" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-              
-              {localSelectedCharts.includes('weekly-trends') && (
-                <div className="bg-white p-4 rounded-lg border">
-                  <h4 className="text-sm font-medium mb-2">Weekly Trends</h4>
-                  <ResponsiveContainer width="100%" height={150}>
-                    <LineChart data={trendsData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="x" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="digital" stroke="#8884d8" />
-                      <Line type="monotone" dataKey="professional" stroke="#82ca9d" />
-                      <Line type="monotone" dataKey="direct" stroke="#ffc658" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              {/* Render selected charts using single renderer */}
+              {localSelectedCharts.map(chartId => renderChart(chartId))}
             </>
           ) : (
             /* No charts selected - show compact chart selector */
@@ -661,20 +613,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           </div>
         </div>
 
-        {/* Data Summary Chart - Always render */}
-        <div className="bg-white p-4 rounded-lg border">
-          <h4 className="text-sm font-medium mb-3">Data Summary</h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={conversionData} layout="vertical">
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="x" />
-              <Tooltip />
-              <Bar dataKey="digital" fill="#8884d8" />
-              <Bar dataKey="professional" fill="#82ca9d" />
-              <Bar dataKey="direct" fill="#ffc658" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
 
         {/* Charts - Only render selected charts */}
         <div className="space-y-6">
@@ -695,26 +633,9 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                 />
               </div>
               
-              {/* Render selected charts */}
+              {/* Render selected charts using single renderer */}
               <div className="space-y-6">
-                {localSelectedCharts.includes('referral-sources') && 
-                  renderChart('referral-sources', pieData, 'Referral Sources')
-                }
-                {localSelectedCharts.includes('conversion-rates') && 
-                  renderChart('conversion-rates', conversionData, 'Conversion Rates')
-                }
-                {localSelectedCharts.includes('weekly-trends') && 
-                  renderChart('weekly-trends', trendsData, 'Weekly Trends')
-                }
-                {localSelectedCharts.includes('financial-summary') && 
-                  renderChart('financial-summary', conversionData, 'Financial Summary')
-                }
-                {localSelectedCharts.includes('patient-metrics') && 
-                  renderChart('patient-metrics', conversionData, 'Patient Metrics')
-                }
-                {localSelectedCharts.includes('no-show-analysis') && 
-                  renderChart('no-show-analysis', [], 'No-Show Analysis')
-                }
+                {localSelectedCharts.map(chartId => renderChart(chartId))}
               </div>
             </>
           ) : (
