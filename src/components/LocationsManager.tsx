@@ -474,7 +474,13 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No locations found</p>
+              <p className="text-sm">Connect to Greyfinch API to load your practice locations</p>
+            </div>
+          )}
           
           {/* Selection Summary */}
           {locations.length > 0 && (
@@ -492,14 +498,6 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
                   </div>
                 )}
               </div>
-            </div>
-          )}
-          
-          {locations.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No locations found</p>
-              <p className="text-sm">Connect to Greyfinch API to load your practice locations</p>
             </div>
           )}
         </CardContent>
