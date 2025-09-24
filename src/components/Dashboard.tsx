@@ -212,8 +212,33 @@ export default function Dashboard() {
 
   // Generate data for a specific period - simplified for client-side compatibility
   const generatePeriodData = useCallback((period: PeriodConfig, greyfinchData: any) => {
-    if (!greyfinchData || !greyfinchData.data) {
+    if (!greyfinchData) {
       return {
+        period: period.name || 'Current Period',
+        startDate: period.startDate,
+        endDate: period.endDate,
+        locationData: {
+          gilbert: {
+            patients: 0,
+            appointments: 0,
+            leads: 0,
+            bookings: 0,
+            revenue: 0,
+            production: 0,
+            netProduction: 0,
+            acquisitionCosts: 0
+          },
+          phoenix: {
+            patients: 0,
+            appointments: 0,
+            leads: 0,
+            bookings: 0,
+            revenue: 0,
+            production: 0,
+            netProduction: 0,
+            acquisitionCosts: 0
+          }
+        },
         avgNetProduction: 0,
         avgAcquisitionCost: 0,
         noShowRate: 0,
@@ -232,178 +257,103 @@ export default function Dashboard() {
       };
     }
 
-    const { data } = greyfinchData;
+    // Handle the actual API response structure
+    const data = greyfinchData.data || greyfinchData;
     
     // Handle multiple location selection
     const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
     
-    // Filter data by date range and location(s)
-    const startDate = new Date(period.startDate);
-    const endDate = new Date(period.endDate);
+    // Use the processed data from the API response
+    const gilbertData = data.locationData?.gilbert || data.locations?.gilbert || {};
+    const phoenixData = data.locationData?.phoenix || data.locations?.phoenix || {};
     
-    // Filter appointments
-    let filteredAppointments = data.appointments || [];
-    if (selectedLocationIds.length > 0) {
-      filteredAppointments = filteredAppointments.filter((apt: any) => {
-        const aptDate = new Date(apt.scheduledDate || apt.createdAt);
-        const inDateRange = aptDate >= startDate && aptDate <= endDate;
-        const matchesLocation = selectedLocationIds.some(locId => 
-          apt.location?.id === locId || 
-          apt.location?.name === locId ||
-          (typeof locId === 'string' && apt.location?.name?.toLowerCase().includes(locId.toLowerCase()))
-        );
-        return inDateRange && matchesLocation;
-      });
-    } else {
-      filteredAppointments = filteredAppointments.filter((apt: any) => {
-        const aptDate = new Date(apt.scheduledDate || apt.createdAt);
-        return aptDate >= startDate && aptDate <= endDate;
-      });
+    // Calculate totals for selected locations
+    let totalPatients = 0;
+    let totalAppointments = 0;
+    let totalLeads = 0;
+    let totalBookings = 0;
+    let totalRevenue = 0;
+    let totalProduction = 0;
+    let totalNetProduction = 0;
+    let totalAcquisitionCosts = 0;
+    
+    // Apply location filtering
+    const includeGilbert = selectedLocationIds.length === 0 || selectedLocationIds.includes('gilbert-1') || selectedLocationIds.includes('gilbert');
+    const includePhoenix = selectedLocationIds.length === 0 || selectedLocationIds.includes('phoenix-ahwatukee-1') || selectedLocationIds.includes('phoenix');
+    
+    if (includeGilbert) {
+      totalPatients += gilbertData.patients || 0;
+      totalAppointments += gilbertData.appointments || 0;
+      totalLeads += gilbertData.leads || 0;
+      totalBookings += gilbertData.bookings || 0;
+      totalRevenue += gilbertData.revenue || 0;
+      totalProduction += gilbertData.production || 0;
+      totalNetProduction += gilbertData.netProduction || 0;
+      totalAcquisitionCosts += gilbertData.acquisitionCosts || 0;
     }
     
-    // Filter patients
-    let filteredPatients = data.patients || [];
-    if (selectedLocationIds.length > 0) {
-      filteredPatients = filteredPatients.filter((patient: any) => {
-        const patientDate = new Date(patient.createdAt);
-        const inDateRange = patientDate >= startDate && patientDate <= endDate;
-        const matchesLocation = selectedLocationIds.some(locId => 
-          patient.primaryLocation?.id === locId || 
-          patient.primaryLocation?.name === locId ||
-          (typeof locId === 'string' && patient.primaryLocation?.name?.toLowerCase().includes(locId.toLowerCase()))
-        );
-        return inDateRange && matchesLocation;
-      });
-    } else {
-      filteredPatients = filteredPatients.filter((patient: any) => {
-        const patientDate = new Date(patient.createdAt);
-        return patientDate >= startDate && patientDate <= endDate;
-      });
+    if (includePhoenix) {
+      totalPatients += phoenixData.patients || 0;
+      totalAppointments += phoenixData.appointments || 0;
+      totalLeads += phoenixData.leads || 0;
+      totalBookings += phoenixData.bookings || 0;
+      totalRevenue += phoenixData.revenue || 0;
+      totalProduction += phoenixData.production || 0;
+      totalNetProduction += phoenixData.netProduction || 0;
+      totalAcquisitionCosts += phoenixData.acquisitionCosts || 0;
     }
     
-    // Filter leads
-    let filteredLeads = data.leads || [];
-    if (selectedLocationIds.length > 0) {
-      filteredLeads = filteredLeads.filter((lead: any) => {
-        const leadDate = new Date(lead.createdAt);
-        const inDateRange = leadDate >= startDate && leadDate <= endDate;
-        const matchesLocation = selectedLocationIds.some(locId => 
-          lead.location?.id === locId || 
-          lead.location?.name === locId ||
-          (typeof locId === 'string' && lead.location?.name?.toLowerCase().includes(locId.toLowerCase()))
-        );
-        return inDateRange && matchesLocation;
-      });
-    } else {
-      filteredLeads = filteredLeads.filter((lead: any) => {
-        const leadDate = new Date(lead.createdAt);
-        return leadDate >= startDate && leadDate <= endDate;
-      });
-    }
+    // Calculate derived metrics
+    const avgAcquisitionCost = totalPatients > 0 ? totalAcquisitionCosts / totalPatients : 0;
+    const avgNetProduction = totalPatients > 0 ? totalNetProduction / totalPatients : 0;
+    const noShowRate = data.total?.noShowRate || 0;
     
-    // Calculate financial metrics
-    const totalAppointments = filteredAppointments.length;
-    const noShowAppointments = filteredAppointments.filter((apt: any) => 
-      apt.status === 'no-show' || apt.status === 'cancelled'
-    ).length;
-    const noShowRate = totalAppointments > 0 ? (noShowAppointments / totalAppointments) * 100 : 0;
-    
-    // Calculate revenue and production with comprehensive financial data
-    let revenue = filteredAppointments.reduce((sum: number, apt: any) => {
-      const value = apt.revenue || apt.fee || apt.amount || 0;
-      return sum + (parseFloat(value) || 0);
-    }, 0);
-    
-    let production = filteredAppointments.reduce((sum: number, apt: any) => {
-      const value = apt.production || apt.productionAmount || apt.value || apt.amount || 0;
-      return sum + (parseFloat(value) || 0);
-    }, 0);
-    
-    // Add revenue and production from dedicated tables if available
-    if (data.revenue) {
-      data.revenue.forEach((rev: any) => {
-        const revDate = new Date(rev.date || rev.createdAt);
-        if (revDate >= startDate && revDate <= endDate) {
-          revenue += parseFloat(rev.amount || 0);
-        }
-      });
-    }
-    
-    if (data.production) {
-      data.production.forEach((prod: any) => {
-        const prodDate = new Date(prod.date || prod.createdAt);
-        if (prodDate >= startDate && prodDate <= endDate) {
-          production += parseFloat(prod.productionAmount || 0);
-        }
-      });
-    }
-    
-    // Calculate net production (revenue - costs)
-    const totalCosts = filteredAppointments.reduce((sum: number, apt: any) => {
-      const cost = apt.cost || 0;
-      return sum + (parseFloat(cost) || 0);
-    }, 0);
-    
-    const netProduction = production - totalCosts;
-    
-    // Calculate location count
-    const locationCount = selectedLocationIds.length === 0 ? 
-      (data.locations?.length || 0) : selectedLocationIds.length;
-    
-    // Generate realistic referral sources
-    const totalReferrals = filteredLeads.length + filteredAppointments.length;
-    const digitalReferrals = Math.floor(totalReferrals * 0.45);
-    const professionalReferrals = Math.floor(totalReferrals * 0.35);
-    const directReferrals = totalReferrals - digitalReferrals - professionalReferrals;
-    
-    // Generate realistic conversion rates
-    const totalLeadsForConversion = filteredLeads.length;
-    const digitalConversions = Math.floor(totalLeadsForConversion * 0.25);
-    const professionalConversions = Math.floor(totalLeadsForConversion * 0.40);
-    const directConversions = Math.floor(totalLeadsForConversion * 0.35);
-    
-    // Generate weekly trends
-    const weeks = [];
-    const weekCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-    
-    for (let i = 0; i < Math.min(weekCount, 12); i++) {
-      const weekStart = new Date(startDate.getTime() + (i * 7 * 24 * 60 * 60 * 1000));
-      const weeklyDigital = Math.floor((digitalReferrals / weekCount) * (0.8 + Math.random() * 0.4));
-      const weeklyProfessional = Math.floor((professionalReferrals / weekCount) * (0.8 + Math.random() * 0.4));
-      const weeklyDirect = Math.floor((directReferrals / weekCount) * (0.8 + Math.random() * 0.4));
-      
-      weeks.push({
-        week: `Week ${i + 1}`,
-        digital: weeklyDigital,
-        professional: weeklyProfessional,
-        direct: weeklyDirect
-      });
-    }
+    // Get referral sources and conversion rates from the data
+    const referralSources = data.total?.referralSources || { digital: 0, professional: 0, direct: 0 };
+    const conversionRates = data.total?.conversionRates || { digital: 0, professional: 0, direct: 0 };
+    const trends = data.total?.trends || { weekly: [], monthly: [] };
     
     return {
-      avgNetProduction: totalAppointments > 0 ? netProduction / totalAppointments : 0,
-      avgAcquisitionCost: filteredLeads.length > 0 ? (revenue * 0.15) / filteredLeads.length : 0,
+      period: period.name || 'Current Period',
+      startDate: period.startDate,
+      endDate: period.endDate,
+      locationData: {
+        gilbert: includeGilbert ? gilbertData : {
+          patients: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0,
+          revenue: 0,
+          production: 0,
+          netProduction: 0,
+          acquisitionCosts: 0
+        },
+        phoenix: includePhoenix ? phoenixData : {
+          patients: 0,
+          appointments: 0,
+          leads: 0,
+          bookings: 0,
+          revenue: 0,
+          production: 0,
+          netProduction: 0,
+          acquisitionCosts: 0
+        }
+      },
+      avgNetProduction,
+      avgAcquisitionCost,
       noShowRate,
-      referralSources: {
-        digital: totalReferrals > 0 ? Math.round((digitalReferrals / totalReferrals) * 100) : 0,
-        professional: totalReferrals > 0 ? Math.round((professionalReferrals / totalReferrals) * 100) : 0,
-        direct: totalReferrals > 0 ? Math.round((directReferrals / totalReferrals) * 100) : 0
-      },
-      conversionRates: {
-        digital: totalLeadsForConversion > 0 ? Math.round((digitalConversions / totalLeadsForConversion) * 100) : 0,
-        professional: totalLeadsForConversion > 0 ? Math.round((professionalConversions / totalLeadsForConversion) * 100) : 0,
-        direct: totalLeadsForConversion > 0 ? Math.round((directConversions / totalLeadsForConversion) * 100) : 0
-      },
-      trends: { weekly: weeks },
-      patients: filteredPatients.length,
-      appointments: filteredAppointments.length,
-      leads: filteredLeads.length,
-      locations: locationCount,
-      bookings: data.appointmentBookings?.length || 0,
-      revenue,
-      production,
-      netProduction,
-      acquisitionCosts: 0 // Will be updated by cost management
+      referralSources,
+      conversionRates,
+      trends,
+      patients: totalPatients,
+      appointments: totalAppointments,
+      leads: totalLeads,
+      locations: (includeGilbert ? 1 : 0) + (includePhoenix ? 1 : 0),
+      bookings: totalBookings,
+      revenue: totalRevenue,
+      production: totalProduction,
+      netProduction: totalNetProduction,
+      acquisitionCosts: totalAcquisitionCosts
     };
   }, []);
 
