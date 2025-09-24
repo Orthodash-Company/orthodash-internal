@@ -151,7 +151,17 @@ export function GreyfinchDataExplorer() {
   }
 
   const processGreyfinchData = (rawData: any): GreyfinchDataSummary => {
-    const locations = rawData.locations || []
+    // Handle locations as object (gilbert, phoenix) or array
+    let locations = rawData.locations || []
+    if (rawData.locations && typeof rawData.locations === 'object' && !Array.isArray(rawData.locations)) {
+      // Convert object to array format for processing
+      locations = Object.keys(rawData.locations).map(key => ({
+        name: key === 'gilbert' ? 'Gilbert' : key === 'phoenix' ? 'Phoenix-Ahwatukee' : key,
+        id: key,
+        ...rawData.locations[key]
+      }))
+    }
+    
     const patients = rawData.patients || []
     const appointments = rawData.appointments || []
     const leads = rawData.leads || []
