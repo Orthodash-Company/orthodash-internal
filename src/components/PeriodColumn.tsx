@@ -148,7 +148,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               selectedCharts={localSelectedCharts}
               onChartsChange={setLocalSelectedCharts}
               trigger={
-                <Button size={buttonSize} className="gap-2">
+                <Button size={buttonSize} className="gap-2 mb-4">
                   <BarChart3 className={iconSize} />
                   Select Charts
                 </Button>
@@ -462,7 +462,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
 
   if (isCompact) {
     return (
-      <div className="space-y-4 relative">
+      <div className="space-y-4 relative pb-4">
         {/* Loading overlay for compact view */}
         {showLoadingIndicator && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
@@ -610,7 +610,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6 relative">
+      <CardContent className="space-y-6 relative pb-6">
         {/* Loading overlay - only show during initial load when no data exists */}
         {showLoadingIndicator && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
