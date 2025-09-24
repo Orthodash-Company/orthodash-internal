@@ -182,29 +182,39 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           { name: 'Direct', value: safeData.referralSources?.direct || 0, color: '#ffc658' }
         ];
         
-        // Show chart even with zero data
+        // If all values are zero, show placeholder data
+        const hasData = referralData.some(item => item.value > 0);
+        const displayData = hasData ? referralData : [
+          { name: 'No Data', value: 1, color: '#e5e7eb' }
+        ];
+        
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-3">Referral Sources</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
               <PieChart>
                 <Pie
-                  data={referralData}
+                  data={displayData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => hasData ? `${name} ${(percent * 100).toFixed(0)}%` : name}
                   outerRadius={isCompact ? 60 : 80}
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {referralData.map((entry, index) => (
+                  {displayData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
+            {!hasData && (
+              <div className="text-center text-gray-500 text-xs mt-2">
+                No referral source data available
+              </div>
+            )}
           </div>
         );
       
@@ -214,17 +224,28 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           { source: 'Professional', rate: safeData.conversionRates?.professional || 0 },
           { source: 'Direct', rate: safeData.conversionRates?.direct || 0 }
         ];
+        
+        const hasConversionData = conversionData.some(item => item.rate > 0);
+        const displayConversionData = hasConversionData ? conversionData : [
+          { source: 'No Data', rate: 1 }
+        ];
+        
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-3">Conversion Rates</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={conversionData} layout="vertical">
+              <BarChart data={displayConversionData} layout="vertical">
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="source" />
                 <Tooltip />
-                <Bar dataKey="rate" fill="#8884d8" />
+                <Bar dataKey="rate" fill={hasConversionData ? "#8884d8" : "#e5e7eb"} />
               </BarChart>
             </ResponsiveContainer>
+            {!hasConversionData && (
+              <div className="text-center text-gray-500 text-xs mt-2">
+                No conversion rate data available
+              </div>
+            )}
           </div>
         );
       
@@ -275,17 +296,28 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           { metric: 'Net Production', value: safeData.netProduction || 0 },
           { metric: 'Acquisition Costs', value: safeData.acquisitionCosts || 0 }
         ];
+        
+        const hasFinancialData = financialData.some(item => item.value !== 0);
+        const displayFinancialData = hasFinancialData ? financialData : [
+          { metric: 'No Data', value: 1 }
+        ];
+        
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-3">Financial Summary</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={financialData} layout="vertical">
+              <BarChart data={displayFinancialData} layout="vertical">
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="metric" />
                 <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
-                <Bar dataKey="value" fill="#8884d8" />
+                <Bar dataKey="value" fill={hasFinancialData ? "#8884d8" : "#e5e7eb"} />
               </BarChart>
             </ResponsiveContainer>
+            {!hasFinancialData && (
+              <div className="text-center text-gray-500 text-xs mt-2">
+                No financial data available
+              </div>
+            )}
           </div>
         );
       
@@ -296,17 +328,28 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           { metric: 'Leads', value: safeData.leads || 0 },
           { metric: 'Bookings', value: safeData.bookings || 0 }
         ];
+        
+        const hasPatientData = patientData.some(item => item.value > 0);
+        const displayPatientData = hasPatientData ? patientData : [
+          { metric: 'No Data', value: 1 }
+        ];
+        
         return (
           <div key={chartId} className="bg-white p-4 rounded-lg border">
             <h4 className="text-sm font-medium mb-3">Patient Metrics</h4>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={patientData} layout="vertical">
+              <BarChart data={displayPatientData} layout="vertical">
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="metric" />
                 <Tooltip />
-                <Bar dataKey="value" fill="#82ca9d" />
+                <Bar dataKey="value" fill={hasPatientData ? "#82ca9d" : "#e5e7eb"} />
               </BarChart>
             </ResponsiveContainer>
+            {!hasPatientData && (
+              <div className="text-center text-gray-500 text-xs mt-2">
+                No patient data available
+              </div>
+            )}
           </div>
         );
       
