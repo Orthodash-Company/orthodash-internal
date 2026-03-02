@@ -46,7 +46,7 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
           throw new Error(`Failed to fetch reports: ${response.status}`);
         }
         const data = await response.json();
-        setReports(data);
+        setReports(data.reports || []);
       } catch (error) {
         setError(error instanceof Error ? error : new Error('Unknown error'));
       } finally {

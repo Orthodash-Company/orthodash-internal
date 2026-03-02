@@ -33,7 +33,7 @@ export function useSessionManager() {
         throw new Error(`Failed to fetch sessions: ${response.status}`);
       }
       const data = await response.json();
-      setSessions(data);
+      setSessions(data.sessions || []);
     } catch (error) {
       console.error('Error loading sessions:', error);
       // Don't show error toast for session loading failures
