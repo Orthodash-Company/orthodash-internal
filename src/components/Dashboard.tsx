@@ -4,36 +4,17 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { SimpleHeader } from './SimpleHeader';
 import { HorizontalFixedColumnLayout } from './HorizontalFixedColumnLayout';
-import { CostManagementEnhanced } from './CostManagementEnhanced';
-import { EnhancedAIAnalysis } from './EnhancedAIAnalysis'
+import { EnhancedAIAnalysis } from './EnhancedAIAnalysis';
 import QuickBooksSetup from './QuickBooksSetup';
 import { LocationsManager } from './LocationsManager';
 import { SessionManager } from './SessionManager';
 import { PDFReportGenerator } from './PDFReportGenerator';
-
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  MapPin, 
-  Settings, 
-  FileText, 
-  Plus, 
-  BarChart3, 
-  TrendingUp, 
-  PieChart,
-  Download,
-  Calendar,
-  Building2,
-  Save,
-  Trash2,
-  DollarSign,
-  CheckCircle,
-  RefreshCw
-} from 'lucide-react';
+import { MapPin, Settings, FileText, BarChart3, TrendingUp, Building2, Trash2, CheckCircle, RefreshCw } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
 import { useSessionManager } from '@/hooks/use-session-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -43,7 +24,7 @@ export default function Dashboard() {
   const { cacheSessionData } = useSessionManager();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null)
   const [showQuickBooksSetup, setShowQuickBooksSetup] = useState(false)
   const [quickBooksRevenueData, setQuickBooksRevenueData] = useState<any>(null);
@@ -55,15 +36,6 @@ export default function Dashboard() {
   const [aiSummary, setAiSummary] = useState<any>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   // Load Greyfinch data on component mount and refresh on page load
   useEffect(() => {
@@ -141,19 +113,19 @@ export default function Dashboard() {
       setPeriodQueries([]);
       setAcquisitionCosts(null);
       setAiSummary(null);
-      
+
       // Clear Greyfinch data from localStorage
       localStorage.removeItem('greyfinchData');
-      
+
       // Reset Greyfinch data state
       setGreyfinchData(null);
-      
+
       // Clear locations
       setLocations([]);
-      
+
       // Clear sessions from localStorage (they will be recreated when new data is added)
       localStorage.removeItem('orthodash-sessions');
-      
+
       console.log('🧹 All data cleared successfully');
     }
   };
@@ -164,17 +136,17 @@ export default function Dashboard() {
       console.log('🔄 Fetching Gilbert and Phoenix-Ahwatukee Greyfinch data...')
       const response = await fetch('/api/greyfinch/analytics?location=all')
       const apiResponse = await response.json()
-      
+
       if (apiResponse && apiResponse.data) {
         console.log('✅ Multi-location Greyfinch data loaded:', apiResponse)
-        
+
         // Update dashboard with multi-location data
         setGreyfinchData(apiResponse)
-        
+
         // Extract and set locations from the processed data
         const data = apiResponse.data
         const locationArray: Location[] = []
-        
+
         // Create Gilbert and Phoenix-Ahwatukee locations from the processed data
         if (data.locations?.gilbert || data.locationData?.gilbert) {
           locationArray.push({
@@ -184,16 +156,16 @@ export default function Dashboard() {
             isActive: true
           })
         }
-        
+
         if (data.locations?.phoenix || data.locationData?.phoenix) {
           locationArray.push({
-            id: 2, 
+            id: 2,
             name: 'Phoenix-Ahwatukee',
             greyfinchId: 'phoenix-ahwatukee-1',
             isActive: true
           })
         }
-        
+
         // If no location data found, create default locations for fallback
         if (locationArray.length === 0) {
           locationArray.push(
@@ -205,13 +177,13 @@ export default function Dashboard() {
             },
             {
               id: 2,
-              name: 'Phoenix-Ahwatukee', 
+              name: 'Phoenix-Ahwatukee',
               greyfinchId: 'phoenix-ahwatukee-1',
               isActive: true
             }
           )
         }
-        
+
         console.log('📍 Setting all locations:', locationArray)
         setLocations(locationArray)
       } else {
@@ -227,7 +199,7 @@ export default function Dashboard() {
           {
             id: 2,
             name: 'Phoenix-Ahwatukee',
-            greyfinchId: 'phoenix-ahwatukee-1', 
+            greyfinchId: 'phoenix-ahwatukee-1',
             isActive: true
           }
         ]
@@ -236,7 +208,7 @@ export default function Dashboard() {
     } catch (error: any) {
       console.error('❌ Error fetching Greyfinch analytics data:', error)
       setError(error?.message || 'Error fetching Greyfinch analytics data')
-      
+
       // Set default locations even on error
       const defaultLocations: Location[] = [
         {
@@ -316,14 +288,14 @@ export default function Dashboard() {
 
     // Handle the actual API response structure
     const data = greyfinchData.data || greyfinchData;
-    
+
     // Handle multiple location selection
     const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
-    
+
     // Use the processed data from the API response - handle both structure formats
     const gilbertData = data.locationData?.gilbert || data.locations?.gilbert || {};
     const phoenixData = data.locationData?.phoenix || data.locations?.phoenix || {};
-    
+
     console.log('🔍 Location data debug:', {
       hasLocationData: !!data.locationData,
       hasLocations: !!data.locations,
@@ -331,7 +303,7 @@ export default function Dashboard() {
       phoenixData,
       totalData: data.total
     });
-    
+
     // Calculate totals for selected locations
     let totalPatients = 0;
     let totalAppointments = 0;
@@ -341,16 +313,16 @@ export default function Dashboard() {
     let totalProduction = 0;
     let totalNetProduction = 0;
     let totalAcquisitionCosts = 0;
-    
+
     // Apply location filtering - use the correct location IDs (handle both string and numeric)
     const selectedLocationIdsStr = selectedLocationIds.map(id => String(id));
-    const includeGilbert = selectedLocationIds.length === 0 || 
-      selectedLocationIdsStr.includes('1') || 
+    const includeGilbert = selectedLocationIds.length === 0 ||
+      selectedLocationIdsStr.includes('1') ||
       selectedLocationIdsStr.includes('gilbert');
-    const includePhoenix = selectedLocationIds.length === 0 || 
-      selectedLocationIdsStr.includes('2') || 
+    const includePhoenix = selectedLocationIds.length === 0 ||
+      selectedLocationIdsStr.includes('2') ||
       selectedLocationIdsStr.includes('phoenix');
-    
+
     console.log('🎯 Location filtering:', {
       periodId: period.id,
       periodLocationId: period.locationId,
@@ -360,7 +332,7 @@ export default function Dashboard() {
       gilbertPatients: gilbertData.patients || 0,
       phoenixPatients: phoenixData.patients || 0
     });
-    
+
     if (includeGilbert) {
       totalPatients += gilbertData.patients || 0;
       totalAppointments += gilbertData.appointments || 0;
@@ -371,7 +343,7 @@ export default function Dashboard() {
       totalNetProduction += gilbertData.netProduction || 0;
       totalAcquisitionCosts += gilbertData.acquisitionCosts || 0;
     }
-    
+
     if (includePhoenix) {
       totalPatients += phoenixData.patients || 0;
       totalAppointments += phoenixData.appointments || 0;
@@ -382,17 +354,17 @@ export default function Dashboard() {
       totalNetProduction += phoenixData.netProduction || 0;
       totalAcquisitionCosts += phoenixData.acquisitionCosts || 0;
     }
-    
+
     // Calculate derived metrics
     const avgAcquisitionCost = totalPatients > 0 ? totalAcquisitionCosts / totalPatients : 0;
     const avgNetProduction = totalPatients > 0 ? totalNetProduction / totalPatients : 0;
     const noShowRate = data.total?.noShowRate || 0;
-    
+
     // Get referral sources and conversion rates from the data
     const referralSources = data.total?.referralSources || { digital: 0, professional: 0, direct: 0 };
     const conversionRates = data.total?.conversionRates || { digital: 0, professional: 0, direct: 0 };
     const trends = data.total?.trends || { weekly: [], monthly: [] };
-    
+
     return {
       period: period.name || 'Current Period',
       startDate: period.startDate,
@@ -462,15 +434,15 @@ export default function Dashboard() {
   // Handle Greyfinch data updates - memoized to prevent unnecessary re-renders
   const handleGreyfinchDataUpdate = useCallback((data: any) => {
     console.log('🔄 Updating Greyfinch data in Dashboard:', data)
-    
+
     // Handle the new comprehensive data structure
     if (data.syncData) {
       setGreyfinchData(data.syncData);
-      
+
       // Extract and set locations from the sync data
       if (data.syncData.locations) {
         const locationArray: Location[] = []
-        
+
         // Convert the locations object to an array
         Object.values(data.syncData.locations).forEach((location: any) => {
           locationArray.push({
@@ -479,7 +451,7 @@ export default function Dashboard() {
             greyfinchId: location.id
           })
         })
-        
+
         console.log('📍 Setting locations from pull data:', locationArray)
         setLocations(locationArray)
       }
@@ -487,7 +459,7 @@ export default function Dashboard() {
       // Fallback for old data structure
       setGreyfinchData(data);
     }
-    
+
     // Store in localStorage
     if (typeof window !== 'undefined') {
       localStorage.setItem('greyfinchData', JSON.stringify(data));
@@ -603,7 +575,7 @@ export default function Dashboard() {
             <div className="text-4xl mb-4">⚠️</div>
             <h2 className="text-xl font-semibold mb-2">Error Loading Dashboard</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <button 
+            <button
               onClick={() => {
                 setError(null);
                 setIsLoading(true);
@@ -627,13 +599,14 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <SimpleHeader 
+
+      <SimpleHeader
         onRestoreSession={handleRestoreSession}
         onPreviewSession={handlePreviewSession}
         onDownloadSession={handleDownloadSession}
         onShareSession={handleShareSession}
       />
-      
+
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
 
@@ -642,24 +615,24 @@ export default function Dashboard() {
             <CardHeader className="pb-4">
               <Tabs value={activeTab || "locations"} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
-                  <TabsTrigger 
-                    value="locations" 
+                  <TabsTrigger
+                    value="locations"
                     className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
                   >
                     <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     <span className="hidden xs:inline">Locations</span>
                     <span className="xs:hidden">Loc</span>
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="connections" 
+                  <TabsTrigger
+                    value="connections"
                     className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
                   >
                     <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     <span className="hidden xs:inline">Connections</span>
                     <span className="xs:hidden">Conn</span>
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="export" 
+                  <TabsTrigger
+                    value="export"
                     className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
                   >
                     <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
@@ -724,12 +697,12 @@ export default function Dashboard() {
                         <CardHeader>
                           <CardTitle className="text-[#1C1F4F] flex items-center justify-between">
                             <div className="flex items-center">
-                            <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
-                              <BarChart3 className="h-4 w-4 text-white" />
-                            </div>
+                              <div className="w-8 h-8 bg-[#1C1F4F] rounded-lg flex items-center justify-center mr-3">
+                                <BarChart3 className="h-4 w-4 text-white" />
+                              </div>
                               QuickBooks Desktop
                             </div>
-                            <Badge 
+                            <Badge
                               variant={quickBooksRevenueData ? "default" : "secondary"}
                               className={quickBooksRevenueData ? "bg-green-600" : "bg-gray-400"}
                             >
@@ -779,17 +752,17 @@ export default function Dashboard() {
                                 </div>
                               </div>
                               <div className="flex gap-2 pt-2">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
+                                <Button
+                                  size="sm"
+                                  variant="outline"
                                   className="flex-1"
                                   onClick={() => setShowQuickBooksSetup(true)}
                                 >
                                   <Settings className="h-3 w-3 mr-1" />
                                   Manage
-                          </Button>
-                                <Button 
-                                  size="sm" 
+                                </Button>
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   onClick={async () => {
                                     try {
@@ -824,7 +797,7 @@ export default function Dashboard() {
                                 <p className="text-xs">Revenue data showing as $0</p>
                               </div>
                               <div className="space-y-2">
-                                <Button 
+                                <Button
                                   className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white"
                                   onClick={() => setShowQuickBooksSetup(true)}
                                 >
@@ -905,7 +878,7 @@ export default function Dashboard() {
                 )}
 
                 <TabsContent value="export" className="mt-6">
-                  <SessionManager 
+                  <SessionManager
                     periods={periods}
                     locations={locations}
                     greyfinchData={greyfinchData}
@@ -949,33 +922,16 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Cost Management - Temporarily Hidden */}
-          {/* <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">Acquisition Cost Management</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
-                Manage manual costs and API integrations for comprehensive cost tracking
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CostManagementEnhanced 
-                locationId={null} 
-                period={periods.length > 0 ? periods[0].startDate?.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
-              />
-            </CardContent>
-          </Card> */}
-
-
-    {/* Enhanced AI Analysis */}
-    <EnhancedAIAnalysis 
-      selectedPeriods={periods.map(p => p.startDate?.toISOString().split('T')[0] || '')}
-      selectedLocations={locations.map(l => l.name)}
-      onAnalysisComplete={(data) => {
-        console.log('AI Analysis completed:', data)
-        // Store analysis data for potential use in other components
-        localStorage.setItem('orthodash-ai-analysis', JSON.stringify(data))
-      }}
-    />
+          {/* Enhanced AI Analysis */}
+          <EnhancedAIAnalysis
+            selectedPeriods={periods.map(p => p.startDate?.toISOString().split('T')[0] || '')}
+            selectedLocations={locations.map(l => l.name)}
+            onAnalysisComplete={(data) => {
+              console.log('AI Analysis completed:', data)
+              // Store analysis data for potential use in other components
+              localStorage.setItem('orthodash-ai-analysis', JSON.stringify(data))
+            }}
+          />
 
           {/* PDF Report Generator */}
           <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
@@ -986,7 +942,7 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PDFReportGenerator 
+              <PDFReportGenerator
                 greyfinchData={greyfinchData}
                 periods={periods}
                 acquisitionCosts={acquisitionCosts}
@@ -1008,9 +964,10 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-      
+
             </CardContent>
           </Card>
+
         </div>
       </main>
     </div>
