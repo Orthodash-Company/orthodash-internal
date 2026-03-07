@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { CheckCircle, XCircle, ExternalLink, Settings, TestTube, DollarSign } from 'lucide-react'
-import { toast } from 'sonner'
 
 interface QuickBooksConfig {
   consumerKey: string
@@ -26,6 +26,7 @@ interface QuickBooksSetupProps {
 }
 
 export default function QuickBooksSetup({ onSetupComplete, onRevenueDataLoaded }: QuickBooksSetupProps) {
+  const { toast } = useToast()
   const [config, setConfig] = useState<QuickBooksConfig>({
     consumerKey: '',
     consumerSecret: '',
@@ -77,13 +78,21 @@ export default function QuickBooksSetup({ onSetupComplete, onRevenueDataLoaded }
 
       if (data.success) {
         setAuthUrl(data.authUrl)
-        toast.success('Authorization URL generated')
+        toast({
+          title: 'Authorization URL generated',
+        })
       } else {
-        toast.error('Failed to generate authorization URL')
+        toast({
+          title: 'Failed to generate authorization URL',
+          variant: 'destructive',
+        })
       }
     } catch (error) {
       console.error('Error generating auth URL:', error)
-      toast.error('Error generating authorization URL')
+      toast({
+        title: 'Error generating authorization URL',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -92,7 +101,10 @@ export default function QuickBooksSetup({ onSetupComplete, onRevenueDataLoaded }
   // Test QuickBooks connection
   const testConnection = async () => {
     if (!config.consumerKey || !config.consumerSecret) {
-      toast.error('Please enter Consumer Key and Consumer Secret first')
+      toast({
+        title: 'Please enter Consumer Key and Consumer Secret first',
+        variant: 'destructive',
+      })
       return
     }
 
@@ -113,7 +125,9 @@ export default function QuickBooksSetup({ onSetupComplete, onRevenueDataLoaded }
 
       if (updateData.success) {
         setConnectionStatus('connected')
-        toast.success('QuickBooks connection successful!')
+        toast({
+          title: 'QuickBooks connection successful',
+        })
         
         // Load sample revenue data
         await loadRevenueData()
@@ -123,12 +137,19 @@ export default function QuickBooksSetup({ onSetupComplete, onRevenueDataLoaded }
         }
       } else {
         setConnectionStatus('error')
-        toast.error('QuickBooks connection failed: ' + updateData.message)
+        toast({
+          title: 'QuickBooks connection failed',
+          description: updateData.message,
+          variant: 'destructive',
+        })
       }
     } catch (error) {
       console.error('Error testing connection:', error)
       setConnectionStatus('error')
-      toast.error('Error testing QuickBooks connection')
+      toast({
+        title: 'Error testing QuickBooks connection',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -145,17 +166,26 @@ export default function QuickBooksSetup({ onSetupComplete, onRevenueDataLoaded }
 
       if (data.success) {
         setRevenueData(data.data)
-        toast.success('Revenue data loaded successfully')
+        toast({
+          title: 'Revenue data loaded successfully',
+        })
         
         if (onRevenueDataLoaded) {
           onRevenueDataLoaded(data.data)
         }
       } else {
-        toast.error('Failed to load revenue data: ' + data.message)
+        toast({
+          title: 'Failed to load revenue data',
+          description: data.message,
+          variant: 'destructive',
+        })
       }
     } catch (error) {
       console.error('Error loading revenue data:', error)
-      toast.error('Error loading revenue data')
+      toast({
+        title: 'Error loading revenue data',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -184,17 +214,26 @@ export default function QuickBooksSetup({ onSetupComplete, onRevenueDataLoaded }
         }
         saveConfig(newConfig)
         setConnectionStatus('connected')
-        toast.success('QuickBooks authorization successful!')
+        toast({
+          title: 'QuickBooks authorization successful',
+        })
         
         if (onSetupComplete) {
           onSetupComplete(newConfig)
         }
       } else {
-        toast.error('Authorization failed: ' + data.message)
+        toast({
+          title: 'Authorization failed',
+          description: data.message,
+          variant: 'destructive',
+        })
       }
     } catch (error) {
       console.error('Error handling OAuth callback:', error)
-      toast.error('Error processing authorization')
+      toast({
+        title: 'Error processing authorization',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }

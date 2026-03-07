@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { useToast } from '@/hooks/use-toast'
 import { Loader2, Download, Share2, TrendingUp, TrendingDown, DollarSign, Users, Calendar, Target } from 'lucide-react'
-import { toast } from 'sonner'
 
 interface AIAnalysisData {
   success: boolean
@@ -78,6 +78,7 @@ export function EnhancedAIAnalysis({
   selectedLocations = [],
   onAnalysisComplete 
 }: EnhancedAIAnalysisProps) {
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [analysisData, setAnalysisData] = useState<AIAnalysisData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -112,13 +113,18 @@ export function EnhancedAIAnalysis({
       setAnalysisData(data)
       onAnalysisComplete?.(data)
       
-      toast.success('AI Analysis completed successfully!')
+      toast({
+        title: 'AI Analysis completed successfully',
+      })
       console.log('✅ AI Analysis completed:', data)
       
     } catch (error) {
       console.error('❌ AI Analysis failed:', error)
       setError(error instanceof Error ? error.message : 'Failed to generate analysis')
-      toast.error('Failed to generate AI analysis')
+      toast({
+        title: 'Failed to generate AI analysis',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -191,7 +197,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     
-    toast.success('Report downloaded successfully!')
+    toast({
+      title: 'Report downloaded successfully',
+    })
   }, [analysisData])
 
   const shareReport = useCallback(() => {
@@ -211,7 +219,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
       })
     } else {
       navigator.clipboard.writeText(shareText)
-      toast.success('Report summary copied to clipboard!')
+      toast({
+        title: 'Report summary copied to clipboard',
+      })
     }
   }, [analysisData])
 

@@ -36,11 +36,12 @@ import {
 } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
 import { useSessionManager } from '@/hooks/use-session-manager';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { cacheSessionData } = useSessionManager();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null)
@@ -798,10 +799,15 @@ export default function Dashboard() {
                                       const data = await response.json()
                                       if (data.success) {
                                         setQuickBooksRevenueData(data.data)
-                                        toast.success('Revenue data refreshed!')
+                                        toast({
+                                          title: 'Revenue data refreshed',
+                                        })
                                       }
                                     } catch (error) {
-                                      toast.error('Failed to refresh revenue data')
+                                      toast({
+                                        title: 'Failed to refresh revenue data',
+                                        variant: 'destructive',
+                                      })
                                     }
                                   }}
                                 >
@@ -881,12 +887,16 @@ export default function Dashboard() {
                           onSetupComplete={(config) => {
                             console.log('QuickBooks setup completed:', config)
                             setShowQuickBooksSetup(false)
-                            toast.success('QuickBooks integration configured successfully!')
+                            toast({
+                              title: 'QuickBooks integration configured successfully',
+                            })
                           }}
                           onRevenueDataLoaded={(data) => {
                             console.log('QuickBooks revenue data loaded:', data)
                             setQuickBooksRevenueData(data)
-                            toast.success('Revenue data loaded from QuickBooks!')
+                            toast({
+                              title: 'Revenue data loaded from QuickBooks',
+                            })
                           }}
                         />
                       </div>
@@ -1006,4 +1016,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
