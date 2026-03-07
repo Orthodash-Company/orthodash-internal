@@ -16,7 +16,7 @@ Orthodash is a Next.js analytics app for orthodontic practice reporting. It comb
 1. Install dependencies.
 
 ```bash
-npm install
+pnpm install
 ```
 
 2. Create `.env` or `.env.local` from `env.example`.
@@ -32,6 +32,8 @@ GREYFINCH_API_KEY=
 GREYFINCH_API_SECRET=
 OPENAI_API_KEY=
 ```
+
+`DATABASE_URL` should use the Supabase pooler connection string for local development, not the direct database host.
 
 Optional variables:
 
@@ -51,13 +53,13 @@ SESSION_SECRET=
 3. Start the app.
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 4. Run a quick verification pass.
 
 ```bash
-npm run type-check
+pnpm type-check
 ```
 
 ## Core Areas
@@ -70,13 +72,13 @@ npm run type-check
 
 ## Useful Scripts
 
-- `npm run dev`
-- `npm run build`
-- `npm run start`
-- `npm run type-check`
-- `npm run db:push`
-- `npm run db:generate`
-- `npm run db:migrate`
+- `pnpm dev`
+- `pnpm build`
+- `pnpm start`
+- `pnpm type-check`
+- `pnpm db:push`
+- `pnpm db:generate`
+- `pnpm db:migrate`
 
 ## Docs
 

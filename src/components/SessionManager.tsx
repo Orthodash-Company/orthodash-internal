@@ -63,20 +63,26 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
   // Load existing sessions and reports
   useEffect(() => {
+    if (!authUser?.id) {
+      setSessions([]);
+      setReports([]);
+      return;
+    }
+
     loadSessions();
     loadReports();
-  }, []);
+  }, [authUser?.id]);
 
   // Auto-create session when data changes
   useEffect(() => {
-    if (periods.length > 0 && greyfinchData && Object.keys(greyfinchData).length > 0) {
+    if (authUser?.id && periods.length > 0 && greyfinchData && Object.keys(greyfinchData).length > 0) {
       autoCreateSession();
     }
-  }, [periods, greyfinchData]);
+  }, [authUser?.id, periods, greyfinchData]);
 
   const loadSessions = async () => {
     try {
-      const response = await fetch(`/api/sessions?userId=${authUser?.id}`);
+      const response = await fetch('/api/sessions');
       if (response.ok) {
         const data = await response.json();
         setSessions(data.sessions || []);
@@ -88,7 +94,7 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
   const loadReports = async () => {
     try {
-      const response = await fetch(`/api/reports?userId=${authUser?.id}`);
+      const response = await fetch('/api/reports');
       if (response.ok) {
         const data = await response.json();
         setReports(data.reports || []);
@@ -122,7 +128,6 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
         periods: periods.map(p => p.id),
         locations: locations.map(l => l.id),
         greyfinchData,
-        userId: authUser.id,
         includeCharts: true,
         includeAIInsights: true,
         includeRecommendations: true
@@ -196,7 +201,6 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
         periods: newSession.selectedPeriods,
         locations: newSession.selectedLocations,
         greyfinchData,
-        userId: authUser?.id,
         includeCharts: newSession.includeCharts,
         includeAIInsights: newSession.includeAIInsights,
         includeRecommendations: newSession.includeRecommendations
@@ -256,7 +260,6 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
           includeAIInsights: true,
           includeRecommendations: true
         },
-        userId: authUser?.id
       };
 
       const response = await fetch('/api/reports', {

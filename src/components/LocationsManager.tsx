@@ -49,17 +49,13 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const [connectionChecked, setConnectionChecked] = useState(false);
 
   useEffect(() => {
-    // Always check connection on mount, regardless of user state
-    // This will use environment variables automatically
-    checkConnectionAndFetchLocations();
-  }, []);
-
-  // Also check when user changes
-  useEffect(() => {
     if (user?.id) {
-      // Re-check connection when user is available
       checkConnectionAndFetchLocations();
+      return;
     }
+
+    setIsConnected(false);
+    setConnectionChecked(false);
   }, [user?.id]);
 
   // Debug connection status changes
@@ -133,7 +129,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       setIsLoading(false)
       console.log('🏁 Connection check completed. Final state:', { isConnected, connectionChecked })
     }
-  }, [isConnected, connectionChecked])
+  }, [])
 
   const handlePullAllData = useCallback(async () => {
     if (!user?.id) {

@@ -29,6 +29,7 @@ export function SimpleHeader({ onRestoreSession, onPreviewSession, onDownloadSes
     try {
       await signOut();
       router.replace('/login');
+      router.refresh();
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {

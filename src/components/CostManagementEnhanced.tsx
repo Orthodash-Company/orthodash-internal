@@ -74,7 +74,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
     
     try {
       const response = await fetch(
-        `/api/acquisition-costs?locationId=${locationId || ''}&period=${period || ''}&userId=${user.id}`
+        `/api/acquisition-costs?locationId=${locationId || ''}&period=${period || ''}`
       );
       
       // If response is not ok, check if it's a 400 error (which might be expected for empty periods)
@@ -120,7 +120,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
     if (!user) return;
     
     try {
-      const response = await fetch(`/api/api-configurations?userId=${user.id}`);
+      const response = await fetch('/api/api-configurations');
       if (!response.ok) throw new Error('Failed to fetch API configurations');
       const data = await response.json();
       setApiConfigs(data.data || []);
@@ -153,7 +153,6 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
         body: JSON.stringify({
           locationId,
           period,
-          userId: user.id,
           costs,
           type: 'manual'
         }),
@@ -197,7 +196,6 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
           configId,
           locationId,
           period,
-          userId: user.id,
           syncType
         }),
       });
@@ -238,7 +236,6 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
 
     try {
       const configData = {
-        userId: user.id,
         name: newApiConfig.name,
         type: newApiConfig.type,
         apiKey: newApiConfig.apiKey,
@@ -290,7 +287,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
     if (!user) return;
     
     try {
-      const response = await fetch(`/api/api-configurations?id=${configId}&userId=${user.id}`, {
+      const response = await fetch(`/api/api-configurations?id=${configId}`, {
         method: 'DELETE',
       });
 

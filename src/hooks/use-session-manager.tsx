@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './use-auth';
 import { toast } from '@/hooks/use-toast';
 
@@ -21,24 +21,43 @@ export function useSessionManager() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentSession, setCurrentSession] = useState<SessionData | null>(null);
   const [cachedData, setCachedData] = useState<any>(null);
+  const loadSessionsAbortRef = useRef<AbortController | null>(null);
 
   // Load all sessions
   const loadSessions = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      loadSessionsAbortRef.current?.abort();
+      setSessions([]);
+      setCurrentSession(null);
+      setIsLoading(false);
+      return;
+    }
+
+    loadSessionsAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadSessionsAbortRef.current = controller;
     
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/sessions?userId=${user.id}`);
+      const response = await fetch('/api/sessions', {
+        signal: controller.signal,
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch sessions: ${response.status}`);
       }
       const data = await response.json();
       setSessions(data.sessions || []);
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       console.error('Error loading sessions:', error);
       // Don't show error toast for session loading failures
     } finally {
-      setIsLoading(false);
+      if (loadSessionsAbortRef.current === controller) {
+        loadSessionsAbortRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, [user?.id]);
 
@@ -77,8 +96,7 @@ export function useSessionManager() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...cachedData,
-          userId: user.id
+          ...cachedData
         }),
       });
 
@@ -109,7 +127,7 @@ export function useSessionManager() {
     if (!user?.id) return;
     
     try {
-      const response = await fetch(`/api/sessions/${sessionId}?userId=${user.id}`);
+      const response = await fetch(`/api/sessions/${sessionId}`);
       if (!response.ok) {
         throw new Error(`Failed to load session: ${response.status}`);
       }
@@ -132,7 +150,7 @@ export function useSessionManager() {
     if (!user?.id) return;
     
     try {
-      const response = await fetch(`/api/sessions/${sessionId}?userId=${user.id}`, {
+      const response = await fetch(`/api/sessions/${sessionId}`, {
         method: 'DELETE',
       });
 
@@ -169,8 +187,7 @@ export function useSessionManager() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...sessionData,
-          userId: user.id
+          ...sessionData
         }),
       });
 
@@ -219,8 +236,7 @@ export function useSessionManager() {
       if (cachedData) {
         // Use sendBeacon for reliable data sending on page unload
         const data = JSON.stringify({
-          ...cachedData,
-          userId: user?.id
+          ...cachedData
         });
         
         if (navigator.sendBeacon) {
@@ -244,6 +260,9 @@ export function useSessionManager() {
   // Load sessions on mount
   useEffect(() => {
     loadSessions();
+    return () => {
+      loadSessionsAbortRef.current?.abort();
+    };
   }, [loadSessions]);
 
   return {

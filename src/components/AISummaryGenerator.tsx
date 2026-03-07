@@ -161,7 +161,7 @@ export function AISummaryGenerator({ periods, periodData, locations, greyfinchDa
       // Fetch any available acquisition cost data for periods
       const acquisitionCostPromises = (periods || []).map(async (period) => {
         try {
-          const response = await fetch(`/api/acquisition-costs?locationId=&period=${period.startDate?.toISOString().split('T')[0]}&userId=${user.id}`);
+          const response = await fetch(`/api/acquisition-costs?locationId=&period=${period.startDate?.toISOString().split('T')[0]}`);
           if (response.ok) {
             return response.json();
           }

@@ -34,25 +34,22 @@ export function SimpleDatePicker({
 }: SimpleDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(date ? date.getMonth() : new Date().getMonth());
-  const [selectedDay, setSelectedDay] = useState(date ? date.getDate() : new Date().getDate());
-  const [selectedYear, setSelectedYear] = useState(date ? date.getFullYear() : new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 20 }, (_, i) => currentYear - 10 + i);
   
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (date) {
-      setInputValue(format(date, 'MM/dd/yyyy'));
-      setSelectedMonth(date.getMonth());
-      setSelectedDay(date.getDate());
-      setSelectedYear(date.getFullYear());
-    } else {
-      setInputValue('');
-    }
-  }, [date]);
+  const syncFromDate = () => {
+    const baseDate = date ?? new Date();
+    setSelectedMonth(baseDate.getMonth());
+    setSelectedDay(baseDate.getDate());
+    setSelectedYear(baseDate.getFullYear());
+    setInputValue(date ? format(date, 'MM/dd/yyyy') : '');
+  };
 
   // Handle click outside to close
   useEffect(() => {
@@ -181,10 +178,13 @@ export function SimpleDatePicker({
       <div className="relative">
         <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
         <Input
-          value={inputValue}
+          value={isOpen ? inputValue : date ? format(date, 'MM/dd/yyyy') : ''}
           onChange={(e) => handleInputChange(e.target.value)}
           onBlur={handleInputBlur}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            syncFromDate()
+            setIsOpen(true)
+          }}
           placeholder={placeholder}
           disabled={disabled}
           className="pl-10 pr-10 cursor-pointer"

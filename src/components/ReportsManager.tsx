@@ -41,7 +41,7 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/reports?userId=${user.id}`);
+        const response = await fetch('/api/reports');
         if (!response.ok) {
           throw new Error(`Failed to fetch reports: ${response.status}`);
         }
@@ -63,7 +63,7 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
     if (window.confirm('Are you sure you want to delete this report?')) {
       setIsDeleting(reportId);
       try {
-        const response = await fetch(`/api/reports/${reportId}?userId=${user.id}`, {
+        const response = await fetch(`/api/reports/${reportId}`, {
           method: 'DELETE',
         });
         
@@ -86,7 +86,7 @@ export function ReportsManager({ trigger }: ReportsManagerProps) {
     
     setIsGeneratingPdf(reportId);
     try {
-      const response = await fetch(`/api/reports/${reportId}/pdf?userId=${user.id}`, {
+      const response = await fetch(`/api/reports/${reportId}/pdf`, {
         method: 'POST',
       });
       

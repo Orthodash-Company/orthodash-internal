@@ -2,23 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sessions } from '@/shared/schema'
 import { eq, and } from 'drizzle-orm'
+import { requireAuthUser } from '@/lib/require-auth-user'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { id } = await params
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     const session = await db.select().from(sessions).where(
       and(
-        eq(sessions.id, parseInt(params.id)),
-        eq(sessions.userId, userId),
+        eq(sessions.id, parseInt(id)),
+        eq(sessions.userId, user.id),
         eq(sessions.isActive, true)
       )
     ).limit(1);
@@ -36,14 +36,16 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
-    const { userId, name, description, greyfinchData, acquisitionCosts, periods, aiSummary, metadata } = body
+    const { name, description, greyfinchData, acquisitionCosts, periods, aiSummary, metadata } = body
+    const { user, unauthorizedResponse } = await requireAuthUser()
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    if (!user) {
+      return unauthorizedResponse
     }
 
     const updateData: any = {
@@ -62,8 +64,8 @@ export async function PUT(
       .set(updateData)
       .where(
         and(
-          eq(sessions.id, parseInt(params.id)),
-          eq(sessions.userId, userId)
+          eq(sessions.id, parseInt(id)),
+          eq(sessions.userId, user.id)
         )
       )
       .returning();
@@ -81,14 +83,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { id } = await params
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     // Soft delete by setting isActive to false
@@ -99,8 +100,8 @@ export async function DELETE(
       })
       .where(
         and(
-          eq(sessions.id, parseInt(params.id)),
-          eq(sessions.userId, userId)
+          eq(sessions.id, parseInt(id)),
+          eq(sessions.userId, user.id)
         )
       );
 

@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { acquisitionCosts, apiConfigurations, adSpend, vendors, revenue } from '@/shared/schema'
 import { eq, and, isNull } from 'drizzle-orm'
 import { createClient } from '@supabase/supabase-js'
+import { requireAuthUser } from '@/lib/require-auth-user'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,10 +15,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const locationId = searchParams.get('locationId')
     const period = searchParams.get('period')
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     // If no period is provided, return empty data instead of error
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         and(
           eq(acquisitionCosts.locationId, parsedLocationId),
           eq(acquisitionCosts.period, period),
-          eq(acquisitionCosts.userId, userId),
+          eq(acquisitionCosts.userId, user.id),
           eq(acquisitionCosts.isDeleted, false)
         )
       );
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       manualCosts = await db.select().from(acquisitionCosts).where(
         and(
           eq(acquisitionCosts.period, period),
-          eq(acquisitionCosts.userId, userId),
+          eq(acquisitionCosts.userId, user.id),
           eq(acquisitionCosts.isDeleted, false)
         )
       );
@@ -79,14 +79,14 @@ export async function GET(request: NextRequest) {
         and(
           eq(adSpend.locationId, parsedLocationId),
           eq(adSpend.period, period),
-          eq(adSpend.userId, userId)
+          eq(adSpend.userId, user.id)
         )
       );
     } else {
       apiCosts = await db.select().from(adSpend).where(
         and(
           eq(adSpend.period, period),
-          eq(adSpend.userId, userId)
+          eq(adSpend.userId, user.id)
         )
       );
     }
@@ -129,10 +129,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { locationId, period, costs, userId, type = 'manual' } = body
+    const { locationId, period, costs, type = 'manual' } = body
+    const { user, unauthorizedResponse } = await requireAuthUser()
 
-    if (!userId || !period) {
-      return NextResponse.json({ error: "userId and period are required" }, { status: 400 })
+    if (!user) {
+      return unauthorizedResponse
+    }
+
+    if (!period) {
+      return NextResponse.json({ error: "period is required" }, { status: 400 })
     }
 
     if (type === 'manual') {
@@ -141,7 +146,7 @@ export async function POST(request: NextRequest) {
       
       const insertData = costEntries.map(cost => ({
         locationId: locationId || null,
-        userId,
+        userId: user.id,
         referralType: cost.referralType || 'manual',
         cost: parseFloat(cost.cost) || 0,
         period,
@@ -178,10 +183,15 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, cost, description, userId } = body
+    const { id, cost, description } = body
+    const { user, unauthorizedResponse } = await requireAuthUser()
 
-    if (!id || !userId) {
-      return NextResponse.json({ error: "id and userId are required" }, { status: 400 })
+    if (!user) {
+      return unauthorizedResponse
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 })
     }
 
     const result = await db.update(acquisitionCosts)
@@ -193,7 +203,7 @@ export async function PUT(request: NextRequest) {
       .where(
         and(
           eq(acquisitionCosts.id, id),
-          eq(acquisitionCosts.userId, userId)
+          eq(acquisitionCosts.userId, user.id)
         )
       )
       .returning();
@@ -213,10 +223,14 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    const userId = searchParams.get('userId')
+    const { user, unauthorizedResponse } = await requireAuthUser()
 
-    if (!id || !userId) {
-      return NextResponse.json({ error: "id and userId are required" }, { status: 400 })
+    if (!user) {
+      return unauthorizedResponse
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 })
     }
 
     // Soft delete by setting isDeleted to true
@@ -228,7 +242,7 @@ export async function DELETE(request: NextRequest) {
       .where(
         and(
           eq(acquisitionCosts.id, parseInt(id)),
-          eq(acquisitionCosts.userId, userId)
+          eq(acquisitionCosts.userId, user.id)
         )
       )
       .returning();

@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm'
 import { createClient } from '@supabase/supabase-js'
 import { greyfinchService } from '@/lib/services/greyfinch'
 import { GreyfinchDataService } from '@/lib/services/greyfinch-data'
+import { requireAuthUser } from '@/lib/require-auth-user'
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,11 +42,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get user ID from request headers
-    const userId = request.headers.get('x-user-id') || 'default-user-id'
-    
-    if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 401 })
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     const body = await request.json()
@@ -53,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Ensure the location is created for the authenticated user
     const locationData = {
       ...body,
-      userId: userId
+      userId: user.id
     }
     
     const location = await db.insert(locations).values(locationData).returning()

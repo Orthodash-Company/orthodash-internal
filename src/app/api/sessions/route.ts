@@ -2,21 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sessions } from '@/shared/schema';
 import { eq } from 'drizzle-orm';
+import { requireAuthUser } from '@/lib/require-auth-user';
 
 // GET /api/sessions - Get all sessions for a user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) {
+      return unauthorizedResponse;
     }
 
     const userSessions = await db
       .select()
       .from(sessions)
-      .where(eq(sessions.userId, userId))
+      .where(eq(sessions.userId, user.id))
       .orderBy(sessions.createdAt);
 
     return NextResponse.json({
@@ -43,21 +42,25 @@ export async function POST(request: NextRequest) {
       periods,
       locations,
       greyfinchData,
-      userId,
       includeCharts,
       includeAIInsights,
       includeRecommendations
     } = body;
 
-    if (!userId || !name) {
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) {
+      return unauthorizedResponse;
+    }
+
+    if (!name) {
       return NextResponse.json(
-        { error: 'User ID and session name required' },
+        { error: 'Session name required' },
         { status: 400 }
       );
     }
 
     const sessionData = {
-      userId,
+      userId: user.id,
       name,
       description: description || '',
       greyfinchData: greyfinchData || {},
@@ -97,6 +100,11 @@ export async function POST(request: NextRequest) {
 // PUT /api/sessions - Update an existing session
 export async function PUT(request: NextRequest) {
   try {
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) {
+      return unauthorizedResponse;
+    }
+
     const body = await request.json();
     const { sessionId, periods, locations, greyfinchData, updatedAt } = body;
 

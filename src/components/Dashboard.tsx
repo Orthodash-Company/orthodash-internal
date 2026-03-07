@@ -513,7 +513,6 @@ export default function Dashboard() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: user.id,
             name: `Report Session - ${new Date().toLocaleDateString()}`,
             description: `Auto-generated session for ${reportData.title}`,
             periods: periods,
@@ -533,11 +532,10 @@ export default function Dashboard() {
       }
 
       // Save the report
-      const reportResponse = await fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
+        const reportResponse = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
           sessionId: sessionId,
           name: reportData.title,
           type: reportData.type,

@@ -23,17 +23,9 @@ export function SimpleDateInput({
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize input value when date changes
-  useEffect(() => {
-    if (date) {
-      setInputValue(format(date, 'dd/MM/yyyy'));
-    } else {
-      setInputValue('');
-    }
-  }, [date]);
-
   const handleClick = () => {
     if (!disabled) {
+      setInputValue(date ? format(date, 'dd/MM/yyyy') : '');
       setIsEditing(true);
       setTimeout(() => inputRef.current?.focus(), 0);
     }

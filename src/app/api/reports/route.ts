@@ -2,21 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { reports } from '@/shared/schema';
 import { eq } from 'drizzle-orm';
+import { requireAuthUser } from '@/lib/require-auth-user';
 
 // GET /api/reports - Get all reports for a user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) {
+      return unauthorizedResponse;
     }
 
     const userReports = await db
       .select()
       .from(reports)
-      .where(eq(reports.userId, userId))
+      .where(eq(reports.userId, user.id))
       .orderBy(reports.createdAt);
 
     return NextResponse.json({
@@ -41,19 +40,23 @@ export async function POST(request: NextRequest) {
       sessionId,
       name,
       type,
-      data,
-      userId
+      data
     } = body;
 
-    if (!userId || !sessionId || !name || !type) {
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) {
+      return unauthorizedResponse;
+    }
+
+    if (!sessionId || !name || !type) {
       return NextResponse.json(
-        { error: 'User ID, session ID, name, and type required' },
+        { error: 'Session ID, name, and type required' },
         { status: 400 }
       );
     }
 
     const reportData = {
-      userId,
+      userId: user.id,
       sessionId,
       name,
       type,

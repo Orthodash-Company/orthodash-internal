@@ -40,9 +40,9 @@ GOOGLE_ADS_DEVELOPER_TOKEN=
 Recommended flow:
 
 ```bash
-npm install
-npm run type-check
-npm run build
+pnpm install
+pnpm type-check
+pnpm build
 ```
 
 Then deploy to your hosting platform and set the environment variables there.
