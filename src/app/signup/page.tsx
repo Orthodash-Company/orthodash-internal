@@ -1,15 +1,23 @@
 'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Eye, EyeOff, User } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
 
-export default function SignupPage() {
+const Page = () => {
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -17,30 +25,55 @@ export default function SignupPage() {
     firstName: '',
     lastName: ''
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
   const router = useRouter();
-  const { registerMutation } = useAuth();
+
+  const { signUp, user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/');
+    }
+  }, [loading, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
     
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      setErrorMessage('Passwords do not match');
       return;
     }
 
     setIsLoading(true);
     
     try {
-      registerMutation.mutate({
-        username: formData.email,
-        password: formData.password
+      const result = await signUp(formData.email, formData.password, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
       });
-      router.push('/welcome');
+
+      if (result.session) {
+        router.replace('/welcome');
+        return;
+      }
+
+      setSuccessMessage('Account created. Check your email to confirm your address before signing in.');
+      setFormData((prev) => ({
+        ...prev,
+        password: '',
+        confirmPassword: '',
+      }));
     } catch (error) {
       console.error('Registration failed:', error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to create your account. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -165,14 +198,26 @@ export default function SignupPage() {
             >
               {isLoading ? 'Creating account...' : 'Create Account'}
             </Button>
+
+            {successMessage && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                {successMessage}
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                {errorMessage}
+              </div>
+            )}
           </form>
           
           <div className="mt-6 text-center">
             <p className="text-sm text-[#1C1F4F]/70">
               Already have an account?{' '}
-              <a href="/login" className="text-[#1C1F4F] hover:underline font-medium">
+              <Link href="/login" className="text-[#1C1F4F] hover:underline font-medium">
                 Sign in
-              </a>
+              </Link>
             </p>
           </div>
         </CardContent>
@@ -180,3 +225,5 @@ export default function SignupPage() {
     </div>
   );
 }
+
+export default Page;

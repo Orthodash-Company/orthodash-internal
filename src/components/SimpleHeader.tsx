@@ -1,18 +1,14 @@
 'use client'
 
-import { ChartLine, User, LogOut, History, List } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ReportsManager } from "./ReportsManager";
 import { SessionHistoryManager } from "./SessionHistoryManager";
+import { ChartLine, User, LogOut, History, List } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface SimpleHeaderProps {
   onRestoreSession?: (session: any) => void;
@@ -21,16 +17,23 @@ interface SimpleHeaderProps {
   onShareSession?: (session: any) => void;
 }
 
-export function SimpleHeader({ 
-  onRestoreSession,
-  onPreviewSession,
-  onDownloadSession,
-  onShareSession
-}: SimpleHeaderProps = {}) {
-  const { user, logoutMutation } = useAuth();
+export function SimpleHeader({ onRestoreSession, onPreviewSession, onDownloadSession, onShareSession }: SimpleHeaderProps = {}) {
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      await signOut();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -40,14 +43,14 @@ export function SimpleHeader({
           <div className="flex items-center justify-between min-w-0">
             {/* Logo on the left */}
             <div className="flex items-center flex-shrink-0">
-              <a href="/" className="flex items-center hover:opacity-80 transition-all duration-200 group">
+              <Link href="/" className="flex items-center hover:opacity-80 transition-all duration-200 group">
                 <div className="bg-[#1C1F4F] p-1 sm:p-1.5 md:p-2 rounded-lg md:rounded-xl mr-1.5 sm:mr-2 md:mr-3 shadow-lg group-hover:shadow-xl transition-shadow">
                   <ChartLine className="text-white w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </div>
                 <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-[#1C1F4F] truncate">
                   ORTHODASH
                 </h1>
-              </a>
+              </Link>
             </div>
             
             {/* Buttons container on the right */}
@@ -113,10 +116,10 @@ export function SimpleHeader({
                     <DropdownMenuItem 
                       className="text-red-600 cursor-pointer hover:bg-red-50/50 transition-colors"
                       onClick={handleLogout}
-                      disabled={logoutMutation.isPending}
+                      disabled={isLoggingOut}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
-                      {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+                      {isLoggingOut ? 'Logging out...' : 'Logout'}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
