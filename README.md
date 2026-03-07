@@ -1,179 +1,85 @@
-# ORTHODASH Analytics Platform
+# Orthodash
 
-A comprehensive orthodontic practice analytics dashboard providing detailed insights into patient acquisition costs, referral sources, conversion rates, and operational metrics.
+Orthodash is a Next.js analytics app for orthodontic practice reporting. It combines Supabase auth, Greyfinch data pulls, QuickBooks revenue integration, acquisition cost tracking, report generation, and AI summaries in one internal dashboard.
 
-## 🚀 Features
+## Stack
 
-- **Real-time Analytics**: Live integration with Greyfinch GraphQL API for practice management data
-- **GraphQL Schema Introspection**: Interactive schema exploration and query validation tools
-- **Field Name Validation**: Automatic detection and correction of GraphQL field naming issues
-- **Multi-Period Comparison**: Compare performance across different time periods and locations
-- **Interactive Visualizations**: Comprehensive charts and graphs powered by Syncfusion
-- **Cost Management**: Track acquisition costs with automated API integrations
-- **AI-Powered Insights**: OpenAI integration for intelligent analytics summaries
-- **PDF Reports**: Beautiful report generation with jsPDF
-- **Secure Sharing**: Link and email sharing with access controls
-- **Mobile Optimized**: Responsive design for all devices
+- Next.js App Router
+- React 18 + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase Auth + Supabase Postgres
+- Drizzle ORM
+- OpenAI
 
-## 🛠️ Technology Stack
+## Local Setup
 
-### Frontend
-- **React 18** with TypeScript
-- **Tailwind CSS** with shadcn/ui components
-- **TanStack Query** for server state management
-- **Wouter** for lightweight routing
-- **Syncfusion EJ2** for advanced charting
-- **Vite** for fast development and builds
+1. Install dependencies.
 
-### Backend
-- **Express.js** with TypeScript
-- **PostgreSQL** with Drizzle ORM
-- **Neon Database** (serverless PostgreSQL)
-- **Session-based authentication**
-- **RESTful API design**
-
-### External Integrations
-- **Greyfinch GraphQL API** - Practice management system with schema introspection
-- **OpenAI API** - AI-powered analytics insights
-- **Meta/Google Ads APIs** - Automated cost tracking
-
-## 📦 Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Orthodash/orthodash-internal.git
-   cd orthodash-analytics
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Environment setup**
-   Create a `.env` file with the following variables:
-   ```env
-   DATABASE_URL=your_postgresql_connection_string
-   SESSION_SECRET=your_session_secret
-   GREYFINCH_API_KEY=your_greyfinch_api_key
-   GREYFINCH_API_SECRET=your_greyfinch_api_secret
-   OPENAI_API_KEY=your_openai_api_key
-   ```
-   
-   **Note**: The Greyfinch GraphQL API uses camelCase field names. See `GREYFINCH_API_GUIDE.md` for detailed integration information.
-
-4. **Database setup**
-   ```bash
-   npm run db:push
-   ```
-
-5. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-## 🚀 Deployment
-
-
-### Manual Deployment
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-2. Deploy to your preferred hosting platform
-3. Ensure environment variables are configured
-
-## 📱 Usage
-
-### Getting Started
-1. **Authentication**: Register or login with your team orthodontics email
-2. **Location Setup**: Configure your practice locations
-3. **Period Configuration**: Create analysis periods for comparison
-4. **Data Integration**: Connect Greyfinch API and external advertising platforms
-5. **Analytics**: View real-time insights and generate reports
-
-### Key Workflows
-- **Multi-Period Analysis**: Add multiple time periods for side-by-side comparison
-- **Cost Tracking**: Input or automatically sync acquisition costs
-- **Report Generation**: Export beautiful PDF reports with charts and data
-- **AI Insights**: Generate intelligent summaries and recommendations
-
-## 🔧 Development
-
-### Project Structure
-```
-├── client/              # React frontend
-│   ├── src/
-│   │   ├── components/  # Reusable UI components
-│   │   ├── pages/       # Page components
-│   │   ├── hooks/       # Custom React hooks
-│   │   └── lib/         # Utility functions
-├── server/              # Express backend
-│   ├── routes/          # API route handlers
-│   ├── services/        # Business logic
-│   └── storage/         # Database operations
-├── shared/              # Shared types and schemas
-└── docs/                # Documentation
+```bash
+npm install
 ```
 
-### Available Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run db:push` - Apply database schema changes
-- `npm run type-check` - Run TypeScript checks
+2. Create `.env` or `.env.local` from `env.example`.
 
-### Key Components
-- **Dashboard**: Main analytics interface
-- **PeriodColumn**: Individual period analysis display
-- **CostManagement**: Acquisition cost tracking
-- **ShareModal**: Report sharing functionality
-- **MobileFriendlyControls**: Mobile-optimized navigation
-- **GreyfinchSchemaTester**: GraphQL schema exploration and query validation
+Required variables:
 
-## 🔐 Security
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+GREYFINCH_API_KEY=
+GREYFINCH_API_SECRET=
+OPENAI_API_KEY=
+```
 
-- Session-based authentication with PostgreSQL store
-- Secure API key management through environment variables
-- HTTPS enforcement in production
-- Input validation with Zod schemas
+Optional variables:
 
-## 📊 Analytics Features
+```env
+NEXT_PUBLIC_APP_URL=
+OPENAI_ORG_ID=
+QUICKBOOKS_CONSUMER_KEY=
+QUICKBOOKS_CONSUMER_SECRET=
+QUICKBOOKS_ACCESS_TOKEN=
+QUICKBOOKS_ACCESS_TOKEN_SECRET=
+QUICKBOOKS_COMPANY_ID=
+QUICKBOOKS_SANDBOX=true
+GOOGLE_ADS_DEVELOPER_TOKEN=
+SESSION_SECRET=
+```
 
-### Metrics Tracked
-- Patient acquisition costs by source
-- Conversion rates and ROI
-- Referral source performance
-- Location-based comparisons
-- Time-period trends
+3. Start the app.
 
-### Visualization Types
-- Pie charts for source distribution
-- Column charts for period comparison
-- Spline charts for trend analysis
-- Stacked charts for category breakdowns
+```bash
+npm run dev
+```
 
-## 🤝 Contributing
+4. Run a quick verification pass.
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+```bash
+npm run type-check
+```
 
-## 📄 License
+## Core Areas
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- Auth: Supabase email/password auth with client-side session state
+- Analytics: Greyfinch-backed dashboard and period comparisons
+- Reporting: saved reports, PDF generation, and sharing flows
+- Costs: acquisition cost entry plus external sync endpoints
+- AI: summary and analysis endpoints backed by OpenAI
 
-## 🏥 About Team Orthodontics
+## Useful Scripts
 
-ORTHODASH is built specifically for orthodontic practices to optimize patient acquisition and improve operational efficiency through data-driven insights.
+- `npm run dev`
+- `npm run build`
+- `npm run start`
+- `npm run type-check`
+- `npm run db:push`
+- `npm run db:generate`
+- `npm run db:migrate`
 
-## 📞 Support
+## Docs
 
-For support and questions:
-- Create an issue in this repository
-- Contact: support@teamorthodontics.com
-
----
-
-**Built with ❤️ for orthodontic practices everywhere**
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+- [docs/integrations/greyfinch.md](docs/integrations/greyfinch.md)
+- [docs/integrations/quickbooks.md](docs/integrations/quickbooks.md)
