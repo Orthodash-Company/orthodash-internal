@@ -11,12 +11,14 @@ import { CheckCircle, AlertCircle, RefreshCw, MapPin, Database, Users, Calendar,
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Location as DashboardLocation } from '@/shared/types';
 
 interface Location {
   id: string;
   name: string;
   address?: string;
   isActive: boolean;
+  greyfinchId?: string;
 }
 
 interface DataCounts {
@@ -30,11 +32,21 @@ interface DataCounts {
 }
 
 interface LocationsManagerProps {
+  greyfinchData?: any;
+  dashboardLocations?: DashboardLocation[];
+  isRefreshingGreyfinchData?: boolean;
   onGreyfinchDataUpdate?: (data: any) => void;
+  onRefreshGreyfinchData?: () => Promise<boolean>;
 }
 
 // Dynamic connection status component - updated for production deployment
-export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProps) {
+export function LocationsManager({
+  greyfinchData,
+  dashboardLocations,
+  isRefreshingGreyfinchData = false,
+  onGreyfinchDataUpdate,
+  onRefreshGreyfinchData,
+}: LocationsManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([
@@ -49,14 +61,55 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   const [connectionChecked, setConnectionChecked] = useState(false);
 
   useEffect(() => {
-    if (user?.id) {
-      checkConnectionAndFetchLocations();
+    if (!user?.id) {
+      setIsConnected(false);
+      setConnectionChecked(false);
       return;
     }
 
-    setIsConnected(false);
-    setConnectionChecked(false);
-  }, [user?.id]);
+    if (greyfinchData) {
+      setIsConnected(true);
+      setConnectionChecked(true);
+    }
+  }, [user?.id, greyfinchData]);
+
+  useEffect(() => {
+    if (dashboardLocations && dashboardLocations.length > 0) {
+      setLocations(dashboardLocations.map((location) => ({
+        id: String(location.greyfinchId || location.id),
+        name: location.name,
+        address: (location as any).address,
+        isActive: location.isActive ?? true,
+      })));
+    }
+  }, [dashboardLocations]);
+
+  useEffect(() => {
+    if (!greyfinchData?.data) {
+      setDataCounts({
+        patients: 0,
+        locations: 0,
+        appointments: 0,
+        leads: 0,
+        bookings: 0,
+      });
+      return;
+    }
+
+    const data = greyfinchData.data;
+    const nextCounts = {
+      patients: data.total?.patients ?? data.patients?.count ?? 0,
+      locations: data.total?.locations ?? Object.keys(data.locations || data.locationData || {}).length,
+      appointments: data.total?.appointments ?? data.appointments?.count ?? 0,
+      leads: data.total?.leads ?? data.leads?.count ?? 0,
+      bookings: data.total?.bookings ?? data.bookings?.count ?? 0,
+    };
+
+    setDataCounts(nextCounts);
+    if (greyfinchData.lastUpdated) {
+      setLastPullTime(new Date(greyfinchData.lastUpdated).toLocaleString());
+    }
+  }, [greyfinchData]);
 
   // Debug connection status changes
   useEffect(() => {
@@ -64,6 +117,28 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
   }, [isConnected]);
 
   const checkConnectionAndFetchLocations = useCallback(async () => {
+    if (!user?.id) {
+      setIsConnected(false);
+      setConnectionChecked(false);
+      return;
+    }
+
+    if (onRefreshGreyfinchData) {
+      setIsLoading(true);
+      try {
+        const success = await onRefreshGreyfinchData();
+        setIsConnected(success);
+        setConnectionChecked(true);
+      } catch (error) {
+        setIsConnected(false);
+        setConnectionChecked(true);
+        console.error('❌ Error refreshing Greyfinch data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     setIsLoading(true)
     console.log('🔄 Checking Greyfinch connection...')
     
@@ -129,7 +204,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
       setIsLoading(false)
       console.log('🏁 Connection check completed. Final state:', { isConnected, connectionChecked })
     }
-  }, [])
+  }, [onRefreshGreyfinchData, user?.id])
 
   const handlePullAllData = useCallback(async () => {
     if (!user?.id) {
@@ -142,149 +217,10 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     }
     setIsLoading(true);
     try {
-      console.log('🔄 Starting comprehensive data pull...')
-      
-      // Step 1: Initialize database
-      console.log('📊 Initializing database...')
-      const initResponse = await fetch('/api/db/init', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
-      if (!initResponse.ok) {
-        console.warn('⚠️ Database initialization failed, continuing with data pull...')
-      } else {
-        console.log('✅ Database initialized successfully')
-      }
-      
-      // Step 2: Pull comprehensive data from ALL locations via dashboard data endpoint
-      console.log('🔄 Pulling comprehensive data from ALL locations...')
-      const dashboardResponse = await fetch('/api/greyfinch/dashboard-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      
-      if (!dashboardResponse.ok) {
-        throw new Error(`Dashboard data fetch failed: ${dashboardResponse.status}`)
-      }
-      
-      const dashboardData = await dashboardResponse.json()
-      console.log('📊 Dashboard data response:', dashboardData)
-      
-      if (!dashboardData.success) {
-        throw new Error(dashboardData.message || 'Dashboard data fetch failed')
-      }
-      
-      // Step 3: Pull analytics data for enhanced insights (with rate limiting consideration)
-      console.log('📈 Pulling analytics data...')
-      
-      // Add a small delay to be respectful of rate limits
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const analyticsResponse = await fetch('/api/greyfinch/analytics', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
-      let analyticsData = null
-      if (analyticsResponse.ok) {
-        analyticsData = await analyticsResponse.json()
-        console.log('📊 Analytics response:', analyticsData)
-      } else {
-        console.warn('⚠️ Analytics endpoint failed, using sync data only')
-      }
-      
-      // Step 4: Process and update data counts from ALL locations
-      const processedData = {
-        patients: 0,
-        locations: 0,
-        leads: 0,
-        appointments: 0,
-        bookings: 0
-      }
-      
-      // Extract counts from dashboard data with validation
-      if (dashboardData.data) {
-        // Use the counts from the dashboard data
-        if (dashboardData.data.counts) {
-          processedData.patients = dashboardData.data.counts.patients || 0
-          processedData.locations = dashboardData.data.counts.locations || 0
-          processedData.leads = dashboardData.data.counts.leads || 0
-          processedData.appointments = dashboardData.data.counts.appointments || 0
-          processedData.bookings = dashboardData.data.counts.bookings || 0
-        }
-        
-        // Fallback: count from arrays if counts object is not available
-        if (processedData.locations === 0 && dashboardData.data.locations) {
-          processedData.locations = Array.isArray(dashboardData.data.locations) 
-            ? dashboardData.data.locations.length 
-            : Object.keys(dashboardData.data.locations).length
-        }
-        if (processedData.patients === 0 && dashboardData.data.patients) {
-          processedData.patients = Array.isArray(dashboardData.data.patients) 
-            ? dashboardData.data.patients.length 
-            : Object.keys(dashboardData.data.patients).length
-        }
-        if (processedData.leads === 0 && dashboardData.data.leads) {
-          processedData.leads = Array.isArray(dashboardData.data.leads) 
-            ? dashboardData.data.leads.length 
-            : Object.keys(dashboardData.data.leads).length
-        }
-        if (processedData.appointments === 0 && dashboardData.data.appointments) {
-          processedData.appointments = Array.isArray(dashboardData.data.appointments) 
-            ? dashboardData.data.appointments.length 
-            : Object.keys(dashboardData.data.appointments).length
-        }
-        if (processedData.bookings === 0 && dashboardData.data.appointmentBookings) {
-          processedData.bookings = Array.isArray(dashboardData.data.appointmentBookings) 
-            ? dashboardData.data.appointmentBookings.length 
-            : Object.keys(dashboardData.data.appointmentBookings).length
-        }
-      }
-      
-      // Validate that we got some data
-      const totalDataPoints = processedData.patients + processedData.locations + processedData.leads + processedData.appointments + processedData.bookings
-      if (totalDataPoints === 0) {
-        console.warn('⚠️ No data points found in dashboard response, using fallback data')
-        // Use fallback data if no real data was found
-        processedData.patients = 500
-        processedData.locations = 5 // All 5 locations
-        processedData.leads = 200
-        processedData.appointments = 400
-        processedData.bookings = 350
-      }
-      
-      // Update data counts with ALL locations data
-      setDataCounts({
-        patients: processedData.patients,
-        locations: processedData.locations,
-        appointments: processedData.appointments,
-        leads: processedData.leads,
-        bookings: processedData.bookings
-      });
-      
+      await checkConnectionAndFetchLocations();
       setLastPullTime(new Date().toLocaleString());
       
-      // Pass the comprehensive data to parent component
-      if (onGreyfinchDataUpdate) {
-        onGreyfinchDataUpdate({
-          syncData: dashboardData.data,
-          analyticsData: analyticsData?.data,
-          counts: processedData,
-          pulledAt: new Date().toISOString()
-        });
-      }
-      
-      // Show success message with comprehensive data
-      const successMessage = `Successfully pulled comprehensive data from ALL ${processedData.locations} locations! Found ${processedData.patients} patients, ${processedData.appointments} appointments, ${processedData.leads} leads, and ${processedData.bookings} bookings. Data is now ready for analysis.`
-      
-      toast({
-        title: "Comprehensive Data Pull Successful",
-        description: successMessage,
-      });
-      
-      console.log('✅ Comprehensive data pull completed successfully')
+      console.log('✅ Comprehensive data refresh completed successfully')
       
     } catch (error) {
       console.error('❌ Error pulling comprehensive data:', error);
@@ -296,7 +232,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, toast, onGreyfinchDataUpdate]);
+  }, [checkConnectionAndFetchLocations, toast, user?.id]);
 
   // Memoize data counts display for performance
   const dataCountsDisplay = useMemo(() => (
@@ -357,7 +293,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
             </div>
             <Button
               onClick={checkConnectionAndFetchLocations}
-              disabled={isLoading}
+              disabled={isLoading || isRefreshingGreyfinchData}
               size="sm"
               variant="outline"
             >
@@ -372,11 +308,11 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
           {/* Pull Data Button */}
           <Button
             onClick={handlePullAllData}
-            disabled={isLoading || !isConnected}
+            disabled={isLoading || isRefreshingGreyfinchData || !isConnected}
             className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            {isLoading ? 'Pulling Data...' : 'Pull All Data'}
+            {isLoading || isRefreshingGreyfinchData ? 'Refreshing Data...' : 'Pull All Data'}
           </Button>
 
 
@@ -399,7 +335,7 @@ export function LocationsManager({ onGreyfinchDataUpdate }: LocationsManagerProp
             </div>
             <Button
               onClick={checkConnectionAndFetchLocations}
-              disabled={isLoading}
+              disabled={isLoading || isRefreshingGreyfinchData}
               size="sm"
               variant="outline"
             >

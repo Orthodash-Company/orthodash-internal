@@ -24,7 +24,8 @@ export default function Dashboard() {
   const { cacheSessionData } = useSessionManager();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isRefreshingGreyfinchData, setIsRefreshingGreyfinchData] = useState(false);
   const [error, setError] = useState<string | null>(null)
   const [showQuickBooksSetup, setShowQuickBooksSetup] = useState(false)
   const [quickBooksRevenueData, setQuickBooksRevenueData] = useState<any>(null);
@@ -36,33 +37,111 @@ export default function Dashboard() {
   const [aiSummary, setAiSummary] = useState<any>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const greyfinchRequestRef = useRef<AbortController | null>(null);
+  const greyfinchTimeoutRef = useRef<number | null>(null);
 
-  // Load Greyfinch data on component mount and refresh on page load
-  useEffect(() => {
-    if (user?.id) {
-      loadGreyfinchData();
-    } else {
-      // If no user, stop loading after a short delay
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 500);
-      return () => clearTimeout(timer);
+  const getDefaultLocations = useCallback((): Location[] => ([
+    {
+      id: 1,
+      name: 'Gilbert',
+      greyfinchId: 'gilbert-1',
+      isActive: true
+    },
+    {
+      id: 2,
+      name: 'Phoenix-Ahwatukee',
+      greyfinchId: 'phoenix-ahwatukee-1',
+      isActive: true
     }
-  }, [user?.id]);
+  ]), []);
 
-  // Refresh Greyfinch data on page focus (when user returns to tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (user?.id) {
-        loadGreyfinchData();
-      }
-    };
+  const extractLocationsFromGreyfinchData = useCallback((apiResponse: any): Location[] => {
+    const data = apiResponse?.data || apiResponse;
+    const locationArray: Location[] = [];
 
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [user?.id]);
+    if (data?.locations?.gilbert || data?.locationData?.gilbert) {
+      locationArray.push({
+        id: 1,
+        name: 'Gilbert',
+        greyfinchId: 'gilbert-1',
+        isActive: true
+      });
+    }
+
+    if (data?.locations?.phoenix || data?.locationData?.phoenix) {
+      locationArray.push({
+        id: 2,
+        name: 'Phoenix-Ahwatukee',
+        greyfinchId: 'phoenix-ahwatukee-1',
+        isActive: true
+      });
+    }
+
+    return locationArray.length > 0 ? locationArray : getDefaultLocations();
+  }, [getDefaultLocations]);
+
+  const createEmptyGreyfinchData = useCallback(() => ({
+    success: false,
+    data: {
+      total: {
+        period: '',
+        startDate: '',
+        endDate: '',
+        avgNetProduction: 0,
+        avgAcquisitionCost: 0,
+        noShowRate: 0,
+        referralSources: { digital: 0, professional: 0, direct: 0 },
+        conversionRates: { digital: 0, professional: 0, direct: 0 },
+        trends: { weekly: [] },
+        patients: 0,
+        appointments: 0,
+        leads: 0,
+        locations: 0,
+        bookings: 0,
+        production: 0,
+        revenue: 0,
+        netProduction: 0,
+        acquisitionCosts: 0,
+        locationData: {
+          gilbert: {
+            id: 'gilbert-1',
+            name: 'Gilbert',
+            patients: 0,
+            appointments: 0,
+            leads: 0,
+            bookings: 0,
+            production: 0,
+            revenue: 0,
+            netProduction: 0,
+            acquisitionCosts: 0,
+          },
+          phoenix: {
+            id: 'phoenix-ahwatukee-1',
+            name: 'Phoenix-Ahwatukee',
+            patients: 0,
+            appointments: 0,
+            leads: 0,
+            bookings: 0,
+            production: 0,
+            revenue: 0,
+            netProduction: 0,
+            acquisitionCosts: 0,
+          },
+        },
+      },
+      locations: {},
+      trends: { weekly: [], monthly: [] },
+      financialMetrics: {
+        totalProduction: 0,
+        totalRevenue: 0,
+        totalNetProduction: 0,
+        totalAcquisitionCosts: 0,
+        profitMargin: 0,
+        roi: 0,
+      },
+    },
+    lastUpdated: new Date().toISOString(),
+  }), []);
 
   // Handle click outside tabs and escape key
   useEffect(() => {
@@ -130,105 +209,120 @@ export default function Dashboard() {
     }
   };
 
-  // Load multi-location Greyfinch data from API - memoized to prevent unnecessary re-renders
-  const loadGreyfinchData = useCallback(async () => {
+  const clearGreyfinchRequest = useCallback(() => {
+    greyfinchRequestRef.current?.abort();
+    greyfinchRequestRef.current = null;
+
+    if (greyfinchTimeoutRef.current !== null) {
+      window.clearTimeout(greyfinchTimeoutRef.current);
+      greyfinchTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Load multi-location Greyfinch data from API - pure data fetch without UI state coupling
+  const fetchGreyfinchData = useCallback(async () => {
+    clearGreyfinchRequest();
+
+    const controller = new AbortController();
+    greyfinchRequestRef.current = controller;
+    greyfinchTimeoutRef.current = window.setTimeout(() => controller.abort(), 30000);
+
+    setError(null);
+
     try {
       console.log('🔄 Fetching Gilbert and Phoenix-Ahwatukee Greyfinch data...')
-      const response = await fetch('/api/greyfinch/analytics?location=all')
+      const response = await fetch('/api/greyfinch/analytics?location=all', {
+        signal: controller.signal,
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        const message = `Greyfinch fetch failed: ${response.status}`
+        console.warn('⚠️', message)
+        setGreyfinchData(createEmptyGreyfinchData())
+        setLocations(getDefaultLocations())
+        setError(null)
+        toast({
+          title: 'Greyfinch data unavailable',
+          description: `${message}. Showing 0 values for now.`,
+          variant: 'destructive',
+        })
+        return false
+      }
+
       const apiResponse = await response.json()
 
       if (apiResponse && apiResponse.data) {
         console.log('✅ Multi-location Greyfinch data loaded:', apiResponse)
-
-        // Update dashboard with multi-location data
         setGreyfinchData(apiResponse)
-
-        // Extract and set locations from the processed data
-        const data = apiResponse.data
-        const locationArray: Location[] = []
-
-        // Create Gilbert and Phoenix-Ahwatukee locations from the processed data
-        if (data.locations?.gilbert || data.locationData?.gilbert) {
-          locationArray.push({
-            id: 1,
-            name: 'Gilbert',
-            greyfinchId: 'gilbert-1',
-            isActive: true
-          })
-        }
-
-        if (data.locations?.phoenix || data.locationData?.phoenix) {
-          locationArray.push({
-            id: 2,
-            name: 'Phoenix-Ahwatukee',
-            greyfinchId: 'phoenix-ahwatukee-1',
-            isActive: true
-          })
-        }
-
-        // If no location data found, create default locations for fallback
-        if (locationArray.length === 0) {
-          locationArray.push(
-            {
-              id: 1,
-              name: 'Gilbert',
-              greyfinchId: 'gilbert-1',
-              isActive: true
-            },
-            {
-              id: 2,
-              name: 'Phoenix-Ahwatukee',
-              greyfinchId: 'phoenix-ahwatukee-1',
-              isActive: true
-            }
-          )
-        }
-
+        localStorage.setItem('greyfinchData', JSON.stringify(apiResponse))
+        const locationArray = extractLocationsFromGreyfinchData(apiResponse)
         console.log('📍 Setting all locations:', locationArray)
         setLocations(locationArray)
+        return true
       } else {
-        console.error('❌ Failed to load Greyfinch analytics data:', apiResponse.message)
-        // Set default locations even on error
-        const defaultLocations: Location[] = [
-          {
-            id: 1,
-            name: 'Gilbert',
-            greyfinchId: 'gilbert-1',
-            isActive: true
-          },
-          {
-            id: 2,
-            name: 'Phoenix-Ahwatukee',
-            greyfinchId: 'phoenix-ahwatukee-1',
-            isActive: true
-          }
-        ]
-        setLocations(defaultLocations)
+        const message = apiResponse?.message || 'Greyfinch analytics data was missing'
+        console.warn('⚠️ Failed to load Greyfinch analytics data:', message)
+        setGreyfinchData(createEmptyGreyfinchData())
+        setLocations(getDefaultLocations())
+        setError(null)
+        toast({
+          title: 'Greyfinch data unavailable',
+          description: `${message}. Showing 0 values for now.`,
+          variant: 'destructive',
+        })
+        return false
       }
     } catch (error: any) {
-      console.error('❌ Error fetching Greyfinch analytics data:', error)
-      setError(error?.message || 'Error fetching Greyfinch analytics data')
-
-      // Set default locations even on error
-      const defaultLocations: Location[] = [
-        {
-          id: 1,
-          name: 'Gilbert',
-          greyfinchId: 'gilbert-1',
-          isActive: true
-        },
-        {
-          id: 2,
-          name: 'Phoenix-Ahwatukee',
-          greyfinchId: 'phoenix-ahwatukee-1',
-          isActive: true
-        }
-      ]
-      setLocations(defaultLocations)
+      const message = error instanceof DOMException && error.name === 'AbortError'
+        ? 'Greyfinch request timed out'
+        : error?.message || 'Error fetching Greyfinch analytics data'
+      console.warn('⚠️ Error fetching Greyfinch analytics data:', message)
+      setGreyfinchData(createEmptyGreyfinchData())
+      setLocations(getDefaultLocations())
+      setError(null)
+      toast({
+        title: 'Greyfinch data unavailable',
+        description: `${message}. Showing 0 values for now.`,
+        variant: 'destructive',
+      })
+      return false
     } finally {
-      setIsLoading(false)
+      if (greyfinchRequestRef.current === controller) {
+        clearGreyfinchRequest();
+      }
     }
-  }, [])
+  }, [clearGreyfinchRequest, createEmptyGreyfinchData, extractLocationsFromGreyfinchData, getDefaultLocations, toast])
+
+  const loadGreyfinchData = useCallback(async () => {
+    setIsRefreshingGreyfinchData(true);
+    try {
+      return await fetchGreyfinchData();
+    } finally {
+      setIsRefreshingGreyfinchData(false);
+    }
+  }, [fetchGreyfinchData]);
+
+  // Load Greyfinch data on first authenticated render only.
+  useEffect(() => {
+    if (!user?.id) {
+      clearGreyfinchRequest();
+      setGreyfinchData(null);
+      setLocations([]);
+      setIsInitialLoading(false);
+      setIsRefreshingGreyfinchData(false);
+      return;
+    }
+
+    setIsInitialLoading(true);
+    void fetchGreyfinchData().finally(() => {
+      setIsInitialLoading(false);
+    });
+
+    return () => {
+      clearGreyfinchRequest();
+    };
+  }, [clearGreyfinchRequest, fetchGreyfinchData, user?.id]);
 
   // Create data queries for each period - memoized for performance
   const createPeriodQueries = useCallback((periods: PeriodConfig[], greyfinchData: any) => {
@@ -440,31 +534,18 @@ export default function Dashboard() {
       setGreyfinchData(data.syncData);
 
       // Extract and set locations from the sync data
-      if (data.syncData.locations) {
-        const locationArray: Location[] = []
-
-        // Convert the locations object to an array
-        Object.values(data.syncData.locations).forEach((location: any) => {
-          locationArray.push({
-            id: parseInt(location.id) || Date.now(),
-            name: location.name,
-            greyfinchId: location.id
-          })
-        })
-
-        console.log('📍 Setting locations from pull data:', locationArray)
-        setLocations(locationArray)
-      }
+      setLocations(extractLocationsFromGreyfinchData(data.syncData))
     } else {
       // Fallback for old data structure
       setGreyfinchData(data);
+      setLocations(extractLocationsFromGreyfinchData(data))
     }
 
     // Store in localStorage
     if (typeof window !== 'undefined') {
       localStorage.setItem('greyfinchData', JSON.stringify(data));
     }
-  }, []);
+  }, [extractLocationsFromGreyfinchData]);
 
   // Session management handlers - memoized for performance
   const handleRestoreSession = useCallback((session: any) => {
@@ -554,7 +635,7 @@ export default function Dashboard() {
     }
   }, [user?.id, periods, locations, greyfinchData]);
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
         <div className="bg-white border border-[#1C1F4F]/20 rounded-2xl p-8 shadow-xl">
@@ -576,9 +657,11 @@ export default function Dashboard() {
             <button
               onClick={() => {
                 setError(null);
-                setIsLoading(true);
                 if (user?.id) {
-                  loadGreyfinchData();
+                  setIsInitialLoading(true);
+                  void fetchGreyfinchData().finally(() => {
+                    setIsInitialLoading(false);
+                  });
                 }
               }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -646,7 +729,13 @@ export default function Dashboard() {
                 )}
 
                 <TabsContent value="locations" className="mt-6">
-                  <LocationsManager onGreyfinchDataUpdate={handleGreyfinchDataUpdate} />
+                  <LocationsManager
+                    greyfinchData={greyfinchData}
+                    dashboardLocations={locations}
+                    isRefreshingGreyfinchData={isRefreshingGreyfinchData}
+                    onGreyfinchDataUpdate={handleGreyfinchDataUpdate}
+                    onRefreshGreyfinchData={loadGreyfinchData}
+                  />
                 </TabsContent>
 
                 <TabsContent value="connections" className="mt-6">

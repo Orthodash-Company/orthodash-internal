@@ -1,79 +1,185 @@
-import { createClient } from '@supabase/supabase-js'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
-import { GreyfinchSchemaUtils, GREYFINCH_QUERIES, GreyfinchErrorHandler } from './greyfinch-schema'
+import { GREYFINCH_MUTATIONS, GREYFINCH_QUERIES, GREYFINCH_QUERY_BUILDERS } from './greyfinch-schema'
+
+type BasicCounts = {
+  patients: number
+  locations: number
+  appointments: number
+  leads: number
+  bookings: number
+}
+
+type GraphQLResponse<T> = {
+  data?: T
+  errors?: Array<{ message?: string }>
+}
+
+type LocationRow = {
+  id: string
+  name: string
+}
+
+const DEFAULT_BASIC_COUNTS: BasicCounts = {
+  patients: 0,
+  locations: 0,
+  appointments: 0,
+  leads: 0,
+  bookings: 0,
+}
+
+const RESOURCE_FALLBACKS = {
+  patients: ['patients', 'patient', 'patient_table', 'patient_records', 'patient_data'],
+  leads: ['leads', 'lead', 'lead_table', 'lead_records'],
+  appointments: ['appointments', 'appointment', 'appointment_table', 'appointment_records', 'appointment_data'],
+  bookings: ['appointmentBookings'],
+  locations: ['locations', 'location', 'location_table', 'location_records', 'location_data'],
+} as const
 
 export class GreyfinchService {
-  private apiUrl: string
+  private readonly apiUrl: string
   private apiKey: string
   private apiSecret: string
   private jwtToken: string | null = null
+  private readonly requestTimeoutMs: number
 
   constructor() {
     this.apiUrl = 'https://connect-api.greyfinch.com/v1/graphql'
     this.apiKey = process.env.GREYFINCH_API_KEY || ''
     this.apiSecret = process.env.GREYFINCH_API_SECRET || ''
-    
-    console.log('GreyfinchService initialized:', {
-      apiUrl: this.apiUrl,
-      hasApiKey: !!this.apiKey,
-      apiKeyLength: this.apiKey.length,
-      hasApiSecret: !!this.apiSecret
-    })
+    this.requestTimeoutMs = 15000
+  }
+
+  private createTimeoutController() {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), this.requestTimeoutMs)
+
+    return {
+      controller,
+      cleanup: () => clearTimeout(timeoutId),
+    }
+  }
+
+  private async parseGraphQLResponse<T>(response: Response): Promise<T> {
+    const responseText = await response.text()
+
+    let data: GraphQLResponse<T>
+    try {
+      data = JSON.parse(responseText) as GraphQLResponse<T>
+    } catch {
+      throw new Error('Invalid JSON response from Greyfinch')
+    }
+
+    if (data.errors?.length) {
+      throw new Error(`GraphQL errors: ${data.errors.map((error) => error.message || 'Unknown GraphQL error').join(', ')}`)
+    }
+
+    if (!data.data) {
+      throw new Error('Missing data in Greyfinch response')
+    }
+
+    return data.data
+  }
+
+  private async postGraphQL<T>(body: { query: string; variables?: Record<string, unknown> }, jwtToken?: string): Promise<T> {
+    const { controller, cleanup } = this.createTimeoutController()
+
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {}),
+        },
+        signal: controller.signal,
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`GraphQL request failed: ${response.status} - ${errorText}`)
+      }
+
+      return await this.parseGraphQLResponse<T>(response)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error(`Greyfinch request timed out after ${this.requestTimeoutMs / 1000} seconds`)
+      }
+      throw error
+    } finally {
+      cleanup()
+    }
+  }
+
+  private async ensureJwtToken() {
+    if (this.jwtToken) {
+      return this.jwtToken
+    }
+
+    this.jwtToken = await this.getJWTToken()
+    if (!this.jwtToken) {
+      throw new Error('Failed to obtain JWT token')
+    }
+
+    return this.jwtToken
+  }
+
+  private async fetchIdList(resource: string): Promise<Array<{ id: string }>> {
+    const result = await this.makeGraphQLRequest(GREYFINCH_QUERY_BUILDERS.resourceIds(resource))
+    return Array.isArray(result?.[resource]) ? result[resource] : []
+  }
+
+  private async fetchResourceWithFallbacks(resourceNames: readonly string[]) {
+    for (const resourceName of resourceNames) {
+      try {
+        const rows = await this.fetchIdList(resourceName)
+        return { resourceName, rows }
+      } catch (error) {
+        console.log(`${resourceName} query failed`, error)
+      }
+    }
+
+    return {
+      resourceName: resourceNames[0],
+      rows: [],
+    }
+  }
+
+  private async fetchLocationsWithFallbacks(resourceNames: readonly string[]): Promise<LocationRow[]> {
+    for (const resourceName of resourceNames) {
+      try {
+        const result = await this.makeGraphQLRequest(GREYFINCH_QUERY_BUILDERS.namedResource(resourceName))
+        const rows = Array.isArray(result?.[resourceName]) ? result[resourceName] : []
+        return rows
+      } catch (error) {
+        console.log(`${resourceName} query failed`, error)
+      }
+    }
+
+    return []
   }
 
   // Get JWT token by logging in with API key and secret using GraphQL mutation
   private async getJWTToken(): Promise<string | null> {
     try {
-      console.log('Getting JWT token from Greyfinch using GraphQL mutation...')
-      console.log('API Key length:', this.apiKey.length)
-      console.log('API Secret length:', this.apiSecret.length)
-      console.log('API Key prefix:', this.apiKey.substring(0, 8) + '...')
-      
-      // Use the correct GraphQL mutation for login
-      const loginMutation = `
-        mutation docsApiLogin($key: String!, $secret: String!) {
-          apiLogin(key: $key, secret: $secret) {
-            status
-            accessToken
-            accessTokenExpiresIn
-          }
+      const data = await this.postGraphQL<{
+        apiLogin?: {
+          accessToken?: string
         }
-      `
-      
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      }>({
+        query: GREYFINCH_MUTATIONS.LOGIN,
+        variables: {
+          key: this.apiKey,
+          secret: this.apiSecret,
         },
-        body: JSON.stringify({
-          query: loginMutation,
-          variables: {
-            key: this.apiKey,
-            secret: this.apiSecret
-          }
-        }),
       })
 
-      console.log(`Login response status: ${response.status}`)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Login failed:', response.status, errorText)
-        console.error('Response headers:', Object.fromEntries(response.headers.entries()))
-        return null
-      }
-
-      const data = await response.json()
-      console.log('Login response:', JSON.stringify(data, null, 2))
-
-      if (data.data?.apiLogin?.accessToken) {
-        this.jwtToken = data.data.apiLogin.accessToken
+      if (data.apiLogin?.accessToken) {
+        this.jwtToken = data.apiLogin.accessToken
         console.log('Successfully obtained access token')
-        return data.data.apiLogin.accessToken
+        return data.apiLogin.accessToken
       }
 
-      console.log('No access token found in login response')
       return null
     } catch (error) {
       console.error('Error getting JWT token:', error)
@@ -136,13 +242,13 @@ export class GreyfinchService {
       
       if (result.length > 0) {
         const config = result[0]
-        this.apiKey = config.api_key
-        this.apiSecret = config.api_secret
+        this.apiKey = String(config.api_key ?? '')
+        this.apiSecret = String(config.api_secret ?? '')
         
         console.log('Greyfinch credentials retrieved from database for user:', userId)
         return {
-          apiKey: config.api_key,
-          apiSecret: config.api_secret
+          apiKey: String(config.api_key ?? ''),
+          apiSecret: String(config.api_secret ?? '')
         }
       }
       
@@ -154,7 +260,7 @@ export class GreyfinchService {
   }
 
   // Pull detailed data (for backward compatibility)
-  async pullDetailedData(userId: string, periodConfigs: any[] = []) {
+  async pullDetailedData(_userId: string, _periodConfigs: any[] = []) {
     try {
       console.log('Pulling detailed data from Greyfinch...')
       
@@ -167,79 +273,22 @@ export class GreyfinchService {
         periodData: {}
       }
 
-      // Get locations with proper field naming
-      try {
-        const locationsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
-        detailedData.locations = locationsData?.locations || []
-        console.log('Pulled locations:', detailedData.locations.length)
-      } catch (e) {
-        console.log('Locations query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          console.log('Field error detected, attempting to fix...')
-        }
-      }
+      const queries = [
+        { key: 'locations', extract: (data: any) => data?.locations || [] },
+        { key: 'patients', extract: (data: any) => data?.patients || [] },
+        { key: 'appointments', extract: (data: any) => data?.appointments || [] },
+        { key: 'leads', extract: (data: any) => data?.leads || [] },
+        { key: 'bookings', extract: (data: any) => data?.appointmentBookings || [] },
+      ] as const
 
-      // Get patients with proper field naming
-      try {
-        const patientsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
-        detailedData.patients = patientsData?.patients || []
-        console.log('Pulled patients:', detailedData.patients.length)
-      } catch (e) {
-        console.log('Patients query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
-          }
-        }
-      }
+      const analyticsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
 
-      // Get appointments with proper field naming
-      try {
-        const appointmentsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
-        detailedData.appointments = appointmentsData?.appointments || []
-        console.log('Pulled appointments:', detailedData.appointments.length)
-      } catch (e) {
-        console.log('Appointments query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
-          }
-        }
-      }
-
-      // Get leads with proper field naming
-      try {
-        const leadsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
-        detailedData.leads = leadsData?.leads || []
-        console.log('Pulled leads:', detailedData.leads.length)
-      } catch (e) {
-        console.log('Leads query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
-          }
-        }
-      }
-
-      // Get bookings with proper field naming
-      try {
-        const bookingsData = await this.makeGraphQLRequest(GREYFINCH_QUERIES.GET_ANALYTICS_DATA)
-        detailedData.bookings = bookingsData?.appointmentBookings || []
-        console.log('Pulled bookings:', detailedData.bookings.length)
-      } catch (e) {
-        console.log('Bookings query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
-          }
+      for (const query of queries) {
+        try {
+          detailedData[query.key] = query.extract(analyticsData)
+          console.log(`Pulled ${query.key}:`, detailedData[query.key].length)
+        } catch (error) {
+          console.log(`${query.key} query failed:`, error)
         }
       }
 
@@ -261,49 +310,8 @@ export class GreyfinchService {
   // Simple GraphQL request - try API key directly first, then JWT if needed
   async makeGraphQLRequest(query: string, variables: any = {}) {
     try {
-      console.log('Making GraphQL request to Greyfinch...')
-      
-      // Get JWT token if we don't have one
-      if (!this.jwtToken) {
-        console.log('Getting JWT token...')
-        this.jwtToken = await this.getJWTToken()
-        if (!this.jwtToken) {
-          throw new Error('Failed to obtain JWT token')
-        }
-      }
-      
-      // Make request with JWT token
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.jwtToken}`,
-        },
-        body: JSON.stringify({
-          query,
-          variables,
-        }),
-      })
-
-      console.log(`Response status: ${response.status}`)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('HTTP error response:', response.status, errorText)
-        throw new Error(`GraphQL request failed: ${response.status} - ${errorText}`)
-      }
-
-      const responseText = await response.text()
-      console.log('Raw response:', responseText.substring(0, 500) + '...')
-      
-      const data = JSON.parse(responseText)
-      
-      if (data.errors) {
-        console.error('GraphQL errors:', data.errors)
-        throw new Error(`GraphQL errors: ${data.errors.map((e: any) => e.message).join(', ')}`)
-      }
-
-      return data.data
+      const jwtToken = await this.ensureJwtToken()
+      return await this.postGraphQL<Record<string, any>>({ query, variables }, jwtToken)
     } catch (error) {
       console.error('GraphQL request error:', error)
       throw error
@@ -311,217 +319,29 @@ export class GreyfinchService {
   }
 
   // Get basic counts - simple and direct
-  async pullBasicCounts(userId: string) {
+  async pullBasicCounts(_userId: string) {
     try {
       console.log('Pulling basic counts from Greyfinch...')
       
       const data = {
-        counts: {
-          patients: 0,
-          locations: 0,
-          appointments: 0,
-          leads: 0,
-          bookings: 0
-        },
-        locations: []
+        counts: { ...DEFAULT_BASIC_COUNTS } as BasicCounts,
+        locations: [] as LocationRow[]
       }
 
-      // Get patient count - query the patients table and count rows
-      try {
-        const patientQuery = await this.makeGraphQLRequest(`
-          query GetPatients {
-            patients {
-              id
-            }
-          }
-        `)
-        if (patientQuery?.patients) {
-          data.counts.patients = patientQuery.patients.length
-          console.log('Patient count loaded from patients table:', data.counts.patients)
-        }
-      } catch (e) {
-        console.log('Patient count query failed:', e)
-        // Try alternative table names
-        const tableNames = ['patient', 'patient_table', 'patient_records', 'patient_data']
-        for (const tableName of tableNames) {
-          try {
-            const countQuery = await this.makeGraphQLRequest(`
-              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
-                ${tableName} {
-                  id
-                }
-              }
-            `)
-            if (countQuery?.[tableName]) {
-              data.counts.patients = countQuery[tableName].length
-              console.log(`Patient count loaded from ${tableName}:`, data.counts.patients)
-              break
-            }
-          } catch (e2) {
-            console.log(`${tableName} query failed:`, e2)
-          }
-        }
-        // If all failed, set to 0
-        if (data.counts.patients === 0) {
-          console.log('All patient count queries failed, setting to 0')
-          data.counts.patients = 0
-        }
-      }
+      const [patientsResult, leadsResult, appointmentsResult, bookingsResult, locationsResult] = await Promise.all([
+        this.fetchResourceWithFallbacks(RESOURCE_FALLBACKS.patients),
+        this.fetchResourceWithFallbacks(RESOURCE_FALLBACKS.leads),
+        this.fetchResourceWithFallbacks(RESOURCE_FALLBACKS.appointments),
+        this.fetchResourceWithFallbacks(RESOURCE_FALLBACKS.bookings),
+        this.fetchLocationsWithFallbacks(RESOURCE_FALLBACKS.locations),
+      ])
 
-      // Get lead count - query the leads table and count rows
-      try {
-        const leadQuery = await this.makeGraphQLRequest(`
-          query GetLeads {
-            leads {
-              id
-            }
-          }
-        `)
-        if (leadQuery?.leads) {
-          data.counts.leads = leadQuery.leads.length
-          console.log('Lead count loaded from leads table:', data.counts.leads)
-        }
-      } catch (e) {
-        console.log('Lead count query failed:', e)
-        // Try alternative table names
-        const tableNames = ['lead', 'lead_table', 'lead_records']
-        for (const tableName of tableNames) {
-          try {
-            const countQuery = await this.makeGraphQLRequest(`
-              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
-                ${tableName} {
-                  id
-                }
-              }
-            `)
-            if (countQuery?.[tableName]) {
-              data.counts.leads = countQuery[tableName].length
-              console.log(`Lead count loaded from ${tableName}:`, data.counts.leads)
-              break
-            }
-          } catch (e2) {
-            console.log(`${tableName} query failed:`, e2)
-          }
-        }
-        // If all failed, set to 0
-        if (data.counts.leads === 0) {
-          console.log('All lead count queries failed, setting to 0')
-          data.counts.leads = 0
-        }
-      }
-
-      // Get appointment count - query the appointments table and count rows
-      try {
-        const appointmentQuery = await this.makeGraphQLRequest(`
-          query GetAppointments {
-            appointments {
-              id
-            }
-          }
-        `)
-        if (appointmentQuery?.appointments) {
-          data.counts.appointments = appointmentQuery.appointments.length
-          console.log('Appointment count loaded from appointments table:', data.counts.appointments)
-        }
-      } catch (e) {
-        console.log('Appointment count query failed:', e)
-        // Try alternative table names
-        const tableNames = ['appointment', 'appointment_table', 'appointment_records', 'appointment_data']
-        for (const tableName of tableNames) {
-          try {
-            const countQuery = await this.makeGraphQLRequest(`
-              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
-                ${tableName} {
-                  id
-                }
-              }
-            `)
-            if (countQuery?.[tableName]) {
-              data.counts.appointments = countQuery[tableName].length
-              console.log(`Appointment count loaded from ${tableName}:`, data.counts.appointments)
-              break
-            }
-          } catch (e2) {
-            console.log(`${tableName} query failed:`, e2)
-          }
-        }
-        // If all failed, set to 0
-        if (data.counts.appointments === 0) {
-          console.log('All appointment count queries failed, setting to 0')
-          data.counts.appointments = 0
-        }
-      }
-
-      // Get booking count with proper field naming
-      try {
-        const bookingCountQuery = await this.makeGraphQLRequest(`
-          query GetBookingCount {
-            appointmentBookings {
-              id
-            }
-          }
-        `)
-        if (bookingCountQuery?.appointmentBookings) {
-          data.counts.bookings = bookingCountQuery.appointmentBookings.length
-          console.log('Booking count loaded:', data.counts.bookings)
-        }
-      } catch (e) {
-        console.log('Booking count query failed:', e)
-        if (GreyfinchErrorHandler.isFieldError(e)) {
-          const fieldName = GreyfinchErrorHandler.getFieldNameFromError(e)
-          if (fieldName) {
-            const suggestion = GreyfinchErrorHandler.suggestCorrection(fieldName)
-            console.log(`Field error: "${fieldName}" should be "${suggestion}"`)
-          }
-        }
-      }
-
-      // Get locations - query the locations table and count rows
-      try {
-        const locationQuery = await this.makeGraphQLRequest(`
-          query GetLocations {
-            locations {
-              id
-              name
-            }
-          }
-        `)
-        if (locationQuery?.locations) {
-          data.counts.locations = locationQuery.locations.length
-          data.locations = locationQuery.locations
-          console.log('Locations loaded from locations table:', data.counts.locations)
-        }
-      } catch (e) {
-        console.log('Location query failed:', e)
-        // Try alternative table names
-        const tableNames = ['location', 'location_table', 'location_records', 'location_data']
-        for (const tableName of tableNames) {
-          try {
-            const countQuery = await this.makeGraphQLRequest(`
-              query Get${tableName.charAt(0).toUpperCase() + tableName.slice(1)}Count {
-                ${tableName} {
-                  id
-                  name
-                }
-              }
-            `)
-            if (countQuery?.[tableName]) {
-              data.counts.locations = countQuery[tableName].length
-              data.locations = countQuery[tableName]
-              console.log(`Locations loaded from ${tableName}:`, data.counts.locations)
-              break
-            }
-          } catch (e2) {
-            console.log(`${tableName} query failed:`, e2)
-          }
-        }
-        // If all failed, set to 0
-        if (data.counts.locations === 0) {
-          console.log('All location count queries failed, setting to 0')
-          data.counts.locations = 0
-          data.locations = []
-        }
-      }
+      data.counts.patients = patientsResult.rows.length
+      data.counts.leads = leadsResult.rows.length
+      data.counts.appointments = appointmentsResult.rows.length
+      data.counts.bookings = bookingsResult.rows.length
+      data.counts.locations = locationsResult.length
+      data.locations = locationsResult
 
       return {
         success: true,
@@ -534,13 +354,7 @@ export class GreyfinchService {
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error',
-        counts: {
-          patients: 0,
-          locations: 0,
-          appointments: 0,
-          leads: 0,
-          bookings: 0
-        },
+        counts: { ...DEFAULT_BASIC_COUNTS },
         locations: []
       }
     }
@@ -561,11 +375,7 @@ export class GreyfinchService {
       }
       
       // Test with a simple query to see what's available
-      const testResult = await this.makeGraphQLRequest(`
-        query TestConnection {
-          __typename
-        }
-      `)
+      const testResult = await this.makeGraphQLRequest(GREYFINCH_QUERIES.TEST_CONNECTION)
       
       return {
         success: true,

@@ -126,6 +126,58 @@ export const GREYFINCH_FIELD_PATTERNS = {
 // Comprehensive GraphQL queries for real data extraction
 // Following Apollo GraphQL best practices with proper field selection and filtering
 export const GREYFINCH_QUERIES = {
+  GET_DASHBOARD_SUMMARY: `
+    query GetDashboardSummary($gilbertName: String = "Gilbert", $phoenixName: String = "Phoenix-Ahwatukee") {
+      locations(where: { name: { _in: [$gilbertName, $phoenixName] } }) {
+        id
+        name
+        isActive
+      }
+
+      gilbertPatients: patients_aggregate(where: { primaryLocation: { name: { _eq: $gilbertName } } }) {
+        aggregate {
+          count
+        }
+      }
+      gilbertAppointments: appointments_aggregate(where: { location: { name: { _eq: $gilbertName } } }) {
+        aggregate {
+          count
+        }
+      }
+      gilbertLeads: leads_aggregate(where: { location: { name: { _eq: $gilbertName } } }) {
+        aggregate {
+          count
+        }
+      }
+      gilbertBookings: appointmentBookings_aggregate(where: { appointment: { location: { name: { _eq: $gilbertName } } } }) {
+        aggregate {
+          count
+        }
+      }
+
+      phoenixPatients: patients_aggregate(where: { primaryLocation: { name: { _eq: $phoenixName } } }) {
+        aggregate {
+          count
+        }
+      }
+      phoenixAppointments: appointments_aggregate(where: { location: { name: { _eq: $phoenixName } } }) {
+        aggregate {
+          count
+        }
+      }
+      phoenixLeads: leads_aggregate(where: { location: { name: { _eq: $phoenixName } } }) {
+        aggregate {
+          count
+        }
+      }
+      phoenixBookings: appointmentBookings_aggregate(where: { appointment: { location: { name: { _eq: $phoenixName } } } }) {
+        aggregate {
+          count
+        }
+      }
+    }
+  `,
+
   // Gilbert and Phoenix-Ahwatukee locations analytics data query with corrected field names
   GET_ANALYTICS_DATA: `
     query GetGilbertAndPhoenixData($gilbertName: String = "Gilbert", $phoenixName: String = "Phoenix-Ahwatukee") {
@@ -605,6 +657,29 @@ export const GREYFINCH_QUERIES = {
     }
   `
 }
+
+export const GREYFINCH_QUERY_BUILDERS = {
+  resourceIds(resource: string) {
+    return `
+      query Get${resource.charAt(0).toUpperCase() + resource.slice(1)} {
+        ${resource} {
+          id
+        }
+      }
+    `
+  },
+
+  namedResource(resource: string) {
+    return `
+      query Get${resource.charAt(0).toUpperCase() + resource.slice(1)} {
+        ${resource} {
+          id
+          name
+        }
+      }
+    `
+  },
+} as const
 
 // Utility functions for working with Greyfinch GraphQL API
 export class GreyfinchSchemaUtils {
@@ -1091,6 +1166,16 @@ export class GreyfinchSchemaUtils {
 
 // Common mutation examples with proper field naming
 export const GREYFINCH_MUTATIONS = {
+  LOGIN: `
+    mutation docsApiLogin($key: String!, $secret: String!) {
+      apiLogin(key: $key, secret: $secret) {
+        status
+        accessToken
+        accessTokenExpiresIn
+      }
+    }
+  `,
+
   // Create patient mutation
   CREATE_PATIENT: `
     mutation CreatePatient($input: PatientsSetInput!) {

@@ -4,6 +4,65 @@ import { reports } from '@/shared/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuthUser } from '@/lib/require-auth-user';
 
+function parseReportPayload(periodConfigs: string | null) {
+  if (!periodConfigs) {
+    return {
+      periodConfigs: [],
+      type: 'summary',
+      data: null,
+      sessionId: null,
+      thumbnail: null,
+      pdfUrl: null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(periodConfigs);
+    if (Array.isArray(parsed)) {
+      return {
+        periodConfigs: parsed,
+        type: 'summary',
+        data: null,
+        sessionId: null,
+        thumbnail: null,
+        pdfUrl: null,
+      };
+    }
+
+    return {
+      periodConfigs: Array.isArray(parsed.periodConfigs) ? parsed.periodConfigs : [],
+      type: typeof parsed.type === 'string' ? parsed.type : 'summary',
+      data: parsed.data ?? null,
+      sessionId: parsed.sessionId ?? null,
+      thumbnail: typeof parsed.thumbnail === 'string' ? parsed.thumbnail : null,
+      pdfUrl: typeof parsed.pdfUrl === 'string' ? parsed.pdfUrl : null,
+    };
+  } catch {
+    return {
+      periodConfigs: [],
+      type: 'summary',
+      data: null,
+      sessionId: null,
+      thumbnail: null,
+      pdfUrl: null,
+    };
+  }
+}
+
+function transformReport(report: typeof reports.$inferSelect) {
+  const payload = parseReportPayload(report.periodConfigs);
+
+  return {
+    ...report,
+    type: payload.type,
+    data: payload.data,
+    sessionId: payload.sessionId,
+    periodConfigs: payload.periodConfigs,
+    thumbnail: report.thumbnail ?? payload.thumbnail,
+    pdfUrl: report.pdfUrl ?? payload.pdfUrl,
+  };
+}
+
 // GET /api/reports - Get all reports for a user
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      reports: userReports
+      reports: userReports.map(transformReport)
     });
 
   } catch (error) {
@@ -40,7 +99,10 @@ export async function POST(request: NextRequest) {
       sessionId,
       name,
       type,
-      data
+      data,
+      description,
+      thumbnail,
+      pdfUrl,
     } = body;
 
     const { user, unauthorizedResponse } = await requireAuthUser();
@@ -48,20 +110,29 @@ export async function POST(request: NextRequest) {
       return unauthorizedResponse;
     }
 
-    if (!sessionId || !name || !type) {
+    if (!name || !type) {
       return NextResponse.json(
-        { error: 'Session ID, name, and type required' },
+        { error: 'Name and type required' },
         { status: 400 }
       );
     }
 
+    const serializedPayload = JSON.stringify({
+      sessionId: sessionId ?? null,
+      type,
+      data: data ?? null,
+      periodConfigs: data?.periods ?? data?.session?.periods ?? [],
+      thumbnail: thumbnail ?? null,
+      pdfUrl: pdfUrl ?? null,
+    });
+
     const reportData = {
       userId: user.id,
-      sessionId,
       name,
-      type,
-      data: data || {},
-      status: 'completed',
+      description: description || `${type} report`,
+      periodConfigs: serializedPayload,
+      pdfUrl: pdfUrl || null,
+      thumbnail: thumbnail || null,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -73,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      report: newReport
+      report: transformReport(newReport)
     }, { status: 201 });
 
   } catch (error) {

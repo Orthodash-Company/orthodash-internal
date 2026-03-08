@@ -1,7 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GreyfinchService, greyfinchService } from '@/lib/services/greyfinch'
-import { GreyfinchSchemaUtils, GREYFINCH_QUERIES } from '@/lib/services/greyfinch-schema'
-import { MultiLocationDataProcessor } from '@/lib/services/multi-location-data-processor'
+import { GreyfinchService } from '@/lib/services/greyfinch'
+import { GREYFINCH_QUERIES } from '@/lib/services/greyfinch-schema'
+
+function getAggregateCount(result: any, key: string) {
+  return result?.[key]?.aggregate?.count ?? 0
+}
+
+function buildSummaryResponse(result: any, startDate: string | null, endDate: string | null, location: string) {
+  const locations = Array.isArray(result?.locations) ? result.locations : []
+  const gilbertLocation = locations.find((entry: any) => entry.name === 'Gilbert')
+  const phoenixLocation = locations.find((entry: any) => entry.name === 'Phoenix-Ahwatukee')
+
+  const gilbert = {
+    id: gilbertLocation?.id ?? 'gilbert-1',
+    name: 'Gilbert',
+    patients: 0,
+    appointments: 0,
+    leads: 0,
+    bookings: 0,
+    production: 0,
+    revenue: 0,
+    netProduction: 0,
+    acquisitionCosts: 0,
+  }
+
+  const phoenix = {
+    id: 'phoenix-ahwatukee-1',
+    name: 'Phoenix-Ahwatukee',
+    patients: 0,
+    appointments: 0,
+    leads: 0,
+    bookings: 0,
+    production: 0,
+    revenue: 0,
+    netProduction: 0,
+    acquisitionCosts: 0,
+  }
+
+  const resolvedLocations = {
+    gilbert: gilbertLocation ?? { id: gilbert.id, name: gilbert.name, isActive: true },
+    phoenix: phoenixLocation ?? { id: phoenix.id, name: phoenix.name, isActive: true },
+  }
+
+  const totalPatients = getAggregateCount(result, 'patients')
+  const totalAppointments = getAggregateCount(result, 'appointments')
+  const totalLeads = getAggregateCount(result, 'leads')
+  const totalBookings = getAggregateCount(result, 'bookings')
+
+  return {
+    total: {
+      period: 'Current Period',
+      startDate: startDate ?? '',
+      endDate: endDate ?? '',
+      avgNetProduction: 0,
+      avgAcquisitionCost: 0,
+      noShowRate: 0,
+      referralSources: { digital: 0, professional: 0, direct: 0 },
+      conversionRates: { digital: 0, professional: 0, direct: 0 },
+      trends: { weekly: [] },
+      patients: totalPatients,
+      appointments: totalAppointments,
+      leads: totalLeads,
+      locations: locations.length,
+      bookings: totalBookings,
+      production: 0,
+      revenue: 0,
+      netProduction: 0,
+      acquisitionCosts: 0,
+      locationData: {
+        gilbert,
+        phoenix,
+      },
+    },
+    locations: resolvedLocations,
+    locationData: {
+      gilbert,
+      phoenix,
+    },
+    trends: { weekly: [], monthly: [] },
+    financialMetrics: {
+      totalProduction: 0,
+      totalRevenue: 0,
+      totalNetProduction: 0,
+      totalAcquisitionCosts: 0,
+      profitMargin: 0,
+      roi: 0,
+    },
+    lastUpdated: new Date().toISOString(),
+    queryParams: { startDate, endDate, location },
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,8 +104,7 @@ export async function GET(request: NextRequest) {
     try {
       console.log('🔍 Fetching Gilbert and Phoenix-Ahwatukee data...')
       
-      // Use comprehensive multi-location query
-      const query = GREYFINCH_QUERIES.GET_ANALYTICS_DATA
+      const query = GREYFINCH_QUERIES.GET_BASIC_COUNTS
       
       // Create a new service instance and update with environment variables
       const freshService = new GreyfinchService()
@@ -26,108 +113,28 @@ export async function GET(request: NextRequest) {
         process.env.GREYFINCH_API_SECRET || ''
       )
       const result = await freshService.makeGraphQLRequest(query)
-      console.log('📊 Multi-location data received:', result)
+      console.log('📊 Greyfinch dashboard summary received:', result)
       
-      // Check if we have data regardless of success flag
-      if (!result.data && !result.locations && !result.appointments) {
-        throw new Error(result.error || 'Failed to fetch multi-location data')
+      if (!result || !Array.isArray(result.locations)) {
+        throw new Error('Failed to fetch Greyfinch dashboard summary')
       }
       
-      // Process the multi-location data using the new processor
-      const dataToProcess = result.data || result
-      const processedData = MultiLocationDataProcessor.processMultiLocationData(dataToProcess, startDate || undefined, endDate || undefined)
-      
-      // Add metadata to the response
-      const responseData = {
-        ...processedData,
-        lastUpdated: new Date().toISOString(),
-        queryParams: { startDate, endDate, location }
-      }
-      
-      // Date filtering is now handled by the MultiLocationDataProcessor
-
-      console.log('✅ Gilbert data processed successfully')
+      const responseData = buildSummaryResponse(result, startDate, endDate, location)
+      console.log('✅ Greyfinch dashboard summary processed successfully')
       
       return NextResponse.json({
-    success: true,
-        message: 'Multi-location data retrieved successfully',
+        success: true,
+        message: 'Greyfinch dashboard summary retrieved successfully',
         data: responseData
       })
 
     } catch (graphqlError) {
-      console.error('❌ Gilbert data fetch failed with error:', graphqlError)
-      console.error('❌ Error details:', JSON.stringify(graphqlError, null, 2))
-      console.error('❌ Error stack:', graphqlError instanceof Error ? graphqlError.stack : 'No stack trace')
-      
-      // Return Gilbert fallback data with realistic sample counts and financial data for testing
-      const fallbackData = {
-      locations: {
-          'gilbert-1': { id: 'gilbert-1', name: 'Gilbert', count: 1250, isActive: true },
-          'phoenix-ahwatukee-1': { id: 'phoenix-ahwatukee-1', name: 'Phoenix-Ahwatukee', count: 850, isActive: true }
-        },
-            gilbertCounts: {
-              patients: 1250,
-              appointments: 89,
-              leads: 45,
-              bookings: 67,
-              revenue: 0, // Revenue fallback set to $0
-              production: 0, // Production fallback set to $0
-              netProduction: 0 // Net production fallback set to $0
-            },
-            phoenixCounts: {
-              patients: 850,
-              appointments: 62,
-              leads: 32,
-              bookings: 45,
-              revenue: 0, // Revenue fallback set to $0
-              production: 0, // Production fallback set to $0
-              netProduction: 0 // Net production fallback set to $0
-            },
-        leads: { count: 77, data: [] },
-        appointments: { count: 151, data: [] },
-        bookings: { count: 112, data: [] },
-        patients: { count: 2100, data: [] },
-        revenue: { total: 0, data: [] }, // Combined revenue set to $0
-        production: { total: 0, netProduction: 0, data: [] }, // Combined production set to $0
-        summary: {
-          totalLeads: 77,
-          totalAppointments: 151,
-          totalBookings: 112,
-          totalPatients: 2100,
-          totalRevenue: 0,
-          totalProduction: 0,
-          totalNetProduction: 0,
-          gilbertCounts: { leads: 45, appointments: 89, bookings: 67, patients: 1250, revenue: 0, production: 0, netProduction: 0 },
-          phoenixCounts: { leads: 32, appointments: 62, bookings: 45, patients: 850, revenue: 0, production: 0, netProduction: 0 }
-        },
-        lastUpdated: new Date().toISOString(),
-        queryParams: { startDate, endDate, location },
-        apiStatus: 'Both Locations Fallback Data with Financials'
-      }
-
-      // Process the fallback data through MultiLocationDataProcessor
-      const processedFallbackData = MultiLocationDataProcessor.processMultiLocationData(fallbackData, startDate || undefined, endDate || undefined)
-      
-      const responseFallbackData = {
-        ...processedFallbackData,
-        lastUpdated: new Date().toISOString(),
-        queryParams: { startDate, endDate, location },
-        apiStatus: 'Both Locations Fallback Data with Financials'
-      }
-      
+      console.error('❌ Greyfinch analytics fetch failed:', graphqlError)
       return NextResponse.json({
-        success: true,
-        message: 'Multi-location data retrieved with fallback',
-        data: responseFallbackData,
+        success: false,
+        message: 'Failed to fetch live Greyfinch analytics data',
         error: graphqlError instanceof Error ? graphqlError.message : String(graphqlError),
-        errorStack: graphqlError instanceof Error ? graphqlError.stack : undefined,
-        debug: {
-          hasApiKey: !!process.env.GREYFINCH_API_KEY,
-          hasApiSecret: !!process.env.GREYFINCH_API_SECRET,
-          apiKeyPrefix: process.env.GREYFINCH_API_KEY?.substring(0, 10) + '...',
-          timestamp: new Date().toISOString()
-        }
-      })
+      }, { status: 502 })
     }
 
   } catch (error) {

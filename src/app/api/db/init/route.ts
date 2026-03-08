@@ -314,34 +314,7 @@ export async function POST(request: NextRequest) {
       console.log('RLS policies setup failed:', error)
     }
     
-    // Insert sample data if no locations exist
     const existingLocations = await db.execute(sql`SELECT COUNT(*) FROM locations`)
-    if (existingLocations[0]?.count === '0') {
-      const sampleLocations = [
-        {
-          user_id: '6dfe99e7-d999-445d-9318-55fe30a676c5',
-          name: 'Main Orthodontic Center',
-          address: '123 Main St, Downtown',
-          patient_count: 1247,
-          is_active: true
-        },
-        {
-          user_id: '6dfe99e7-d999-445d-9318-55fe30a676c5',
-          name: 'Westside Dental & Orthodontics',
-          address: '456 West Ave, Westside',
-          patient_count: 892,
-          is_active: true
-        }
-      ]
-      
-      for (const location of sampleLocations) {
-        await db.execute(sql`
-          INSERT INTO locations (user_id, name, address, patient_count, is_active)
-          VALUES (${location.user_id}, ${location.name}, ${location.address}, ${location.patient_count}, ${location.is_active})
-        `)
-      }
-      console.log('Inserted sample locations')
-    }
     
     return NextResponse.json({ 
       success: true, 

@@ -28,6 +28,10 @@ interface Session {
   description: string;
   periods: string[];
   locations: string[];
+  metadata?: {
+    locations?: string[];
+    [key: string]: unknown;
+  };
   greyfinchData: any;
   isActive: boolean;
   createdAt: string;
@@ -61,6 +65,16 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
   const { toast } = useToast();
   const { user: authUser } = useAuth();
 
+  const normalizeSession = (session: any): Session => ({
+    ...session,
+    periods: Array.isArray(session?.periods) ? session.periods : [],
+    locations: Array.isArray(session?.locations)
+      ? session.locations
+      : Array.isArray(session?.metadata?.locations)
+        ? session.metadata.locations
+        : [],
+  });
+
   // Load existing sessions and reports
   useEffect(() => {
     if (!authUser?.id) {
@@ -85,7 +99,7 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
       const response = await fetch('/api/sessions');
       if (response.ok) {
         const data = await response.json();
-        setSessions(data.sessions || []);
+        setSessions((data.sessions || []).map(normalizeSession));
       }
     } catch (error) {
       console.error('Error loading sessions:', error);
@@ -141,7 +155,7 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
       if (response.ok) {
         const createdSession = await response.json();
-        setSessions(prev => [...prev, createdSession.session]);
+        setSessions(prev => [...prev, normalizeSession(createdSession.session)]);
         console.log('✅ Auto-created session:', createdSession.session.name);
       }
     } catch (error) {
@@ -165,7 +179,7 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
       if (response.ok) {
         const updatedSession = await response.json();
         setSessions(prev => prev.map(s => 
-          s.id === sessionId ? updatedSession.session : s
+          s.id === sessionId ? normalizeSession(updatedSession.session) : s
         ));
         console.log('✅ Updated existing session:', updatedSession.session.name);
       }
@@ -214,7 +228,7 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
       if (response.ok) {
         const createdSession = await response.json();
-        setSessions(prev => [...prev, createdSession.session]);
+        setSessions(prev => [...prev, normalizeSession(createdSession.session)]);
         
         // Reset form
         setNewSession({

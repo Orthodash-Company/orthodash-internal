@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-const ProtectedLayout = async ({ children }: { children: ReactNode }) => {
+const Layout = async ({ children }: { children: ReactNode }) => {
 
   const supabase = await createServerSupabaseClient()
 
@@ -18,4 +18,4 @@ const ProtectedLayout = async ({ children }: { children: ReactNode }) => {
   return children
 }
 
-export default ProtectedLayout
+export default Layout

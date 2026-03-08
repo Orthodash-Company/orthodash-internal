@@ -1,39 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { locations } from '@/shared/schema'
-import { eq, and } from 'drizzle-orm'
-import { createClient } from '@supabase/supabase-js'
-import { greyfinchService } from '@/lib/services/greyfinch'
-import { GreyfinchDataService } from '@/lib/services/greyfinch-data'
+import { eq } from 'drizzle-orm'
 import { requireAuthUser } from '@/lib/require-auth-user'
 
 export async function GET(request: NextRequest) {
   try {
-    // Return sample locations data without database connection
-    const sampleLocations = [
-      {
-        id: 1,
-        userId: 'default-user-id',
-        name: 'Gilbert Office',
-        address: '123 Gilbert Rd, Gilbert, AZ',
-        patientCount: 1247,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 2,
-        userId: 'default-user-id',
-        name: 'Phoenix-Ahwatukee Office',
-        address: '123 Ahwatukee Blvd, Phoenix-Ahwatukee, AZ',
-        patientCount: 850,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ]
-    
-    return NextResponse.json(sampleLocations)
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
+    }
+
+    const userLocations = await db
+      .select()
+      .from(locations)
+      .where(eq(locations.userId, user.id))
+
+    return NextResponse.json(userLocations)
   } catch (error) {
     console.error('Error fetching locations:', error)
     return NextResponse.json({ error: "Failed to fetch locations" }, { status: 500 })

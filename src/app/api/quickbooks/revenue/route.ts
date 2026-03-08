@@ -49,48 +49,9 @@ export async function GET(request: NextRequest) {
       })
     } catch (qbError: any) {
       console.error('QuickBooks revenue fetch failed:', qbError)
-      
-      // Return fallback data with $0 revenue
-      const fallbackData = {
-        revenueData: [],
-        locationRevenue: [
-          {
-            id: 'gilbert',
-            name: 'Gilbert',
-            totalRevenue: 0,
-            monthlyRevenue: 0,
-            customerCount: 0,
-            averageRevenuePerCustomer: 0,
-            lastUpdated: new Date().toISOString()
-          },
-          {
-            id: 'phoenix-ahwatukee',
-            name: 'Phoenix-Ahwatukee',
-            totalRevenue: 0,
-            monthlyRevenue: 0,
-            customerCount: 0,
-            averageRevenuePerCustomer: 0,
-            lastUpdated: new Date().toISOString()
-          }
-        ],
-        revenueMetrics: {
-          totalRevenue: 0,
-          paidRevenue: 0,
-          pendingRevenue: 0,
-          locationBreakdown: {},
-          monthlyBreakdown: {},
-          averageRevenuePerTransaction: 0,
-          totalTransactions: 0
-        },
-        queryParams: { startDate, endDate, locationFilter },
-        lastUpdated: new Date().toISOString(),
-        apiStatus: 'QuickBooks Fallback Data (Revenue = $0)'
-      }
-
       return NextResponse.json({
-        success: true,
-        message: 'QuickBooks revenue data retrieved with fallback',
-        data: fallbackData,
+        success: false,
+        message: 'Failed to retrieve live QuickBooks revenue data',
         error: qbError.message,
         debug: {
           hasConsumerKey: !!process.env.QUICKBOOKS_CONSUMER_KEY,
@@ -101,7 +62,7 @@ export async function GET(request: NextRequest) {
           sandbox: process.env.QUICKBOOKS_SANDBOX === 'true',
           timestamp: new Date().toISOString()
         }
-      })
+      }, { status: 502 })
     }
   } catch (error: any) {
     console.error('QuickBooks revenue endpoint error:', error)

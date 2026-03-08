@@ -29,19 +29,9 @@ export async function GET(request: NextRequest) {
       })
     } catch (qbError: any) {
       console.error('QuickBooks customer fetch failed:', qbError)
-      
-      // Return fallback data
-      const fallbackData = {
-        customers: [],
-          queryParams: { locationFilter },
-        lastUpdated: new Date().toISOString(),
-        apiStatus: 'QuickBooks Fallback Data (No Customers)'
-      }
-
       return NextResponse.json({
-        success: true,
-        message: 'QuickBooks customer data retrieved with fallback',
-        data: fallbackData,
+        success: false,
+        message: 'Failed to retrieve live QuickBooks customer data',
         error: qbError.message,
         debug: {
           hasConsumerKey: !!process.env.QUICKBOOKS_CONSUMER_KEY,
@@ -52,7 +42,7 @@ export async function GET(request: NextRequest) {
           sandbox: process.env.QUICKBOOKS_SANDBOX === 'true',
           timestamp: new Date().toISOString()
         }
-      })
+      }, { status: 502 })
     }
   } catch (error: any) {
     console.error('QuickBooks customer endpoint error:', error)
