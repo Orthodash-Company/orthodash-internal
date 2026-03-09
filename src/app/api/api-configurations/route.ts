@@ -4,6 +4,23 @@ import { apiConfigurations } from '@/shared/schema'
 import { eq, and } from 'drizzle-orm'
 import { requireAuthUser } from '@/lib/require-auth-user'
 
+const redactConfig = (config: typeof apiConfigurations.$inferSelect) => ({
+  id: config.id,
+  userId: config.userId,
+  name: config.name,
+  type: config.type,
+  expiresAt: config.expiresAt,
+  isActive: config.isActive,
+  metadata: config.metadata,
+  lastSyncDate: config.lastSyncDate,
+  createdAt: config.createdAt,
+  updatedAt: config.updatedAt,
+  apiKeyPreview: config.apiKey ? `${config.apiKey.slice(0, 4)}...${config.apiKey.slice(-4)}` : null,
+  hasApiSecret: Boolean(config.apiSecret),
+  hasAccessToken: Boolean(config.accessToken),
+  hasRefreshToken: Boolean(config.refreshToken),
+})
+
 export async function GET(request: NextRequest) {
   try {
     const { user, unauthorizedResponse } = await requireAuthUser()
@@ -29,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: configs
+      data: configs.map(redactConfig)
     })
   } catch (error) {
     console.error('Error fetching API configurations:', error)
@@ -71,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: config[0],
+      data: redactConfig(config[0]),
       message: "API configuration created successfully"
     })
   } catch (error) {
@@ -118,7 +135,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: config[0],
+      data: config[0] ? redactConfig(config[0]) : null,
       message: "API configuration updated successfully"
     })
   } catch (error) {

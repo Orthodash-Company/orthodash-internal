@@ -81,6 +81,11 @@ interface PeriodColumnPropsExtended extends PeriodColumnProps {
   isFirstPeriod?: boolean;
 }
 
+const formatPieLabel = (
+  hasData: boolean,
+  { name, percent }: { name?: string; percent?: number }
+) => (hasData ? `${name ?? 'Unknown'} ${((percent ?? 0) * 100).toFixed(0)}%` : (name ?? 'Unknown'));
+
 export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false, periodCosts = [], selectedCharts = [] }: PeriodColumnPropsExtended) {
   const data = query?.data;
   const isLoading = query?.isLoading;
@@ -90,12 +95,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
   // Calculate total costs for this period
   const totalCosts = periodCosts.reduce((sum, cost) => sum + cost.amount, 0);
   
-  // Debug logging
-  console.log(`PeriodColumn ${period.id} - isLoading: ${isLoading}, hasData: ${!!data}, error: ${!!error}`);
-  console.log(`Period dates: start=${period.startDate}, end=${period.endDate}`);
-  console.log(`Period data:`, data);
-  console.log(`Period costs:`, periodCosts, `Total: $${totalCosts}`);
-
   // Always render charts, even with no data - show loading indicator only during initial load
   const showLoadingIndicator = isLoading && !data;
 
@@ -166,16 +165,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const chartHeight = isCompact ? 120 : (isMobile ? 180 : 220);
     
-    // Debug logging
-    console.log(`🔍 Rendering chart ${chartId} with data:`, {
-      referralSources: safeData.referralSources,
-      conversionRates: safeData.conversionRates,
-      trends: safeData.trends,
-      revenue: safeData.revenue,
-      patients: safeData.patients,
-      noShowRate: safeData.noShowRate
-    });
-    
     switch (chartId) {
       case 'referral-sources':
         const referralData = [
@@ -200,7 +189,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => hasData ? `${name} ${(percent * 100).toFixed(0)}%` : name}
+                  label={(props) => formatPieLabel(hasData, props)}
                   outerRadius={isCompact ? 50 : (isMobile ? 70 : 80)}
                   fill="#8884d8"
                   dataKey="value"

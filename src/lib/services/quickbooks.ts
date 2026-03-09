@@ -32,15 +32,6 @@ export class QuickBooksService {
       ? 'https://sandbox-quickbooks.api.intuit.com/v1' 
       : 'https://quickbooks.api.intuit.com/v1'
 
-    console.log('QuickBooksService initialized:', {
-      baseUrl: this.baseUrl,
-      hasConsumerKey: !!this.config.consumerKey,
-      hasConsumerSecret: !!this.config.consumerSecret,
-      hasAccessToken: !!this.config.accessToken,
-      hasAccessTokenSecret: !!this.config.accessTokenSecret,
-      hasCompanyId: !!this.config.companyId,
-      sandbox: this.config.sandbox
-    })
   }
 
   // Update credentials
@@ -51,13 +42,6 @@ export class QuickBooksService {
     if (accessTokenSecret) this.config.accessTokenSecret = accessTokenSecret
     if (companyId) this.config.companyId = companyId
 
-    console.log('QuickBooks credentials updated:', {
-      hasConsumerKey: !!this.config.consumerKey,
-      hasConsumerSecret: !!this.config.consumerSecret,
-      hasAccessToken: !!this.config.accessToken,
-      hasAccessTokenSecret: !!this.config.accessTokenSecret,
-      hasCompanyId: !!this.config.companyId
-    })
   }
 
   // Get OAuth authorization URL
@@ -76,8 +60,6 @@ export class QuickBooksService {
   // Exchange authorization code for access token
   async exchangeCodeForToken(authorizationCode: string, callbackUrl: string): Promise<any> {
     try {
-      console.log('Exchanging authorization code for access token...')
-
       const response = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
         method: 'POST',
         headers: {
@@ -97,8 +79,6 @@ export class QuickBooksService {
       }
 
       const tokenData = await response.json()
-      console.log('Access token obtained successfully')
-
       this.config.accessToken = tokenData.access_token
       this.config.accessTokenSecret = tokenData.refresh_token
       this.accessToken = tokenData.access_token
@@ -116,8 +96,6 @@ export class QuickBooksService {
       if (!this.config.accessTokenSecret) {
         throw new Error('No refresh token available')
       }
-
-      console.log('Refreshing QuickBooks access token...')
 
       const response = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
         method: 'POST',
@@ -137,8 +115,6 @@ export class QuickBooksService {
       }
 
       const tokenData = await response.json()
-      console.log('Access token refreshed successfully')
-
       this.config.accessToken = tokenData.access_token
       this.config.accessTokenSecret = tokenData.refresh_token
       this.accessToken = tokenData.access_token
@@ -168,11 +144,10 @@ export class QuickBooksService {
       }
     })
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Token expired, try to refresh
-        console.log('Token expired, attempting to refresh...')
-        await this.refreshAccessToken()
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired, try to refresh
+          await this.refreshAccessToken()
         
         // Retry the request with new token
         const retryResponse = await fetch(url, {
@@ -203,9 +178,7 @@ export class QuickBooksService {
   // Get company info
   async getCompanyInfo(): Promise<any> {
     try {
-      console.log('Getting QuickBooks company info...')
       const response = await this.makeAuthenticatedRequest(`/companies/${this.config.companyId}/companyinfo/${this.config.companyId}`)
-      console.log('Company info retrieved:', response)
       return response
     } catch (error) {
       console.error('Error getting company info:', error)
@@ -216,8 +189,6 @@ export class QuickBooksService {
   // Get revenue data
   async getRevenueData(startDate: string, endDate: string, locationFilter?: string): Promise<QuickBooksRevenueData[]> {
     try {
-      console.log('Getting QuickBooks revenue data...', { startDate, endDate, locationFilter })
-
       // Get invoices
       const invoicesResponse = await this.makeAuthenticatedRequest(
         `/companies/${this.config.companyId}/invoices?start_date=${startDate}&end_date=${endDate}`
@@ -246,7 +217,6 @@ export class QuickBooksService {
         return revenueData.filter(item => item.location.toLowerCase().includes(locationFilter.toLowerCase()))
       }
 
-      console.log('Revenue data processed:', revenueData.length, 'records')
       return revenueData
     } catch (error) {
       console.error('Error getting revenue data:', error)
@@ -257,8 +227,6 @@ export class QuickBooksService {
   // Get customer data
   async getCustomerData(locationFilter?: string): Promise<QuickBooksCustomerData[]> {
     try {
-      console.log('Getting QuickBooks customer data...', { locationFilter })
-
       const response = await this.makeAuthenticatedRequest(
         `/companies/${this.config.companyId}/customers`
       )
@@ -278,7 +246,6 @@ export class QuickBooksService {
         outstandingBalance: parseFloat(customer.Balance) || 0
       }))
 
-      console.log('Customer data processed:', customerData.length, 'customers')
       return customerData
     } catch (error) {
       console.error('Error getting customer data:', error)
@@ -289,8 +256,6 @@ export class QuickBooksService {
   // Get location-based revenue summary
   async getLocationRevenue(startDate: string, endDate: string): Promise<QuickBooksLocationData[]> {
     try {
-      console.log('Getting QuickBooks location revenue...', { startDate, endDate })
-
       // Get all revenue data first
       const revenueData = await this.getRevenueData(startDate, endDate)
 
@@ -317,7 +282,6 @@ export class QuickBooksService {
 
       const locationData = Array.from(locationMap.values())
 
-      console.log('Location revenue processed:', locationData.length, 'locations')
       return locationData
     } catch (error) {
       console.error('Error getting location revenue:', error)
@@ -328,13 +292,10 @@ export class QuickBooksService {
   // Get financial reports
   async getFinancialReports(startDate: string, endDate: string, reportType: string = 'ProfitAndLoss'): Promise<any> {
     try {
-      console.log('Getting QuickBooks financial reports...', { startDate, endDate, reportType })
-
       const response = await this.makeAuthenticatedRequest(
         `/companies/${this.config.companyId}/reports/${reportType}?start_date=${startDate}&end_date=${endDate}`
       )
 
-      console.log('Financial report retrieved:', reportType)
       return response
     } catch (error) {
       console.error('Error getting financial reports:', error)
@@ -345,12 +306,10 @@ export class QuickBooksService {
   // Test connection
   async testConnection(): Promise<boolean> {
     try {
-      console.log('Testing QuickBooks connection...')
       await this.getCompanyInfo()
-      console.log('✅ QuickBooks connection successful')
       return true
     } catch (error) {
-      console.error('❌ QuickBooks connection failed:', error)
+      console.error('QuickBooks connection failed:', error)
       return false
     }
   }
@@ -371,15 +330,12 @@ export class QuickBooksService {
   // Get revenue metrics
   async getRevenueMetrics(locationFilter?: string): Promise<any> {
     try {
-      console.log('Getting QuickBooks revenue metrics...', { locationFilter })
-
       const endDate = new Date().toISOString().split('T')[0]
       const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 1 year ago
 
       const revenueData = await this.getRevenueData(startDate, endDate, locationFilter)
       const metrics = QuickBooksSchemaUtils.calculateRevenueMetrics(revenueData)
 
-      console.log('Revenue metrics calculated:', metrics)
       return metrics
     } catch (error) {
       console.error('Error getting revenue metrics:', error)

@@ -11,9 +11,7 @@ export async function POST(request: NextRequest) {
         message: 'User ID is required' 
       }, { status: 400 })
     }
-    
-    console.log('Running analysis for user:', userId, 'with', periodConfigs?.length || 0, 'periods')
-    
+
     // Run analysis
     const result = await analysisService.runAnalysisForPeriods(userId, periodConfigs || [], acquisitionCosts || {})
     

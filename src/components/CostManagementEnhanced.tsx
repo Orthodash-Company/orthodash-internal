@@ -14,6 +14,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiConfiguration, AcquisitionCost, AdSpend } from "@/shared/schema";
 
+type ApiConfigurationSummary = Omit<
+  ApiConfiguration,
+  'apiKey' | 'apiSecret' | 'accessToken' | 'refreshToken'
+> & {
+  apiKeyPreview: string | null;
+  hasApiSecret: boolean;
+  hasAccessToken: boolean;
+  hasRefreshToken: boolean;
+};
+
 interface CostData {
   manual: AcquisitionCost[];
   api: AdSpend[];
@@ -42,7 +52,7 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
     }
   });
   
-  const [apiConfigs, setApiConfigs] = useState<ApiConfiguration[]>([]);
+  const [apiConfigs, setApiConfigs] = useState<ApiConfigurationSummary[]>([]);
   const [newApiConfig, setNewApiConfig] = useState({
     name: '',
     type: 'meta' as 'meta' | 'google' | 'quickbooks',
@@ -53,8 +63,6 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
     realmId: ''
   });
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<ApiConfiguration | null>(null);
-  
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
@@ -496,6 +504,18 @@ export function CostManagementEnhanced({ locationId, period }: CostManagementEnh
                       <div>
                         <h4 className="font-medium">{config.name}</h4>
                         <p className="text-sm text-gray-600 capitalize">{config.type} API</p>
+                        {config.apiKeyPreview && (
+                          <p className="text-xs text-gray-500">
+                            Key: {config.apiKeyPreview}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          {[
+                            config.hasApiSecret ? 'secret set' : null,
+                            config.hasAccessToken ? 'access token set' : null,
+                            config.hasRefreshToken ? 'refresh token set' : null,
+                          ].filter(Boolean).join(' • ') || 'No supplemental credentials stored'}
+                        </p>
                         {config.lastSyncDate && (
                           <p className="text-xs text-gray-500">
                             Last synced: {new Date(config.lastSyncDate).toLocaleDateString()}

@@ -38,8 +38,7 @@ export class AnalysisService {
       success: false,
       message: 'Not implemented — use /api/greyfinch/period-analytics instead',
       analysis: null as AnalysisResult | null,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      detailedData: null as any,
+      detailedData: null as Record<string, unknown> | null,
     }
   }
   

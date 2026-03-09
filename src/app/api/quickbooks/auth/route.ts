@@ -8,8 +8,6 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code')
     const state = searchParams.get('state')
 
-    console.log('QuickBooks OAuth request:', { action, hasCode: !!code, hasState: !!state })
-
     const quickbooksService = new QuickBooksService()
 
     switch (action) {
@@ -17,9 +15,7 @@ export async function GET(request: NextRequest) {
         // Generate authorization URL
         const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/quickbooks/auth?action=callback`
         const authUrl = quickbooksService.getAuthorizationUrl(callbackUrl)
-        
-        console.log('Generated QuickBooks authorization URL')
-        
+
         return NextResponse.json({
           success: true,
           message: 'Authorization URL generated',
@@ -39,9 +35,7 @@ export async function GET(request: NextRequest) {
         try {
           const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/quickbooks/auth?action=callback`
           const tokenData = await quickbooksService.exchangeCodeForToken(code, callbackUrl)
-          
-          console.log('QuickBooks token exchange successful')
-          
+
           return NextResponse.json({
             success: true,
             message: 'QuickBooks authorization successful',
@@ -106,8 +100,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { consumerKey, consumerSecret, accessToken, accessTokenSecret, companyId, sandbox } = body
-
-    console.log('Updating QuickBooks credentials...')
 
     const quickbooksService = new QuickBooksService()
     quickbooksService.updateCredentials(

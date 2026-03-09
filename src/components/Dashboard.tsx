@@ -731,7 +731,6 @@ export default function Dashboard() {
 
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
-
           {/* Tabs Container */}
           <Card className="bg-white border-[#1C1F4F]/20 shadow-lg" ref={tabsRef}>
             <CardHeader className="pb-4">

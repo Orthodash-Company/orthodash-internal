@@ -83,5 +83,3 @@ pnpm type-check
 ## Docs
 
 - [DEPLOYMENT.md](DEPLOYMENT.md)
-- [docs/integrations/greyfinch.md](docs/integrations/greyfinch.md)
-- [docs/integrations/quickbooks.md](docs/integrations/quickbooks.md)

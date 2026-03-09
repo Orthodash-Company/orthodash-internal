@@ -25,6 +25,14 @@ interface MultiLocationComparisonChartProps {
 }
 
 const COLORS = ['#1C1F4F', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+const formatPieLabel = ({ name, percent }: { name?: string; percent?: number }) =>
+  `${name ?? 'Unknown'} ${((percent ?? 0) * 100).toFixed(0)}%`;
+
+const formatCurrencyTooltip = (value: unknown) => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const numericValue = typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+  return [`$${numericValue.toLocaleString()}`, 'Revenue'];
+};
 
 export function MultiLocationComparisonChart({ 
   locationData, 
@@ -172,7 +180,7 @@ export function MultiLocationComparisonChart({
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={formatPieLabel}
                   outerRadius={typeof window !== 'undefined' && window.innerWidth < 768 ? 70 : 80}
                   fill="#8884d8"
                   dataKey="value"
@@ -181,7 +189,7 @@ export function MultiLocationComparisonChart({
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']} />
+                <Tooltip formatter={formatCurrencyTooltip} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
