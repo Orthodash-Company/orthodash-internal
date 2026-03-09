@@ -51,8 +51,8 @@ export function HorizontalFixedColumnLayout({
       title: `Period ${nextPeriodLetter}`,
       locationId: 'all',
       locationIds: [],
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+      endDate: new Date(), // today
       visualizations: []
     };
     onAddPeriod(newPeriod);

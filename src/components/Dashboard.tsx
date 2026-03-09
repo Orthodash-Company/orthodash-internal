@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { MapPin, Settings, FileText, BarChart3, TrendingUp, Building2, Trash2, CheckCircle, RefreshCw } from 'lucide-react';
 import { PeriodConfig, Location } from '@/shared/types';
+import { DASHBOARD_LOCATION_IDS } from '@/lib/services/greyfinch-queries';
 import { useSessionManager } from '@/hooks/use-session-manager';
 import { useToast } from '@/hooks/use-toast';
 
@@ -36,48 +37,49 @@ export default function Dashboard() {
   const [acquisitionCosts, setAcquisitionCosts] = useState<any>(null);
   const [aiSummary, setAiSummary] = useState<any>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [periodAnalyticsData, setPeriodAnalyticsData] = useState<Record<string, any[] | null>>({});
+  const [periodAnalyticsLoading, setPeriodAnalyticsLoading] = useState<Record<string, boolean>>({});
+  const [periodAnalyticsError, setPeriodAnalyticsError] = useState<Record<string, string | null>>({});
+  const [greyfinchCounts, setGreyfinchCounts] = useState<Record<string, number | undefined>>({});
   const tabsRef = useRef<HTMLDivElement>(null);
   const greyfinchRequestRef = useRef<AbortController | null>(null);
   const greyfinchTimeoutRef = useRef<number | null>(null);
+  const fetchedPeriodKeysRef = useRef<Set<string>>(new Set());
 
   const getDefaultLocations = useCallback((): Location[] => ([
     {
       id: 1,
       name: 'Gilbert',
-      greyfinchId: 'gilbert-1',
+      greyfinchId: '097eb1d8-ec62-45d9-8c21-d08af1cf66c8',
       isActive: true
     },
     {
       id: 2,
       name: 'Phoenix-Ahwatukee',
-      greyfinchId: 'phoenix-ahwatukee-1',
+      greyfinchId: '4a2bf9bd-222b-4690-9d12-5fc95daa7d93',
       isActive: true
     }
   ]), []);
 
   const extractLocationsFromGreyfinchData = useCallback((apiResponse: any): Location[] => {
     const data = apiResponse?.data || apiResponse;
-    const locationArray: Location[] = [];
 
-    if (data?.locations?.gilbert || data?.locationData?.gilbert) {
-      locationArray.push({
-        id: 1,
-        name: 'Gilbert',
-        greyfinchId: 'gilbert-1',
-        isActive: true
-      });
+    // New format: data.locations is an array from Greyfinch — filter to dashboard locations only
+    if (Array.isArray(data?.locations) && data.locations.length > 0) {
+      const filtered = (data.locations as Array<{ id: string; name: string }>).filter((loc) =>
+        (DASHBOARD_LOCATION_IDS as readonly string[]).includes(loc.id)
+      );
+      if (filtered.length > 0) {
+        return filtered.map((loc, index) => ({
+          id: index + 1,
+          name: loc.name,
+          greyfinchId: loc.id,
+          isActive: true,
+        }));
+      }
     }
 
-    if (data?.locations?.phoenix || data?.locationData?.phoenix) {
-      locationArray.push({
-        id: 2,
-        name: 'Phoenix-Ahwatukee',
-        greyfinchId: 'phoenix-ahwatukee-1',
-        isActive: true
-      });
-    }
-
-    return locationArray.length > 0 ? locationArray : getDefaultLocations();
+    return getDefaultLocations();
   }, [getDefaultLocations]);
 
   const createEmptyGreyfinchData = useCallback(() => ({
@@ -143,32 +145,6 @@ export default function Dashboard() {
     lastUpdated: new Date().toISOString(),
   }), []);
 
-  // Handle click outside tabs and escape key
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (tabsRef.current && !tabsRef.current.contains(event.target as Node)) {
-        setActiveTab(null);
-      }
-    };
-
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && activeTab) {
-        setActiveTab(null);
-      }
-    };
-
-    // Only add listeners if a tab is active
-    if (activeTab) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscapeKey);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscapeKey);
-    };
-  }, [activeTab]);
-
   const handleAddPeriod = (period: Omit<PeriodConfig, 'id'>) => {
     const newPeriod: PeriodConfig = {
       ...period,
@@ -219,6 +195,76 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Build PeriodData from period-analytics API response (LocationPeriodData[])
+  const buildPeriodDataFromApi = useCallback((locationRows: any[] | null | undefined) => {
+    if (!locationRows || locationRows.length === 0) return null;
+    let activeTxPatients = 0, newPatientsCreated = 0, netProduction = 0;
+    let grossProduction = 0, netCollection = 0;
+    let professional = 0, familyReferral = 0, online = 0, noShowCancellations = 0;
+    for (const loc of locationRows) {
+      activeTxPatients += loc.activeTxPatients || 0;
+      newPatientsCreated += loc.newPatientsCreated || 0;
+      netProduction += loc.netProduction || 0;
+      grossProduction += loc.grossProduction || 0;
+      netCollection += loc.netCollection || 0;
+      professional += loc.referralBreakdown?.Professional || 0;
+      familyReferral += loc.referralBreakdown?.['Family Referral'] || 0;
+      online += loc.referralBreakdown?.Online || 0;
+      noShowCancellations += loc.totalNoShowCancellations || 0;
+    }
+    return {
+      patients: activeTxPatients,
+      appointments: 0,
+      leads: newPatientsCreated,
+      locations: locationRows.length,
+      bookings: 0,
+      revenue: netCollection,
+      production: grossProduction,
+      netProduction,
+      acquisitionCosts: 0,
+      avgNetProduction: activeTxPatients > 0 ? netProduction / activeTxPatients : 0,
+      avgAcquisitionCost: 0,
+      noShowRate: activeTxPatients > 0 ? (noShowCancellations / activeTxPatients) * 100 : 0,
+      referralSources: { professional, digital: online, direct: familyReferral },
+      conversionRates: { digital: 0, professional: 0, direct: 0 },
+      trends: { weekly: [] },
+    };
+  }, []);
+
+  // Fetch period-analytics data for a single period
+  const fetchPeriodAnalytics = useCallback(async (period: PeriodConfig) => {
+    if (!period.startDate || !period.endDate) return;
+    const toDateStr = (d: Date | string) =>
+      d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0];
+    const startDate = toDateStr(period.startDate);
+    const endDate = toDateStr(period.endDate);
+    // Map numeric location IDs → Greyfinch UUIDs
+    const selectedIds = period.locationIds || [];
+    const uuids = (selectedIds.length > 0
+      ? selectedIds.map((id) => locations.find((l) => l.id.toString() === id)?.greyfinchId)
+      : locations.map((l) => l.greyfinchId)
+    ).filter(Boolean) as string[];
+    if (uuids.length === 0) return;
+    // Clear stale data so PeriodColumn shows a loading indicator during refetch
+    setPeriodAnalyticsData((prev) => ({ ...prev, [period.id]: null }));
+    setPeriodAnalyticsLoading((prev) => ({ ...prev, [period.id]: true }));
+    setPeriodAnalyticsError((prev) => ({ ...prev, [period.id]: null }));
+    try {
+      const params = new URLSearchParams({ startDate, endDate, locationIds: uuids.join(',') });
+      const res = await fetch(`/api/greyfinch/period-analytics?${params}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setPeriodAnalyticsData((prev) => ({ ...prev, [period.id]: json.data }));
+      } else {
+        setPeriodAnalyticsError((prev) => ({ ...prev, [period.id]: json.error || 'Fetch failed' }));
+      }
+    } catch (e) {
+      setPeriodAnalyticsError((prev) => ({ ...prev, [period.id]: String(e) }));
+    } finally {
+      setPeriodAnalyticsLoading((prev) => ({ ...prev, [period.id]: false }));
+    }
+  }, [locations]);
+
   // Load multi-location Greyfinch data from API - pure data fetch without UI state coupling
   const fetchGreyfinchData = useCallback(async () => {
     clearGreyfinchRequest();
@@ -230,69 +276,42 @@ export default function Dashboard() {
     setError(null);
 
     try {
-      console.log('🔄 Fetching Gilbert and Phoenix-Ahwatukee Greyfinch data...')
+      console.log('🔄 Fetching Greyfinch locations...')
       const response = await fetch('/api/greyfinch/analytics?location=all', {
         signal: controller.signal,
         cache: 'no-store',
       })
 
       if (!response.ok) {
-        const message = `Greyfinch fetch failed: ${response.status}`
-        console.warn('⚠️', message)
-        setGreyfinchData(createEmptyGreyfinchData())
-        setLocations(getDefaultLocations())
-        setError(null)
-        toast({
-          title: 'Greyfinch data unavailable',
-          description: `${message}. Showing 0 values for now.`,
-          variant: 'destructive',
-        })
+        console.warn('⚠️ Greyfinch analytics fetch failed:', response.status)
+        // Leave pre-set defaults in place
         return false
       }
 
       const apiResponse = await response.json()
 
       if (apiResponse && apiResponse.data) {
-        console.log('✅ Multi-location Greyfinch data loaded:', apiResponse)
+        console.log('✅ Greyfinch locations loaded:', apiResponse)
         setGreyfinchData(apiResponse)
         localStorage.setItem('greyfinchData', JSON.stringify(apiResponse))
         const locationArray = extractLocationsFromGreyfinchData(apiResponse)
-        console.log('📍 Setting all locations:', locationArray)
         setLocations(locationArray)
         return true
       } else {
-        const message = apiResponse?.message || 'Greyfinch analytics data was missing'
-        console.warn('⚠️ Failed to load Greyfinch analytics data:', message)
-        setGreyfinchData(createEmptyGreyfinchData())
-        setLocations(getDefaultLocations())
-        setError(null)
-        toast({
-          title: 'Greyfinch data unavailable',
-          description: `${message}. Showing 0 values for now.`,
-          variant: 'destructive',
-        })
+        console.warn('⚠️ Greyfinch analytics data was missing')
+        // Leave pre-set defaults in place
         return false
       }
     } catch (error: any) {
-      const message = error instanceof DOMException && error.name === 'AbortError'
-        ? 'Greyfinch request timed out'
-        : error?.message || 'Error fetching Greyfinch analytics data'
-      console.warn('⚠️ Error fetching Greyfinch analytics data:', message)
-      setGreyfinchData(createEmptyGreyfinchData())
-      setLocations(getDefaultLocations())
-      setError(null)
-      toast({
-        title: 'Greyfinch data unavailable',
-        description: `${message}. Showing 0 values for now.`,
-        variant: 'destructive',
-      })
+      console.warn('⚠️ Error fetching Greyfinch data:', error?.message)
+      // Leave pre-set defaults in place
       return false
     } finally {
       if (greyfinchRequestRef.current === controller) {
         clearGreyfinchRequest();
       }
     }
-  }, [clearGreyfinchRequest, createEmptyGreyfinchData, extractLocationsFromGreyfinchData, getDefaultLocations, toast])
+  }, [clearGreyfinchRequest, extractLocationsFromGreyfinchData])
 
   const loadGreyfinchData = useCallback(async () => {
     setIsRefreshingGreyfinchData(true);
@@ -303,7 +322,8 @@ export default function Dashboard() {
     }
   }, [fetchGreyfinchData]);
 
-  // Load Greyfinch data on first authenticated render only.
+  // Load Greyfinch data on first authenticated render.
+  // Dashboard renders immediately using defaults; analytics call runs in the background.
   useEffect(() => {
     if (!user?.id) {
       clearGreyfinchRequest();
@@ -314,15 +334,17 @@ export default function Dashboard() {
       return;
     }
 
-    setIsInitialLoading(true);
-    void fetchGreyfinchData().finally(() => {
-      setIsInitialLoading(false);
-    });
+    // Pre-set known locations so the dashboard is usable immediately
+    setLocations(getDefaultLocations());
+    setIsInitialLoading(false);
+
+    // Confirm real connection in the background
+    void fetchGreyfinchData();
 
     return () => {
       clearGreyfinchRequest();
     };
-  }, [clearGreyfinchRequest, fetchGreyfinchData, user?.id]);
+  }, [clearGreyfinchRequest, fetchGreyfinchData, getDefaultLocations, user?.id]);
 
   // Create data queries for each period - memoized for performance
   const createPeriodQueries = useCallback((periods: PeriodConfig[], greyfinchData: any) => {
@@ -503,10 +525,29 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Update period queries when periods or greyfinchData changes - memoized for performance
+  // Trigger period-analytics fetch when a period's dates or locations change
+  useEffect(() => {
+    if (locations.length === 0) return;
+    for (const period of periods) {
+      if (!period.startDate || !period.endDate) continue;
+      const toDateStr = (d: Date | string) =>
+        d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0];
+      const key = `${period.id}:${toDateStr(period.startDate)}:${toDateStr(period.endDate)}:${(period.locationIds || []).join(',')}`;
+      if (!fetchedPeriodKeysRef.current.has(key)) {
+        fetchedPeriodKeysRef.current.add(key);
+        void fetchPeriodAnalytics(period);
+      }
+    }
+  }, [periods, locations, fetchPeriodAnalytics]);
+
+  // Build periodQueries from fetched period-analytics data
   const periodQueriesMemo = useMemo(() => {
-    return createPeriodQueries(periods, greyfinchData);
-  }, [periods, greyfinchData, createPeriodQueries]);
+    return periods.map((period) => ({
+      data: buildPeriodDataFromApi(periodAnalyticsData[period.id]),
+      isLoading: periodAnalyticsLoading[period.id] ?? false,
+      error: periodAnalyticsError[period.id] ?? null,
+    }));
+  }, [periods, periodAnalyticsData, periodAnalyticsLoading, periodAnalyticsError, buildPeriodDataFromApi]);
 
   useEffect(() => {
     setPeriodQueries(periodQueriesMemo);
@@ -692,7 +733,7 @@ export default function Dashboard() {
         <div className="max-w-4xl mx-auto space-y-6">
 
           {/* Tabs Container */}
-          <Card className={`bg-white border-[#1C1F4F]/20 shadow-lg transition-all duration-300 ease-in-out ${activeTab ? 'ring-2 ring-[#1C1F4F]/20' : ''}`} ref={tabsRef}>
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg" ref={tabsRef}>
             <CardHeader className="pb-4">
               <Tabs value={activeTab || "locations"} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
@@ -722,12 +763,6 @@ export default function Dashboard() {
                   </TabsTrigger>
                 </TabsList>
 
-                {activeTab && (
-                  <div className="mt-2 text-xs text-[#1C1F4F]/60 text-center">
-                    Click outside or press Escape to close
-                  </div>
-                )}
-
                 <TabsContent value="locations" className="mt-6">
                   <LocationsManager
                     greyfinchData={greyfinchData}
@@ -735,6 +770,7 @@ export default function Dashboard() {
                     isRefreshingGreyfinchData={isRefreshingGreyfinchData}
                     onGreyfinchDataUpdate={handleGreyfinchDataUpdate}
                     onRefreshGreyfinchData={loadGreyfinchData}
+                    onCountsUpdate={setGreyfinchCounts}
                   />
                 </TabsContent>
 
@@ -1034,6 +1070,7 @@ export default function Dashboard() {
                 periods={periods}
                 acquisitionCosts={acquisitionCosts}
                 aiSummary={aiSummary}
+                dataCounts={greyfinchCounts}
                 selectedPeriod={periods.length > 0 ? periods[0] : undefined}
                 selectedCharts={[]} // Charts are managed locally in PeriodColumn components
                 periodData={periods.length > 0 ? generatePeriodData(periods[0], greyfinchData) : undefined}

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       `)
       
       if (testQuery && testQuery.__typename) {
-        status.apiDiscovery.rootType = testQuery.__typename
+        status.apiDiscovery.rootType = String(testQuery.__typename)
       }
     } catch (error) {
       console.log('Error testing basic query:', error)

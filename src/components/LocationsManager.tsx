@@ -4,12 +4,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, RefreshCw, MapPin, Database, Users, Calendar, DollarSign, BookOpen } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Location as DashboardLocation } from '@/shared/types';
 
@@ -27,7 +24,6 @@ interface DataCounts {
   appointments?: number;
   leads?: number;
   bookings?: number;
-  treatments?: number;
   [key: string]: number | undefined;
 }
 
@@ -37,6 +33,7 @@ interface LocationsManagerProps {
   isRefreshingGreyfinchData?: boolean;
   onGreyfinchDataUpdate?: (data: any) => void;
   onRefreshGreyfinchData?: () => Promise<boolean>;
+  onCountsUpdate?: (counts: DataCounts) => void;
 }
 
 // Dynamic connection status component - updated for production deployment
@@ -46,19 +43,43 @@ export function LocationsManager({
   isRefreshingGreyfinchData = false,
   onGreyfinchDataUpdate,
   onRefreshGreyfinchData,
+  onCountsUpdate,
 }: LocationsManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [locations, setLocations] = useState<Location[]>([
-    { id: 'gilbert-1', name: 'Gilbert', address: 'Gilbert, AZ', isActive: true },
-    { id: 'phoenix-ahwatukee-1', name: 'Phoenix-Ahwatukee', address: 'Phoenix-Ahwatukee, AZ', isActive: true }
-  ]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>(['gilbert-1', 'phoenix-ahwatukee-1']);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [dataCounts, setDataCounts] = useState<DataCounts>({ locations: 2 });
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+  const [dataCounts, setDataCounts] = useState<DataCounts>({});
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
   const [connectionChecked, setConnectionChecked] = useState(false);
+
+  const fetchCounts = useCallback(async () => {
+    setIsLoadingCounts(true);
+    try {
+      const [liveRes, countsRes] = await Promise.all([
+        fetch('/api/greyfinch/live-counts'),
+        fetch('/api/greyfinch/counts'),
+      ]);
+      const [liveJson, countsJson] = await Promise.all([liveRes.json(), countsRes.json()]);
+      const counts: DataCounts = {};
+      if (liveJson.success && liveJson.data) {
+        counts.patients = liveJson.data.activeTxPatients ?? undefined;
+      }
+      if (countsJson.success && countsJson.data) {
+        counts.leads = countsJson.data.leads ?? undefined;
+        counts.appointments = countsJson.data.appointments ?? undefined;
+      }
+      setDataCounts(prev => ({ ...prev, ...counts }));
+      onCountsUpdate?.(counts);
+    } catch (err) {
+      console.error('Failed to load Greyfinch live counts:', err);
+    } finally {
+      setIsLoadingCounts(false);
+    }
+  }, [onCountsUpdate]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -84,37 +105,29 @@ export function LocationsManager({
     }
   }, [dashboardLocations]);
 
+  // Fire counts as soon as the user is authenticated — don't gate on greyfinchData
+  useEffect(() => {
+    if (user?.id) {
+      void fetchCounts();
+    }
+  }, [user?.id, fetchCounts]);
+
   useEffect(() => {
     if (!greyfinchData?.data) {
-      setDataCounts({
-        patients: 0,
-        locations: 0,
-        appointments: 0,
-        leads: 0,
-        bookings: 0,
-      });
       return;
     }
 
     const data = greyfinchData.data;
-    const nextCounts = {
-      patients: data.total?.patients ?? data.patients?.count ?? 0,
-      locations: data.total?.locations ?? Object.keys(data.locations || data.locationData || {}).length,
-      appointments: data.total?.appointments ?? data.appointments?.count ?? 0,
-      leads: data.total?.leads ?? data.leads?.count ?? 0,
-      bookings: data.total?.bookings ?? data.bookings?.count ?? 0,
-    };
+    const locationCount = Array.isArray(data.locations)
+      ? data.locations.length
+      : (data.total?.locations ?? Object.keys(data.locationData || {}).length);
 
-    setDataCounts(nextCounts);
+    setDataCounts((prev) => ({ ...prev, locations: locationCount }));
     if (greyfinchData.lastUpdated) {
       setLastPullTime(new Date(greyfinchData.lastUpdated).toLocaleString());
     }
   }, [greyfinchData]);
 
-  // Debug connection status changes
-  useEffect(() => {
-    console.log('🔍 Connection status changed:', isConnected);
-  }, [isConnected]);
 
   const checkConnectionAndFetchLocations = useCallback(async () => {
     if (!user?.id) {
@@ -280,26 +293,15 @@ export function LocationsManager({
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Connection Status */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-            <div className="flex items-center space-x-2">
-              {isConnected ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-red-500" />
-              )}
-              <span className="text-sm font-medium">
-                {isConnected ? 'Connected to Greyfinch API' : 'Not connected to Greyfinch API'}
-              </span>
-            </div>
-            <Button
-              onClick={checkConnectionAndFetchLocations}
-              disabled={isLoading || isRefreshingGreyfinchData}
-              size="sm"
-              variant="outline"
-            >
-              <RefreshCw className="h-4 w-4 mr-1" />
-              Refresh
-            </Button>
+          <div className="flex items-center p-3 rounded-lg bg-gray-50 space-x-2">
+            {isConnected ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            )}
+            <span className="text-sm font-medium">
+              {isConnected ? 'Connected to Greyfinch API' : 'Not connected to Greyfinch API'}
+            </span>
           </div>
 
           {/* Data Counts */}
@@ -328,19 +330,9 @@ export function LocationsManager({
       {/* Available Locations */}
       <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-[#1C1F4F] flex items-center justify-between">
-            <div className="flex items-center">
-              <Database className="h-5 w-5 mr-2" />
-              Available Locations
-            </div>
-            <Button
-              onClick={checkConnectionAndFetchLocations}
-              disabled={isLoading || isRefreshingGreyfinchData}
-              size="sm"
-              variant="outline"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
+          <CardTitle className="text-[#1C1F4F] flex items-center">
+            <Database className="h-5 w-5 mr-2" />
+            Available Locations
           </CardTitle>
           <CardDescription className="text-[#1C1F4F]/70">
             Practice locations available for analysis

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-
 import { requireAuthUser } from '@/lib/require-auth-user'
 import { greyfinchSyncService } from '@/lib/services/greyfinch-sync'
-import { GreyfinchSchemaUtils } from '@/lib/services/greyfinch-schema'
+import { greyfinchService } from '@/lib/services/greyfinch'
+import { GQL_BASIC_COUNTS } from '@/lib/services/greyfinch-queries'
 
 export async function POST(_request: NextRequest) {
   try {
@@ -13,18 +13,14 @@ export async function POST(_request: NextRequest) {
 
     console.log('🔄 Starting Greyfinch data sync for user:', user.id)
 
-    const rawGreyfinchData = await GreyfinchSchemaUtils.getAnalyticsData()
+    const rawGreyfinchData = await greyfinchService.makeGraphQLRequest(GQL_BASIC_COUNTS)
     await greyfinchSyncService.syncAllData(user.id, { data: rawGreyfinchData })
-
-    const processedData = GreyfinchSchemaUtils.processDataByLocation(rawGreyfinchData)
 
     return NextResponse.json({
       success: true,
       message: 'Greyfinch data synced successfully',
       data: {
-        ...processedData,
         lastUpdated: new Date().toISOString(),
-        apiStatus: 'Gilbert Data',
       },
     })
   } catch (error) {

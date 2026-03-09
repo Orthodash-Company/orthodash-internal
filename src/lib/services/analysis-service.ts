@@ -1,5 +1,3 @@
-import { greyfinchService } from './greyfinch'
-
 export interface AnalysisResult {
   totalLeads: number
   leadSources: {
@@ -35,34 +33,13 @@ export interface AnalysisResult {
 export class AnalysisService {
   
   // Pull detailed data and run analysis when user adds analysis periods
-  async runAnalysisForPeriods(userId: string, periodConfigs: any[], acquisitionCosts: any = {}) {
-    try {
-      console.log('Running analysis for periods:', periodConfigs.length)
-      
-      // Pull detailed data for the periods
-      const detailedDataResult = await greyfinchService.pullDetailedData(userId, periodConfigs)
-      
-      if (!detailedDataResult.success) {
-        throw new Error(detailedDataResult.message)
-      }
-      
-      const detailedData = detailedDataResult.data
-      
-      // Run analysis
-      const analysis = await this.analyzeData(detailedData, periodConfigs, acquisitionCosts)
-      
-      return {
-        success: true,
-        analysis,
-        detailedData,
-        message: 'Analysis completed successfully'
-      }
-    } catch (error) {
-      console.error('Analysis failed:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
-      }
+  async runAnalysisForPeriods(_userId: string, _periodConfigs: any[], _acquisitionCosts: any = {}) {
+    return {
+      success: false,
+      message: 'Not implemented — use /api/greyfinch/period-analytics instead',
+      analysis: null as AnalysisResult | null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      detailedData: null as any,
     }
   }
   

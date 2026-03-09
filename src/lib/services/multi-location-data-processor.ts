@@ -1,4 +1,27 @@
-import { PeriodData } from './greyfinch-data'
+export interface PeriodData {
+  period: string
+  startDate: string
+  endDate: string
+  avgNetProduction: number
+  avgAcquisitionCost: number
+  noShowRate: number
+  referralSources: { digital: number; professional: number; direct: number }
+  conversionRates: { digital: number; professional: number; direct: number }
+  trends: { weekly: Array<{ week: string; value: number }> }
+  patients: number
+  appointments: number
+  leads: number
+  locations: number
+  bookings: number
+  production: number
+  revenue: number
+  netProduction: number
+  acquisitionCosts: number
+  locationData: {
+    gilbert: { patients: number; appointments: number; leads: number; bookings: number; production: number; revenue: number; netProduction: number; acquisitionCosts: number }
+    phoenix: { patients: number; appointments: number; leads: number; bookings: number; production: number; revenue: number; netProduction: number; acquisitionCosts: number }
+  }
+}
 
 export interface LocationData {
   id: string

@@ -15,6 +15,7 @@ interface PDFReportGeneratorProps {
   periods: any[];
   acquisitionCosts: any[];
   aiSummary: any;
+  dataCounts?: { activeTxPatients?: number; newPatientsCreated?: number; caseStarts?: number };
   selectedPeriod?: any; // The specific period to generate charts for
   selectedCharts?: string[]; // The charts selected for this period
   periodData?: any; // The processed data for the selected period
@@ -30,15 +31,16 @@ interface ReportData {
   pdfUrl?: string;
 }
 
-export function PDFReportGenerator({ 
-  greyfinchData, 
-  periods, 
-  acquisitionCosts, 
-  aiSummary, 
+export function PDFReportGenerator({
+  greyfinchData,
+  periods,
+  acquisitionCosts,
+  aiSummary,
+  dataCounts,
   selectedPeriod,
   selectedCharts = [],
   periodData,
-  onSaveReport 
+  onSaveReport
 }: PDFReportGeneratorProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,19 +49,18 @@ export function PDFReportGenerator({
   const [generatedReports, setGeneratedReports] = useState<ReportData[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Extract counter data - memoized for performance
+  // Extract counter data — dataCounts comes from /api/greyfinch/live-counts (PRACTICE_MONITOR YTD)
   const getCounterData = useMemo(() => {
-    if (!greyfinchData?.data) return {};
-    
-    const { data } = greyfinchData;
+    const locationCount = Array.isArray(greyfinchData?.data?.locations)
+      ? greyfinchData.data.locations.length
+      : 0;
     return {
-      patients: data.patients?.count || 0,
-      appointments: data.appointments?.count || 0,
-      leads: data.leads?.count || 0,
-      bookings: data.bookings?.count || 0,
-      locations: data.locations?.length || 0
+      activeTxPatients: dataCounts?.activeTxPatients ?? 0,
+      newPatientsCreated: dataCounts?.newPatientsCreated ?? 0,
+      caseStarts: dataCounts?.caseStarts ?? 0,
+      locations: locationCount,
     };
-  }, [greyfinchData]);
+  }, [greyfinchData, dataCounts]);
 
   // Generate chart data for PDF - similar to PeriodColumn renderChart
   const generateChartData = (chartId: string, data: any) => {
@@ -325,7 +326,8 @@ export function PDFReportGenerator({
   }, [user?.id, toast]);
 
   // Generate PDF report - memoized for performance
-  const generatePDF = useCallback(async () => {
+  // skipHistory: true skips adding to generatedReports and saving to DB (used by Download button on existing reports)
+  const generatePDF = useCallback(async (skipHistory = false) => {
     setIsGenerating(true);
     
     try {
@@ -365,10 +367,9 @@ export function PDFReportGenerator({
       
       const counterTableData = [
         ['Metric', 'Count'],
-        ['Total Patients', counterData.patients.toString()],
-        ['Total Appointments', counterData.appointments.toString()],
-        ['Total Leads', counterData.leads.toString()],
-        ['Total Bookings', counterData.bookings.toString()],
+        ['Active Tx Patients', counterData.activeTxPatients.toString()],
+        ['New Patients (YTD)', counterData.newPatientsCreated.toString()],
+        ['Case Starts (YTD)', counterData.caseStarts.toString()],
         ['Active Locations', counterData.locations.toString()]
       ];
       
@@ -588,40 +589,44 @@ export function PDFReportGenerator({
         doc.text('Orthodash Practice Analytics', 20, pageHeight - 10);
       }
       
-      // Generate report data
-      const reportData: ReportData = {
-        id: Date.now().toString(),
-        title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report - ${new Date().toLocaleDateString()}`,
-        type: reportType,
-        createdAt: new Date().toISOString(),
-        data: {
-          greyfinchData,
-          periods,
-          acquisitionCosts,
-          aiSummary,
-          counterData: getCounterData
-        }
-      };
-      
-      // Save report to state
-      setGeneratedReports(prev => [...prev, reportData]);
-      
-      // Save to reports list if callback provided
-      if (onSaveReport) {
-        onSaveReport(reportData);
-      }
-
-      // Save to database
-      await saveReportToDatabase(reportData);
-      
       // Download PDF
       const fileName = `orthodash-${reportType}-report-${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
-      
-      toast({
-        title: "PDF Generated!",
-        description: "Your report has been generated and saved",
-      });
+
+      if (!skipHistory) {
+        // Generate report metadata and save to state/DB
+        const reportData: ReportData = {
+          id: Date.now().toString(),
+          title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report - ${new Date().toLocaleDateString()}`,
+          type: reportType,
+          createdAt: new Date().toISOString(),
+          data: {
+            greyfinchData,
+            periods,
+            acquisitionCosts,
+            aiSummary,
+            counterData: getCounterData
+          }
+        };
+
+        setGeneratedReports(prev => [...prev, reportData]);
+
+        if (onSaveReport) {
+          onSaveReport(reportData);
+        }
+
+        await saveReportToDatabase(reportData);
+
+        toast({
+          title: "PDF Generated!",
+          description: "Your report has been generated and saved",
+        });
+      } else {
+        toast({
+          title: "PDF Downloaded",
+          description: "Your report has been downloaded",
+        });
+      }
 
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -683,8 +688,8 @@ export function PDFReportGenerator({
               </Select>
         </div>
 
-            <Button 
-              onClick={generatePDF} 
+            <Button
+              onClick={() => generatePDF()}
               disabled={isGenerating}
               className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
             >
@@ -742,9 +747,8 @@ export function PDFReportGenerator({
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        // Re-generate and download
                         setReportType(report.type);
-                        setTimeout(() => generatePDF(), 100);
+                        setTimeout(() => generatePDF(true), 100);
                       }}
                     >
                       <Download className="h-4 w-4 mr-1" />
@@ -780,25 +784,25 @@ export function PDFReportGenerator({
             <div className="text-center p-3 bg-blue-50 rounded-lg">
               <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-blue-900">
-                {getCounterData.patients || 0}
+                {getCounterData.activeTxPatients || 0}
               </p>
-              <p className="text-sm text-blue-700">Patients</p>
+              <p className="text-sm text-blue-700">Active Patients</p>
             </div>
-            
+
             <div className="text-center p-3 bg-green-50 rounded-lg">
               <Calendar className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-green-900">
-                {getCounterData.appointments || 0}
+                {getCounterData.newPatientsCreated || 0}
               </p>
-              <p className="text-sm text-green-700">Appointments</p>
+              <p className="text-sm text-green-700">New Patients YTD</p>
             </div>
-            
+
             <div className="text-center p-3 bg-purple-50 rounded-lg">
               <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-purple-900">
-                {getCounterData.leads || 0}
+                {getCounterData.caseStarts || 0}
               </p>
-              <p className="text-sm text-purple-700">Leads</p>
+              <p className="text-sm text-purple-700">Case Starts YTD</p>
         </div>
 
             <div className="text-center p-3 bg-orange-50 rounded-lg">

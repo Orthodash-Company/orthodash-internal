@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MultiLocationDataProcessor } from '@/lib/services/multi-location-data-processor'
 import { GreyfinchService } from '@/lib/services/greyfinch'
-import { GREYFINCH_QUERIES } from '@/lib/services/greyfinch-schema'
 
 export async function POST(request: NextRequest) {
   try {
