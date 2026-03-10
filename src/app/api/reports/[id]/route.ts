@@ -65,6 +65,21 @@ function transformReport(report: typeof reports.$inferSelect) {
   };
 }
 
+function getCounterTableData(counterData: Record<string, unknown>) {
+  const activeTxPatients = Number(counterData.activeTxPatients ?? counterData.patients ?? 0);
+  const newPatientsCreated = Number(counterData.newPatientsCreated ?? counterData.leads ?? 0);
+  const caseStarts = Number(counterData.caseStarts ?? counterData.bookings ?? 0);
+  const activeLocations = Number(counterData.locations ?? 0);
+
+  return [
+    ['Metric', 'Count'],
+    ['Active Tx Patients', String(activeTxPatients)],
+    ['New Patients (YTD)', String(newPatientsCreated)],
+    ['Case Starts (YTD)', String(caseStarts)],
+    ['Active Locations', String(activeLocations)],
+  ];
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -158,14 +173,7 @@ export async function POST(
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
         
-        const counterTableData = [
-          ['Metric', 'Count'],
-          ['Total Patients', (data.counterData.patients || 0).toString()],
-          ['Total Appointments', (data.counterData.appointments || 0).toString()],
-          ['Total Leads', (data.counterData.leads || 0).toString()],
-          ['Total Bookings', (data.counterData.bookings || 0).toString()],
-          ['Active Locations', (data.counterData.locations || 0).toString()]
-        ];
+        const counterTableData = getCounterTableData(data.counterData);
         
         autoTable(doc, {
           head: [counterTableData[0]],

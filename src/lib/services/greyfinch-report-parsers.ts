@@ -41,6 +41,7 @@ export interface PracticeMonitorRow {
   newPatientsCreated: number
   activeTxPatients: number
   caseStarts: number
+  startApptCompleted: number
   avgCaseFee: number
   newPatExams: number
 }
@@ -57,8 +58,37 @@ export function parsePracticeMonitor(data: ReportData): PracticeMonitorRow[] {
       newPatientsCreated: num(r.newPatientsCreated),
       activeTxPatients: num(r.activeTxPatients),
       caseStarts: num(r.caseStarts),
+      startApptCompleted: num(r.startApptCompleted),
       avgCaseFee: num(r.avgCaseFee),
       newPatExams: num(r.newPatExams),
+    }
+  })
+}
+
+// ─── PRACTICE_EFFICIENCY ─────────────────────────────────────────────────────
+// Confirmed columns (22 total):
+// locationId, location, startDate, endDate, patientHumanId, patientId, patientName,
+// completedAppointment, apptTypeLength, isEmergency, assistant, apptDate, apptStart,
+// patientCheckIn, patientCheckOut, totalLength, waitingTime, seatingTime,
+// waitingOnDoctor, withDoctor, checkingOutTime, appointmentBookingId
+
+export interface PracticeEfficiencyRow {
+  locationId: string
+  location: string
+  completedAppointment: string
+  appointmentBookingId: string
+  isEmergency: boolean
+}
+
+export function parsePracticeEfficiency(data: ReportData): PracticeEfficiencyRow[] {
+  return data.values.map((row) => {
+    const r = rowToObject(data.columns, row)
+    return {
+      locationId: str(r.locationId),
+      location: str(r.location),
+      completedAppointment: str(r.completedAppointment),
+      appointmentBookingId: str(r.appointmentBookingId),
+      isEmergency: Boolean(r.isEmergency),
     }
   })
 }
@@ -131,6 +161,7 @@ export interface LocationPeriodData {
   activeTxPatients: number
   newPatientsCreated: number
   caseStarts: number
+  startApptCompleted: number
   avgCaseFee: number
   newPatExams: number
   // Referrals
@@ -155,6 +186,7 @@ export function mergePeriodData(
       activeTxPatients: m.activeTxPatients,
       newPatientsCreated: refs?.totalNewPatients ?? m.newPatientsCreated,
       caseStarts: m.caseStarts,
+      startApptCompleted: m.startApptCompleted,
       avgCaseFee: m.avgCaseFee,
       newPatExams: m.newPatExams,
       referralBreakdown: refs?.referralBreakdown ?? {

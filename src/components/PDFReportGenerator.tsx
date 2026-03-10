@@ -4,7 +4,8 @@ import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Eye, Save, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Download, Eye, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '@/hooks/use-auth';
@@ -16,6 +17,7 @@ interface PDFReportGeneratorProps {
   acquisitionCosts: any[];
   aiSummary: any;
   dataCounts?: { activeTxPatients?: number; newPatientsCreated?: number; caseStarts?: number };
+  isDataFetching?: boolean;
   selectedPeriod?: any; // The specific period to generate charts for
   selectedCharts?: string[]; // The charts selected for this period
   periodData?: any; // The processed data for the selected period
@@ -37,6 +39,7 @@ export function PDFReportGenerator({
   acquisitionCosts,
   aiSummary,
   dataCounts,
+  isDataFetching = false,
   selectedPeriod,
   selectedCharts = [],
   periodData,
@@ -273,6 +276,273 @@ export function PDFReportGenerator({
     return currentY;
   };
 
+  const buildPdfDocument = useCallback((options?: {
+    reportTypeOverride?: 'summary' | 'detailed' | 'executive';
+    greyfinchDataOverride?: any;
+    periodsOverride?: any[];
+    acquisitionCostsOverride?: any[];
+    aiSummaryOverride?: any;
+    counterDataOverride?: { activeTxPatients?: number; newPatientsCreated?: number; caseStarts?: number; locations?: number };
+    selectedPeriodOverride?: any;
+    selectedChartsOverride?: string[];
+    periodDataOverride?: any;
+  }) => {
+    const resolvedReportType = options?.reportTypeOverride ?? reportType;
+    const resolvedGreyfinchData = options?.greyfinchDataOverride ?? greyfinchData;
+    const resolvedPeriods = options?.periodsOverride ?? periods;
+    const resolvedAcquisitionCosts = options?.acquisitionCostsOverride ?? acquisitionCosts;
+    const resolvedAiSummary = options?.aiSummaryOverride ?? aiSummary;
+    const resolvedCounterData = options?.counterDataOverride ?? getCounterData;
+    const resolvedSelectedPeriod = options?.selectedPeriodOverride ?? selectedPeriod;
+    const resolvedSelectedCharts = options?.selectedChartsOverride ?? selectedCharts;
+    const resolvedPeriodData = options?.periodDataOverride ?? periodData;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    doc.setFontSize(24);
+    doc.setTextColor(29, 29, 82);
+    doc.text('Orthodash Practice Report', pageWidth / 2, yPosition, { align: 'center' });
+
+    yPosition += 15;
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
+
+    yPosition += 20;
+
+    doc.setFontSize(16);
+    doc.setTextColor(29, 29, 82);
+    doc.text(`${resolvedReportType.charAt(0).toUpperCase() + resolvedReportType.slice(1)} Report`, 20, yPosition);
+
+    yPosition += 15;
+
+    doc.setFontSize(14);
+    doc.setTextColor(29, 29, 82);
+    doc.text('Practice Overview', 20, yPosition);
+
+    yPosition += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+
+    const counterTableData = [
+      ['Metric', 'Count'],
+      ['Active Tx Patients', String(resolvedCounterData.activeTxPatients ?? 0)],
+      ['New Patients (YTD)', String(resolvedCounterData.newPatientsCreated ?? 0)],
+      ['Case Starts (YTD)', String(resolvedCounterData.caseStarts ?? 0)],
+      ['Active Locations', String(resolvedCounterData.locations ?? 0)]
+    ];
+
+    autoTable(doc, {
+      head: [counterTableData[0]],
+      body: counterTableData.slice(1),
+      startY: yPosition,
+      theme: 'grid',
+      headStyles: { fillColor: [29, 29, 82] },
+      styles: { fontSize: 10 }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+    if (resolvedPeriods.length > 0) {
+      doc.setFontSize(14);
+      doc.setTextColor(29, 29, 82);
+      doc.text('Period Analysis', 20, yPosition);
+
+      yPosition += 10;
+
+      resolvedPeriods.forEach((period, index) => {
+        if (yPosition > pageHeight - 40) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        const currentPeriodData = getPeriodAnalysisData(period);
+        const periodTitle = period.title || `Period ${String.fromCharCode(65 + index)}`;
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text(periodTitle, 20, yPosition);
+
+        yPosition += 8;
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+
+        if (period.startDate && period.endDate) {
+          const startDate = new Date(period.startDate).toLocaleDateString();
+          const endDate = new Date(period.endDate).toLocaleDateString();
+          doc.text(`Date Range: ${startDate} - ${endDate}`, 25, yPosition);
+          yPosition += 6;
+        }
+
+        if (period.locationId && period.locationId !== 'all') {
+          const location = resolvedGreyfinchData?.data?.locations?.find((loc: any) => loc.id === period.locationId);
+          if (location) {
+            doc.text(`Location: ${location.name}`, 25, yPosition);
+            yPosition += 6;
+          }
+        }
+
+        if (currentPeriodData.appointments?.data) {
+          doc.text(`Appointments: ${currentPeriodData.appointments.data.length}`, 25, yPosition);
+          yPosition += 6;
+        }
+
+        if (currentPeriodData.leads?.data) {
+          doc.text(`Leads: ${currentPeriodData.leads.data.length}`, 25, yPosition);
+          yPosition += 6;
+        }
+
+        yPosition += 5;
+      });
+    }
+
+    if (resolvedAcquisitionCosts && resolvedAcquisitionCosts.length > 0) {
+      if (yPosition > pageHeight - 60) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(29, 29, 82);
+      doc.text('Acquisition Costs', 20, yPosition);
+
+      yPosition += 10;
+
+      const costTableData = [
+        ['Period', 'Cost Type', 'Amount', 'Referral Source']
+      ];
+
+      resolvedAcquisitionCosts.forEach((cost: any) => {
+        costTableData.push([
+          cost.period || 'Unknown',
+          cost.type || 'Unknown',
+          `$${cost.amount?.toLocaleString() || '0'}`,
+          cost.source || 'Unknown'
+        ]);
+      });
+
+      autoTable(doc, {
+        head: [costTableData[0]],
+        body: costTableData.slice(1),
+        startY: yPosition,
+        theme: 'grid',
+        headStyles: { fillColor: [29, 29, 82] },
+        styles: { fontSize: 9 }
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    yPosition = addChartsToPDF(doc, yPosition, pageWidth, pageHeight);
+
+    if (resolvedAiSummary) {
+      if (yPosition > pageHeight - 80) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(16);
+      doc.setTextColor(29, 29, 82);
+      doc.text('AI Analysis & Insights', 20, yPosition);
+
+      yPosition += 15;
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+
+      if (resolvedAiSummary.summary) {
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Executive Summary:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        const summaryLines = doc.splitTextToSize(resolvedAiSummary.summary, pageWidth - 40);
+        doc.text(summaryLines, 20, yPosition);
+        yPosition += (summaryLines.length * 6) + 15;
+      }
+
+      if (resolvedAiSummary.insights && resolvedAiSummary.insights.length > 0) {
+        if (yPosition > pageHeight - 60) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Key Performance Indicators:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+
+        resolvedAiSummary.insights.forEach((insight: string, index: number) => {
+          const insightLines = doc.splitTextToSize(`${index + 1}. ${insight}`, pageWidth - 40);
+          doc.text(insightLines, 20, yPosition);
+          yPosition += (insightLines.length * 6) + 3;
+        });
+
+        yPosition += 10;
+      }
+
+      if (resolvedAiSummary.strategicRecommendations && resolvedAiSummary.strategicRecommendations.length > 0) {
+        if (yPosition > pageHeight - 80) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Strategic Recommendations:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+
+        resolvedAiSummary.strategicRecommendations.forEach((rec: string, index: number) => {
+          const recLines = doc.splitTextToSize(`${index + 1}. ${rec}`, pageWidth - 40);
+          doc.text(recLines, 20, yPosition);
+          yPosition += (recLines.length * 6) + 3;
+        });
+
+        yPosition += 10;
+      }
+
+      if (resolvedAiSummary.analysis) {
+        if (yPosition > pageHeight - 80) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Detailed Analysis:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        const analysisLines = doc.splitTextToSize(resolvedAiSummary.analysis, pageWidth - 40);
+        doc.text(analysisLines, 20, yPosition);
+      }
+    }
+
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
+      doc.text('Orthodash Practice Analytics', 20, pageHeight - 10);
+    }
+
+    const fileName = `orthodash-${resolvedReportType}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+
+    return { doc, fileName };
+  }, [reportType, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, selectedPeriod, selectedCharts, periodData]);
+
   // Save report to database - memoized for performance
   const saveReportToDatabase = useCallback(async (reportData: ReportData) => {
     if (!user?.id) {
@@ -331,266 +601,7 @@ export function PDFReportGenerator({
     setIsGenerating(true);
     
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      let yPosition = 20;
-      
-      // Header
-      doc.setFontSize(24);
-      doc.setTextColor(29, 29, 82); // #1d1d52
-      doc.text('Orthodash Practice Report', pageWidth / 2, yPosition, { align: 'center' });
-      
-      yPosition += 15;
-      doc.setFontSize(12);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
-      
-      yPosition += 20;
-      
-      // Report Type Header
-      doc.setFontSize(16);
-      doc.setTextColor(29, 29, 82);
-      doc.text(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`, 20, yPosition);
-      
-      yPosition += 15;
-      
-      // Counter Data Section
-      const counterData = getCounterData;
-      doc.setFontSize(14);
-      doc.setTextColor(29, 29, 82);
-      doc.text('Practice Overview', 20, yPosition);
-      
-      yPosition += 10;
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      
-      const counterTableData = [
-        ['Metric', 'Count'],
-        ['Active Tx Patients', counterData.activeTxPatients.toString()],
-        ['New Patients (YTD)', counterData.newPatientsCreated.toString()],
-        ['Case Starts (YTD)', counterData.caseStarts.toString()],
-        ['Active Locations', counterData.locations.toString()]
-      ];
-      
-      autoTable(doc, {
-        head: [counterTableData[0]],
-        body: counterTableData.slice(1),
-        startY: yPosition,
-        theme: 'grid',
-        headStyles: { fillColor: [29, 29, 82] },
-        styles: { fontSize: 10 }
-      });
-      
-      yPosition = (doc as any).lastAutoTable.finalY + 15;
-      
-      // Period Analysis Section
-      if (periods.length > 0) {
-        doc.setFontSize(14);
-        doc.setTextColor(29, 29, 82);
-        doc.text('Period Analysis', 20, yPosition);
-        
-        yPosition += 10;
-        
-        periods.forEach((period, index) => {
-          if (yPosition > pageHeight - 40) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          const periodData = getPeriodAnalysisData(period);
-          const periodTitle = period.title || `Period ${String.fromCharCode(65 + index)}`;
-          
-          doc.setFontSize(12);
-          doc.setTextColor(29, 29, 82);
-          doc.text(periodTitle, 20, yPosition);
-          
-          yPosition += 8;
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          
-          if (period.startDate && period.endDate) {
-            const startDate = new Date(period.startDate).toLocaleDateString();
-            const endDate = new Date(period.endDate).toLocaleDateString();
-            doc.text(`Date Range: ${startDate} - ${endDate}`, 25, yPosition);
-            yPosition += 6;
-          }
-          
-          if (period.locationId && period.locationId !== 'all') {
-            const location = greyfinchData?.data?.locations?.find((loc: any) => loc.id === period.locationId);
-            if (location) {
-              doc.text(`Location: ${location.name}`, 25, yPosition);
-              yPosition += 6;
-            }
-          }
-          
-          // Period-specific metrics
-          if (periodData.appointments?.data) {
-            const appointmentCount = periodData.appointments.data.length;
-            doc.text(`Appointments: ${appointmentCount}`, 25, yPosition);
-            yPosition += 6;
-          }
-          
-          if (periodData.leads?.data) {
-            const leadCount = periodData.leads.data.length;
-            doc.text(`Leads: ${leadCount}`, 25, yPosition);
-            yPosition += 6;
-          }
-          
-          yPosition += 5;
-        });
-      }
-      
-      // Acquisition Costs Section
-      if (acquisitionCosts && acquisitionCosts.length > 0) {
-        if (yPosition > pageHeight - 60) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        
-        doc.setFontSize(14);
-        doc.setTextColor(29, 29, 82);
-        doc.text('Acquisition Costs', 20, yPosition);
-        
-        yPosition += 10;
-        
-        const costTableData = [
-          ['Period', 'Cost Type', 'Amount', 'Referral Source']
-        ];
-        
-        acquisitionCosts.forEach((cost: any) => {
-          costTableData.push([
-            cost.period || 'Unknown',
-            cost.type || 'Unknown',
-            `$${cost.amount?.toLocaleString() || '0'}`,
-            cost.source || 'Unknown'
-          ]);
-        });
-        
-        autoTable(doc, {
-          head: [costTableData[0]],
-          body: costTableData.slice(1),
-          startY: yPosition,
-          theme: 'grid',
-          headStyles: { fillColor: [29, 29, 82] },
-          styles: { fontSize: 9 }
-        });
-        
-        yPosition = (doc as any).lastAutoTable.finalY + 15;
-      }
-      
-      // Add Charts Section
-      yPosition = addChartsToPDF(doc, yPosition, pageWidth, pageHeight);
-      
-      // AI Summary Section
-      if (aiSummary) {
-        if (yPosition > pageHeight - 80) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        
-        doc.setFontSize(16);
-        doc.setTextColor(29, 29, 82);
-        doc.text('AI Analysis & Insights', 20, yPosition);
-        
-        yPosition += 15;
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        
-        // Executive Summary
-        if (aiSummary.summary) {
-          doc.setFontSize(12);
-          doc.setTextColor(29, 29, 82);
-          doc.text('Executive Summary:', 20, yPosition);
-          yPosition += 8;
-          
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          const summaryLines = doc.splitTextToSize(aiSummary.summary, pageWidth - 40);
-          doc.text(summaryLines, 20, yPosition);
-          yPosition += (summaryLines.length * 6) + 15;
-        }
-        
-        // Key Performance Indicators
-        if (aiSummary.insights && aiSummary.insights.length > 0) {
-          if (yPosition > pageHeight - 60) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          doc.setFontSize(12);
-          doc.setTextColor(29, 29, 82);
-          doc.text('Key Performance Indicators:', 20, yPosition);
-          yPosition += 8;
-          
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          
-          aiSummary.insights.forEach((insight: string, index: number) => {
-            const insightLines = doc.splitTextToSize(`${index + 1}. ${insight}`, pageWidth - 40);
-            doc.text(insightLines, 20, yPosition);
-            yPosition += (insightLines.length * 6) + 3;
-          });
-          
-          yPosition += 10;
-        }
-        
-        // Strategic Recommendations
-        if (aiSummary.strategicRecommendations && aiSummary.strategicRecommendations.length > 0) {
-          if (yPosition > pageHeight - 80) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          doc.setFontSize(12);
-          doc.setTextColor(29, 29, 82);
-          doc.text('Strategic Recommendations:', 20, yPosition);
-          yPosition += 8;
-          
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          
-          aiSummary.strategicRecommendations.forEach((rec: string, index: number) => {
-            const recLines = doc.splitTextToSize(`${index + 1}. ${rec}`, pageWidth - 40);
-            doc.text(recLines, 20, yPosition);
-            yPosition += (recLines.length * 6) + 3;
-          });
-          
-          yPosition += 10;
-        }
-        
-        // Additional Analysis (if available)
-        if (aiSummary.analysis) {
-          if (yPosition > pageHeight - 80) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          doc.setFontSize(12);
-          doc.setTextColor(29, 29, 82);
-          doc.text('Detailed Analysis:', 20, yPosition);
-          yPosition += 8;
-          
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          const analysisLines = doc.splitTextToSize(aiSummary.analysis, pageWidth - 40);
-          doc.text(analysisLines, 20, yPosition);
-          yPosition += (analysisLines.length * 6) + 10;
-        }
-      }
-      
-      // Footer
-      const totalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
-        doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
-        doc.text('Orthodash Practice Analytics', 20, pageHeight - 10);
-      }
-      
-      // Download PDF
-      const fileName = `orthodash-${reportType}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      const { doc, fileName } = buildPdfDocument();
       doc.save(fileName);
 
       if (!skipHistory) {
@@ -605,7 +616,10 @@ export function PDFReportGenerator({
             periods,
             acquisitionCosts,
             aiSummary,
-            counterData: getCounterData
+            counterData: getCounterData,
+            selectedPeriod,
+            selectedCharts,
+            periodData,
           }
         };
 
@@ -638,14 +652,39 @@ export function PDFReportGenerator({
     } finally {
       setIsGenerating(false);
     }
-  }, [reportType, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, onSaveReport, saveReportToDatabase, toast]);
+  }, [buildPdfDocument, reportType, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, onSaveReport, periodData, saveReportToDatabase, selectedCharts, selectedPeriod, toast]);
 
   // View generated report - memoized for performance
   const viewReport = useCallback((report: ReportData) => {
-    // For now, just show the report data in console
-    // In a real implementation, this could open a modal or new tab
-    console.log('Viewing report:', report);
-  }, []);
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+      toast({
+        title: "Preview Blocked",
+        description: "Allow pop-ups to open the PDF preview in a new tab.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    previewWindow.document.title = report.title;
+    previewWindow.document.body.innerHTML = '<div style="font-family: system-ui; padding: 24px;">Preparing PDF preview...</div>';
+
+    const { doc } = buildPdfDocument({
+      reportTypeOverride: report.type,
+      greyfinchDataOverride: report.data.greyfinchData,
+      periodsOverride: report.data.periods,
+      acquisitionCostsOverride: report.data.acquisitionCosts,
+      aiSummaryOverride: report.data.aiSummary,
+      counterDataOverride: report.data.counterData,
+      selectedPeriodOverride: report.data.selectedPeriod,
+      selectedChartsOverride: report.data.selectedCharts,
+      periodDataOverride: report.data.periodData,
+    });
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    previewWindow.location.href = url;
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }, [buildPdfDocument, toast]);
 
   // Delete generated report - memoized for performance
   const deleteReport = useCallback((reportId: string) => {
@@ -690,15 +729,17 @@ export function PDFReportGenerator({
 
             <Button
               onClick={() => generatePDF()}
-              disabled={isGenerating}
+              disabled={isGenerating || isDataFetching}
               className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
             >
               {isGenerating ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : isDataFetching ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              {isGenerating ? 'Generating...' : 'Generate PDF'}
+              {isGenerating ? 'Generating...' : isDataFetching ? 'Data Refreshing...' : 'Generate PDF'}
             </Button>
               </div>
           
@@ -750,6 +791,7 @@ export function PDFReportGenerator({
                         setReportType(report.type);
                         setTimeout(() => generatePDF(true), 100);
                       }}
+                      disabled={isDataFetching || isGenerating}
                     >
                       <Download className="h-4 w-4 mr-1" />
                       Download
@@ -783,33 +825,49 @@ export function PDFReportGenerator({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-3 bg-blue-50 rounded-lg">
               <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-blue-900">
-                {getCounterData.activeTxPatients || 0}
-              </p>
+              {isDataFetching ? (
+                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-blue-100" />
+              ) : (
+                <p className="text-2xl font-bold text-blue-900">
+                  {getCounterData.activeTxPatients || 0}
+                </p>
+              )}
               <p className="text-sm text-blue-700">Active Patients</p>
             </div>
 
             <div className="text-center p-3 bg-green-50 rounded-lg">
               <Calendar className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-green-900">
-                {getCounterData.newPatientsCreated || 0}
-              </p>
+              {isDataFetching ? (
+                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-green-100" />
+              ) : (
+                <p className="text-2xl font-bold text-green-900">
+                  {getCounterData.newPatientsCreated || 0}
+                </p>
+              )}
               <p className="text-sm text-green-700">New Patients YTD</p>
             </div>
 
             <div className="text-center p-3 bg-purple-50 rounded-lg">
               <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-purple-900">
-                {getCounterData.caseStarts || 0}
-              </p>
+              {isDataFetching ? (
+                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-purple-100" />
+              ) : (
+                <p className="text-2xl font-bold text-purple-900">
+                  {getCounterData.caseStarts || 0}
+                </p>
+              )}
               <p className="text-sm text-purple-700">Case Starts YTD</p>
         </div>
 
             <div className="text-center p-3 bg-orange-50 rounded-lg">
               <DollarSign className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-orange-900">
-                {periods.length}
-              </p>
+              {isDataFetching ? (
+                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-orange-100" />
+              ) : (
+                <p className="text-2xl font-bold text-orange-900">
+                  {periods.length}
+                </p>
+              )}
               <p className="text-sm text-orange-700">Analysis Periods</p>
             </div>
         </div>

@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, RefreshCw, MapPin, Database, Users, Calendar, DollarSign, BookOpen } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Location as DashboardLocation } from '@/shared/types';
 
 interface Location {
@@ -27,13 +27,23 @@ interface DataCounts {
   [key: string]: number | undefined;
 }
 
+interface MetricCardDefinition {
+  key: keyof DataCounts;
+  label: string;
+  tooltip: string;
+  icon: typeof Users;
+  iconClassName: string;
+}
+
 interface LocationsManagerProps {
   greyfinchData?: any;
   dashboardLocations?: DashboardLocation[];
   isRefreshingGreyfinchData?: boolean;
   onGreyfinchDataUpdate?: (data: any) => void;
   onRefreshGreyfinchData?: () => Promise<boolean>;
+  initialCounts?: DataCounts;
   onCountsUpdate?: (counts: DataCounts) => void;
+  onDataLoadingChange?: (isLoading: boolean) => void;
 }
 
 // Dynamic connection status component - updated for production deployment
@@ -43,40 +53,81 @@ export function LocationsManager({
   isRefreshingGreyfinchData = false,
   onGreyfinchDataUpdate,
   onRefreshGreyfinchData,
+  initialCounts,
   onCountsUpdate,
+  onDataLoadingChange,
 }: LocationsManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
-  const [dataCounts, setDataCounts] = useState<DataCounts>({});
+  const [dataCounts, setDataCounts] = useState<DataCounts>(initialCounts ?? {});
+  const [hasLoadedCounts, setHasLoadedCounts] = useState(Boolean(initialCounts && Object.keys(initialCounts).length > 0));
   const [lastPullTime, setLastPullTime] = useState<string | null>(null);
   const [connectionChecked, setConnectionChecked] = useState(false);
 
-  const fetchCounts = useCallback(async () => {
+  const metricCards: MetricCardDefinition[] = [
+    {
+      key: 'patients',
+      label: 'Patients',
+      tooltip: 'Active treatment patients from the Greyfinch Practice Monitor report, year to date.',
+      icon: Users,
+      iconClassName: 'text-blue-500',
+    },
+    {
+      key: 'locations',
+      label: 'Locations',
+      tooltip: 'Practice locations currently available in Greyfinch for this dashboard.',
+      icon: MapPin,
+      iconClassName: 'text-green-500',
+    },
+    {
+      key: 'appointments',
+      label: 'Appointments',
+      tooltip: 'Total completed appointments from the Greyfinch Practice Efficiency report, year to date.',
+      icon: Calendar,
+      iconClassName: 'text-purple-500',
+    },
+    {
+      key: 'leads',
+      label: 'Leads',
+      tooltip: 'Total prospects currently counted in Greyfinch leads data.',
+      icon: DollarSign,
+      iconClassName: 'text-orange-500',
+    },
+    {
+      key: 'bookings',
+      label: 'Bookings',
+      tooltip: 'Placeholder metric. Booking definition is still being finalized.',
+      icon: BookOpen,
+      iconClassName: 'text-red-500',
+    },
+  ];
+
+  const fetchCounts = useCallback(async (refresh = false) => {
     setIsLoadingCounts(true);
     try {
-      const [liveRes, countsRes] = await Promise.all([
-        fetch('/api/greyfinch/live-counts'),
-        fetch('/api/greyfinch/counts'),
-      ]);
-      const [liveJson, countsJson] = await Promise.all([liveRes.json(), countsRes.json()]);
+      const liveRes = await fetch(`/api/greyfinch/live-counts${refresh ? '?refresh=true' : ''}`);
+      const liveJson = await liveRes.json();
       const counts: DataCounts = {};
       if (liveJson.success && liveJson.data) {
         counts.patients = liveJson.data.activeTxPatients ?? undefined;
-      }
-      if (countsJson.success && countsJson.data) {
-        counts.leads = countsJson.data.leads ?? undefined;
-        counts.appointments = countsJson.data.appointments ?? undefined;
+        counts.locations = liveJson.data.locations ?? undefined;
+        counts.appointments = liveJson.data.newPatExams ?? undefined;
+        counts.leads = liveJson.data.leads ?? undefined;
+        counts.bookings = liveJson.data.startApptCompleted ?? undefined;
+        counts.activeTxPatients = liveJson.data.activeTxPatients ?? undefined;
+        counts.newPatientsCreated = liveJson.data.newPatientsCreated ?? undefined;
+        counts.caseStarts = liveJson.data.caseStarts ?? undefined;
       }
       setDataCounts(prev => ({ ...prev, ...counts }));
       onCountsUpdate?.(counts);
     } catch (err) {
       console.error('Failed to load Greyfinch live counts:', err);
     } finally {
+      setHasLoadedCounts(true);
       setIsLoadingCounts(false);
     }
   }, [onCountsUpdate]);
@@ -85,6 +136,7 @@ export function LocationsManager({
     if (!user?.id) {
       setIsConnected(false);
       setConnectionChecked(false);
+      setHasLoadedCounts(false);
       return;
     }
 
@@ -107,10 +159,14 @@ export function LocationsManager({
 
   // Fire counts as soon as the user is authenticated — don't gate on greyfinchData
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !hasLoadedCounts) {
       void fetchCounts();
     }
-  }, [user?.id, fetchCounts]);
+  }, [user?.id, hasLoadedCounts, fetchCounts]);
+
+  useEffect(() => {
+    onDataLoadingChange?.(isRefreshingGreyfinchData || isLoading || isLoadingCounts);
+  }, [isRefreshingGreyfinchData, isLoading, isLoadingCounts, onDataLoadingChange]);
 
   useEffect(() => {
     if (!greyfinchData?.data) {
@@ -228,9 +284,15 @@ export function LocationsManager({
       });
       return;
     }
+
+    if (isLoading || isLoadingCounts || isRefreshingGreyfinchData) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       await checkConnectionAndFetchLocations();
+      await fetchCounts(true);
       setLastPullTime(new Date().toLocaleString());
       
       console.log('✅ Comprehensive data refresh completed successfully')
@@ -245,38 +307,46 @@ export function LocationsManager({
     } finally {
       setIsLoading(false);
     }
-  }, [checkConnectionAndFetchLocations, toast, user?.id]);
+  }, [checkConnectionAndFetchLocations, fetchCounts, isLoading, isLoadingCounts, isRefreshingGreyfinchData, toast, user?.id]);
 
   // Memoize data counts display for performance
+  const showCountsSkeleton = !hasLoadedCounts || isLoadingCounts || isRefreshingGreyfinchData;
+
   const dataCountsDisplay = useMemo(() => (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-        <Users className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.patients || 0}</div>
-        <div className="text-sm text-gray-600">Patients</div>
-      </div>
-      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-        <MapPin className="h-8 w-8 mx-auto mb-2 text-green-500" />
-        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.locations || 0}</div>
-        <div className="text-sm text-gray-600">Locations</div>
-      </div>
-      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-        <Calendar className="h-8 w-8 mx-auto mb-2 text-purple-500" />
-        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.appointments || 0}</div>
-        <div className="text-sm text-gray-600">Appointments</div>
-      </div>
-      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-        <DollarSign className="h-8 w-8 mx-auto mb-2 text-orange-500" />
-        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.leads || 0}</div>
-        <div className="text-sm text-gray-600">Leads</div>
-      </div>
-      <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
-        <BookOpen className="h-8 w-8 mx-auto mb-2 text-red-500" />
-        <div className="text-2xl font-bold text-[#1C1F4F]">{dataCounts.bookings || 0}</div>
-        <div className="text-sm text-gray-600">Bookings</div>
-      </div>
+      {metricCards.map((card) => {
+        const Icon = card.icon;
+
+        return (
+          <Tooltip key={card.key}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-center p-4 bg-white border border-gray-200 rounded-lg transition-colors hover:border-[#1C1F4F]/30 hover:bg-gray-50"
+              >
+                <Icon className={`h-8 w-8 mx-auto mb-2 ${card.iconClassName}`} />
+                {showCountsSkeleton ? (
+                  <Skeleton className="mx-auto mb-2 h-9 w-16 bg-gray-200" />
+                ) : (
+                  <div className="text-2xl font-bold text-[#1C1F4F]">
+                    {card.key === 'bookings' ? (
+                      <span className="inline-flex items-center rounded-full bg-[#1C1F4F]/8 px-3 py-1 text-sm font-semibold tracking-[0.2em] text-[#1C1F4F]/60">
+                        TBD
+                      </span>
+                    ) : (dataCounts[card.key] || 0)}
+                  </div>
+                )}
+                <div className="text-sm text-gray-600">{card.label}</div>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-56 text-center">
+              {card.tooltip}
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
     </div>
-  ), [dataCounts]);
+  ), [dataCounts, metricCards, showCountsSkeleton]);
 
   return (
     <div className="space-y-6">
@@ -310,11 +380,11 @@ export function LocationsManager({
           {/* Pull Data Button */}
           <Button
             onClick={handlePullAllData}
-            disabled={isLoading || isRefreshingGreyfinchData || !isConnected}
+            disabled={isLoading || isLoadingCounts || isRefreshingGreyfinchData || !isConnected}
             className="w-full bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            {isLoading || isRefreshingGreyfinchData ? 'Refreshing Data...' : 'Pull All Data'}
+            {isLoading || isLoadingCounts || isRefreshingGreyfinchData ? 'Refreshing Data...' : 'Pull All Data'}
           </Button>
 
 
@@ -371,30 +441,11 @@ export function LocationsManager({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    {location.isActive ? (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`location-${location.id}`}
-                          checked={selectedLocations.includes(location.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedLocations(prev => [...prev, location.id]);
-                            } else {
-                              setSelectedLocations(prev => prev.filter(id => id !== location.id));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`location-${location.id}`} className="text-sm text-gray-600">
-                          Use
-                        </Label>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-500 px-3 py-1 bg-gray-100 rounded">
-                        Unavailable
-                      </div>
-                    )}
-                  </div>
+                  {!location.isActive && (
+                    <div className="text-sm text-gray-500 px-3 py-1 bg-gray-100 rounded">
+                      Unavailable
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -403,25 +454,6 @@ export function LocationsManager({
               <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No locations found</p>
               <p className="text-sm">Connect to Greyfinch API to load your practice locations</p>
-            </div>
-          )}
-          
-          {/* Selection Summary */}
-          {locations.length > 0 && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-900">
-                    {selectedLocations.length} of {locations.length} locations selected
-                  </span>
-                </div>
-                {selectedLocations.length > 0 && (
-                  <div className="text-xs text-blue-700">
-                    {selectedLocations.map(id => locations.find(l => l.id === id)?.name).filter(Boolean).join(', ')}
-                  </div>
-                )}
-              </div>
             </div>
           )}
         </CardContent>

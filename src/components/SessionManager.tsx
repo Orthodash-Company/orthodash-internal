@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Download, FileText, BarChart3, TrendingUp, Users, DollarSign, Clock, Target, Save, FolderOpen, Trash2 } from 'lucide-react';
+import { Download, Eye, FileText, BarChart3, TrendingUp, Users, DollarSign, Clock, Target, Save, FolderOpen, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -20,6 +20,12 @@ interface SessionManagerProps {
   locations: any[];
   greyfinchData: any;
   user: any;
+  initialSessions?: Session[];
+  initialReports?: Report[];
+  hasLoadedInitialData?: boolean;
+  onSessionsChange?: (sessions: Session[]) => void;
+  onReportsChange?: (reports: Report[]) => void;
+  onInitialDataLoaded?: () => void;
 }
 
 interface Session {
@@ -47,9 +53,24 @@ interface Report {
   createdAt: string;
 }
 
-export function SessionManager({ periods, locations, greyfinchData, user }: SessionManagerProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
+export function SessionManager({
+  periods,
+  locations,
+  greyfinchData,
+  user,
+  initialSessions = [],
+  initialReports = [],
+  hasLoadedInitialData = false,
+  onSessionsChange,
+  onReportsChange,
+  onInitialDataLoaded,
+}: SessionManagerProps) {
+  const SESSIONS_PER_PAGE = 5;
+  const REPORTS_PER_PAGE = 5;
+  const [sessions, setSessions] = useState<Session[]>(initialSessions);
+  const [reports, setReports] = useState<Report[]>(initialReports);
+  const [sessionPage, setSessionPage] = useState(1);
+  const [reportPage, setReportPage] = useState(1);
   const [newSession, setNewSession] = useState({
     name: '',
     description: '',
@@ -61,9 +82,74 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
   });
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [reportActionId, setReportActionId] = useState<string | null>(null);
   
   const { toast } = useToast();
   const { user: authUser } = useAuth();
+
+  const sortedSessions = useMemo(
+    () => [...sessions].sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()),
+    [sessions]
+  );
+
+  const totalSessionPages = Math.max(1, Math.ceil(sortedSessions.length / SESSIONS_PER_PAGE));
+  const visibleSessions = useMemo(() => {
+    const startIndex = (sessionPage - 1) * SESSIONS_PER_PAGE;
+    return sortedSessions.slice(startIndex, startIndex + SESSIONS_PER_PAGE);
+  }, [sessionPage, sortedSessions]);
+  const sessionPageItems = useMemo(() => {
+    if (totalSessionPages <= 7) {
+      return Array.from({ length: totalSessionPages }, (_, index) => index + 1);
+    }
+
+    const pages = new Set<number>([1, totalSessionPages, sessionPage - 1, sessionPage, sessionPage + 1]);
+    const filteredPages = Array.from(pages)
+      .filter((page) => page >= 1 && page <= totalSessionPages)
+      .sort((a, b) => a - b);
+
+    const items: Array<number | 'ellipsis'> = [];
+
+    filteredPages.forEach((page, index) => {
+      const previousPage = filteredPages[index - 1];
+      if (previousPage && page - previousPage > 1) {
+        items.push('ellipsis');
+      }
+      items.push(page);
+    });
+
+    return items;
+  }, [sessionPage, totalSessionPages]);
+  const sortedReports = useMemo(
+    () => [...reports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [reports]
+  );
+  const totalReportPages = Math.max(1, Math.ceil(sortedReports.length / REPORTS_PER_PAGE));
+  const visibleReports = useMemo(() => {
+    const startIndex = (reportPage - 1) * REPORTS_PER_PAGE;
+    return sortedReports.slice(startIndex, startIndex + REPORTS_PER_PAGE);
+  }, [reportPage, sortedReports]);
+  const reportPageItems = useMemo(() => {
+    if (totalReportPages <= 7) {
+      return Array.from({ length: totalReportPages }, (_, index) => index + 1);
+    }
+
+    const pages = new Set<number>([1, totalReportPages, reportPage - 1, reportPage, reportPage + 1]);
+    const filteredPages = Array.from(pages)
+      .filter((page) => page >= 1 && page <= totalReportPages)
+      .sort((a, b) => a - b);
+
+    const items: Array<number | 'ellipsis'> = [];
+
+    filteredPages.forEach((page, index) => {
+      const previousPage = filteredPages[index - 1];
+      if (previousPage && page - previousPage > 1) {
+        items.push('ellipsis');
+      }
+      items.push(page);
+    });
+
+    return items;
+  }, [reportPage, totalReportPages]);
 
   const normalizeSession = (session: any): Session => ({
     ...session,
@@ -75,6 +161,14 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
         : [],
   });
 
+  useEffect(() => {
+    setSessions(initialSessions);
+  }, [initialSessions]);
+
+  useEffect(() => {
+    setReports(initialReports);
+  }, [initialReports]);
+
   // Load existing sessions and reports
   useEffect(() => {
     if (!authUser?.id) {
@@ -83,9 +177,11 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
       return;
     }
 
-    loadSessions();
-    loadReports();
-  }, [authUser?.id]);
+    if (!hasLoadedInitialData) {
+      loadSessions();
+      loadReports();
+    }
+  }, [authUser?.id, hasLoadedInitialData]);
 
   // Auto-create session when data changes
   useEffect(() => {
@@ -94,12 +190,23 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
     }
   }, [authUser?.id, periods, greyfinchData]);
 
+  useEffect(() => {
+    setSessionPage((currentPage) => Math.min(currentPage, totalSessionPages));
+  }, [totalSessionPages]);
+
+  useEffect(() => {
+    setReportPage((currentPage) => Math.min(currentPage, totalReportPages));
+  }, [totalReportPages]);
+
   const loadSessions = async () => {
     try {
       const response = await fetch('/api/sessions');
       if (response.ok) {
         const data = await response.json();
-        setSessions((data.sessions || []).map(normalizeSession));
+        const nextSessions = (data.sessions || []).map(normalizeSession);
+        setSessions(nextSessions);
+        onSessionsChange?.(nextSessions);
+        onInitialDataLoaded?.();
       }
     } catch (error) {
       console.error('Error loading sessions:', error);
@@ -111,7 +218,10 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
       const response = await fetch('/api/reports');
       if (response.ok) {
         const data = await response.json();
-        setReports(data.reports || []);
+        const nextReports = data.reports || [];
+        setReports(nextReports);
+        onReportsChange?.(nextReports);
+        onInitialDataLoaded?.();
       }
     } catch (error) {
       console.error('Error loading reports:', error);
@@ -155,7 +265,11 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
       if (response.ok) {
         const createdSession = await response.json();
-        setSessions(prev => [...prev, normalizeSession(createdSession.session)]);
+        setSessions(prev => {
+          const nextSessions = [...prev, normalizeSession(createdSession.session)];
+          onSessionsChange?.(nextSessions);
+          return nextSessions;
+        });
         console.log('✅ Auto-created session:', createdSession.session.name);
       }
     } catch (error) {
@@ -178,9 +292,13 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
       if (response.ok) {
         const updatedSession = await response.json();
-        setSessions(prev => prev.map(s => 
-          s.id === sessionId ? normalizeSession(updatedSession.session) : s
-        ));
+        setSessions(prev => {
+          const nextSessions = prev.map(s => 
+            s.id === sessionId ? normalizeSession(updatedSession.session) : s
+          );
+          onSessionsChange?.(nextSessions);
+          return nextSessions;
+        });
         console.log('✅ Updated existing session:', updatedSession.session.name);
       }
     } catch (error) {
@@ -228,7 +346,11 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
       if (response.ok) {
         const createdSession = await response.json();
-        setSessions(prev => [...prev, normalizeSession(createdSession.session)]);
+        setSessions(prev => {
+          const nextSessions = [...prev, normalizeSession(createdSession.session)];
+          onSessionsChange?.(nextSessions);
+          return nextSessions;
+        });
         
         // Reset form
         setNewSession({
@@ -284,7 +406,11 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
 
       if (response.ok) {
         const createdReport = await response.json();
-        setReports(prev => [...prev, createdReport.report]);
+        setReports(prev => {
+          const nextReports = [...prev, createdReport.report];
+          onReportsChange?.(nextReports);
+          return nextReports;
+        });
         
         toast({
           title: "Report Generated",
@@ -312,7 +438,11 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
       });
 
       if (response.ok) {
-        setSessions(prev => prev.filter(s => s.id !== sessionId));
+        setSessions(prev => {
+          const nextSessions = prev.filter(s => s.id !== sessionId);
+          onSessionsChange?.(nextSessions);
+          return nextSessions;
+        });
         toast({
           title: "Session Deleted",
           description: "The session has been removed successfully.",
@@ -327,6 +457,116 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
       });
     }
   };
+
+  const fetchReportPdf = useCallback(async (reportId: string) => {
+    const response = await fetch(`/api/reports/${reportId}`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate report PDF');
+    }
+
+    return response.blob();
+  }, []);
+
+  const handleViewReport = useCallback(async (report: Report) => {
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+      toast({
+        title: "Preview Blocked",
+        description: "Allow pop-ups to open the report preview in a new tab.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    previewWindow.document.title = report.name;
+    previewWindow.document.body.innerHTML = '<div style="font-family: system-ui; padding: 24px;">Preparing report preview...</div>';
+
+    setReportActionId(report.id);
+    try {
+      const blob = await fetchReportPdf(report.id);
+      const url = window.URL.createObjectURL(blob);
+      previewWindow.location.href = url;
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      previewWindow.close();
+      console.error('Error previewing report:', error);
+      toast({
+        title: "Preview Failed",
+        description: "Unable to open the report preview.",
+        variant: "destructive",
+      });
+    } finally {
+      setReportActionId(null);
+    }
+  }, [fetchReportPdf, toast]);
+
+  const handleExportReport = useCallback(async (report: Report) => {
+    setReportActionId(report.id);
+    try {
+      const blob = await fetchReportPdf(report.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${report.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'orthodash-report'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Report Exported",
+        description: "Your report PDF has been downloaded.",
+      });
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      toast({
+        title: "Export Failed",
+        description: "Unable to export the report PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setReportActionId(null);
+    }
+  }, [fetchReportPdf, toast]);
+
+  const handleDeleteReport = useCallback(async (reportId: string) => {
+    if (!window.confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
+      return;
+    }
+
+    setReportActionId(reportId);
+    try {
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete report');
+      }
+
+      setReports((prev) => {
+        const nextReports = prev.filter((report) => report.id !== reportId);
+        onReportsChange?.(nextReports);
+        return nextReports;
+      });
+      toast({
+        title: "Report Deleted",
+        description: "The report has been removed successfully.",
+      });
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Unable to delete the report.",
+        variant: "destructive",
+      });
+    } finally {
+      setReportActionId(null);
+    }
+  }, [toast]);
 
   const togglePeriod = (periodId: string) => {
     setNewSession(prev => ({
@@ -358,7 +598,7 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
         {/* Sessions Tab */}
         <TabsContent value="sessions" className="space-y-4">
           <div className="grid gap-4">
-            {sessions.map((session) => (
+            {visibleSessions.map((session) => (
               <Card key={session.id} className="p-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-2">
@@ -416,7 +656,53 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
                 </div>
               </Card>
             ))}
-            {sessions.length === 0 && (
+            {totalSessionPages > 1 && (
+              <div className="flex justify-center items-center gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSessionPage((page) => Math.max(1, page - 1))}
+                  disabled={sessionPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {sessionPageItems.map((item, index) => {
+                    if (item === 'ellipsis') {
+                      return (
+                        <span key={`ellipsis-${index}`} className="px-1 text-sm text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <Button
+                        key={item}
+                        type="button"
+                        variant={sessionPage === item ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setSessionPage(item)}
+                        className="min-w-9"
+                      >
+                        {item}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSessionPage((page) => Math.min(totalSessionPages, page + 1))}
+                  disabled={sessionPage === totalSessionPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+            {sortedSessions.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <FolderOpen className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                 <p>No sessions created yet</p>
@@ -429,7 +715,7 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
         {/* Reports Tab */}
         <TabsContent value="reports" className="space-y-4">
           <div className="grid gap-4">
-            {reports.map((report) => (
+            {visibleReports.map((report) => (
               <Card key={report.id} className="p-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-2">
@@ -443,14 +729,84 @@ export function SessionManager({ periods, locations, greyfinchData, user }: Sess
                       </span>
                     </div>
                   </div>
-                  <Button size="sm" variant="outline">
-                    <Download className="h-4 w-4 mr-1" />
-                    Export
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleViewReport(report)}
+                      disabled={reportActionId === report.id}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleExportReport(report)}
+                      disabled={reportActionId === report.id}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Export
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDeleteReport(report.id)}
+                      disabled={reportActionId === report.id}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
-            {reports.length === 0 && (
+            {totalReportPages > 1 && (
+              <div className="flex justify-center items-center gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReportPage((page) => Math.max(1, page - 1))}
+                  disabled={reportPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {reportPageItems.map((item, index) => {
+                    if (item === 'ellipsis') {
+                      return (
+                        <span key={`report-ellipsis-${index}`} className="px-1 text-sm text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <Button
+                        key={item}
+                        type="button"
+                        variant={reportPage === item ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setReportPage(item)}
+                        className="min-w-9"
+                      >
+                        {item}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReportPage((page) => Math.min(totalReportPages, page + 1))}
+                  disabled={reportPage === totalReportPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+            {sortedReports.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                 <p>No reports generated yet</p>

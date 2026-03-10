@@ -11,6 +11,13 @@ import { Plus, X, Edit3, Calendar, MapPin, Save, Minus } from "lucide-react";
 import { format } from "date-fns";
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 
+interface PeriodDraft {
+  startDate: Date;
+  endDate: Date;
+  locationId: string;
+  locationIds: string[];
+}
+
 interface HorizontalFixedColumnLayoutProps {
   periods: PeriodConfig[];
   locations: Location[];
@@ -30,6 +37,7 @@ export function HorizontalFixedColumnLayout({
 }: HorizontalFixedColumnLayoutProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
+  const [periodDrafts, setPeriodDrafts] = useState<Record<string, PeriodDraft>>({});
   const [periodCosts, setPeriodCosts] = useState<Record<string, CompactCost[]>>({});
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
@@ -42,6 +50,58 @@ export function HorizontalFixedColumnLayout({
       });
     }
   }, [periods.length]);
+
+  const createDraftFromPeriod = (period: PeriodConfig): PeriodDraft => ({
+    startDate: new Date(period.startDate),
+    endDate: new Date(period.endDate),
+    locationId: period.locationId,
+    locationIds: [...(period.locationIds || [])],
+  });
+
+  const setPeriodEditing = (period: PeriodConfig, isEditing: boolean) => {
+    setEditingPeriods((prev) => {
+      const next = new Set(prev);
+      if (isEditing) {
+        next.add(period.id);
+      } else {
+        next.delete(period.id);
+      }
+      return next;
+    });
+
+    setPeriodDrafts((prev) => ({
+      ...(isEditing ? prev : Object.fromEntries(Object.entries(prev).filter(([id]) => id !== period.id))),
+      ...(isEditing ? { [period.id]: createDraftFromPeriod(period) } : {}),
+    }));
+  };
+
+  const updatePeriodDraft = (periodId: string, updates: Partial<PeriodDraft>) => {
+    setPeriodDrafts((prev) => {
+      const current = prev[periodId];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [periodId]: {
+          ...current,
+          ...updates,
+        },
+      };
+    });
+  };
+
+  const getLocationSummary = (period: PeriodConfig) => {
+    const selectedIds = (period.locationIds || []).filter(Boolean);
+
+    if (selectedIds.length === 0 || selectedIds.length === locations.length) {
+      return "All Locations";
+    }
+
+    if (selectedIds.length === 1) {
+      return locations.find((loc) => loc.id.toString() === selectedIds[0])?.name || "All Locations";
+    }
+
+    return `${selectedIds.length} locations`;
+  };
 
   // Handle direct period addition
   const handleDirectAddPeriod = () => {
@@ -149,8 +209,8 @@ export function HorizontalFixedColumnLayout({
       >
         {periods.map((period, index) => {
           const query = periodQueries[index];
-          const location = locations.find(l => l.id.toString() === period.locationId);
           const periodCostsList = periodCosts[period.id] || [];
+          const periodDraft = periodDrafts[period.id] || createDraftFromPeriod(period);
           
           return (
             <div 
@@ -173,13 +233,7 @@ export function HorizontalFixedColumnLayout({
                         size="sm"
                         className={`h-8 w-8 p-0 ${editingPeriods.has(period.id) ? 'text-orange-600 bg-orange-50' : 'text-gray-500 hover:text-[#1d1d52] hover:bg-gray-100'}`}
                         onClick={() => {
-                          const newEditingPeriods = new Set(editingPeriods);
-                          if (editingPeriods.has(period.id)) {
-                            newEditingPeriods.delete(period.id);
-                          } else {
-                            newEditingPeriods.add(period.id);
-                          }
-                          setEditingPeriods(newEditingPeriods);
+                          setPeriodEditing(period, !editingPeriods.has(period.id));
                         }}
                       >
                         <Edit3 className="h-4 w-4" />
@@ -215,16 +269,7 @@ export function HorizontalFixedColumnLayout({
                       <Calendar className="h-4 w-4" />
                       <button
                         onClick={() => {
-                          // Toggle edit mode for this period
-                          setEditingPeriods(prev => {
-                            const newSet = new Set(prev);
-                            if (newSet.has(period.id)) {
-                              newSet.delete(period.id);
-                            } else {
-                              newSet.add(period.id);
-                            }
-                            return newSet;
-                          });
+                          setPeriodEditing(period, !editingPeriods.has(period.id));
                         }}
                         className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
                         title="Click to edit date range"
@@ -240,21 +285,12 @@ export function HorizontalFixedColumnLayout({
                       <MapPin className="h-4 w-4" />
                       <button
                         onClick={() => {
-                          // Toggle edit mode for this period to show location selector
-                          setEditingPeriods(prev => {
-                            const newSet = new Set(prev);
-                            if (newSet.has(period.id)) {
-                              newSet.delete(period.id);
-                            } else {
-                              newSet.add(period.id);
-                            }
-                            return newSet;
-                          });
+                          setPeriodEditing(period, !editingPeriods.has(period.id));
                         }}
                         className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
                         title="Click to select locations"
                       >
-                        {location?.name || 'All Locations'}
+                        {getLocationSummary(period)}
                       </button>
                     </div>
                   </div>
@@ -272,15 +308,15 @@ export function HorizontalFixedColumnLayout({
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <CompactDateInput
-                              date={period.startDate}
-                              setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
+                              date={periodDraft.startDate}
+                              setDate={(date) => updatePeriodDraft(period.id, { startDate: date })}
                               label="Start Date"
                             />
                           </div>
                           <div>
                             <CompactDateInput
-                              date={period.endDate}
-                              setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
+                              date={periodDraft.endDate}
+                              setDate={(date) => updatePeriodDraft(period.id, { endDate: date })}
                               label="End Date"
                             />
                           </div>
@@ -295,14 +331,14 @@ export function HorizontalFixedColumnLayout({
                                 name: loc.name,
                                 isActive: loc.isActive
                               }))}
-                              selectedLocationIds={period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all')}
+                              selectedLocationIds={periodDraft.locationIds}
                               onSelectionChange={(locationIds) => {
                                 const primaryLocationId = locationIds.length === 1 ? locationIds[0] : 
                                                         locationIds.length === 0 ? 'all' : 
                                                         locationIds.length === locations.length ? 'all' : locationIds[0];
-                                onUpdatePeriod(period.id, { 
+                                updatePeriodDraft(period.id, {
                                   locationIds,
-                                  locationId: primaryLocationId // Keep for backward compatibility
+                                  locationId: primaryLocationId,
                                 });
                               }}
                               placeholder="Select locations"
@@ -314,11 +350,13 @@ export function HorizontalFixedColumnLayout({
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                setEditingPeriods(prev => {
-                                  const newSet = new Set(prev);
-                                  newSet.delete(period.id);
-                                  return newSet;
+                                onUpdatePeriod(period.id, {
+                                  startDate: periodDraft.startDate,
+                                  endDate: periodDraft.endDate,
+                                  locationIds: periodDraft.locationIds,
+                                  locationId: periodDraft.locationId,
                                 });
+                                setPeriodEditing(period, false);
                               }}
                               className="text-blue-700 border-blue-300 hover:bg-blue-100"
                             >

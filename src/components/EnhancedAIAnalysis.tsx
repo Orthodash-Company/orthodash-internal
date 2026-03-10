@@ -240,7 +240,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />

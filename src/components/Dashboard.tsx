@@ -20,6 +20,14 @@ import { DASHBOARD_LOCATION_IDS } from '@/lib/services/greyfinch-queries';
 import { useSessionManager } from '@/hooks/use-session-manager';
 import { useToast } from '@/hooks/use-toast';
 
+const formatLocalDateForApi = (value: Date | string) => {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { cacheSessionData } = useSessionManager();
@@ -27,6 +35,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isRefreshingGreyfinchData, setIsRefreshingGreyfinchData] = useState(false);
+  const [isLiveDataPulling, setIsLiveDataPulling] = useState(false);
   const [error, setError] = useState<string | null>(null)
   const [showQuickBooksSetup, setShowQuickBooksSetup] = useState(false)
   const [quickBooksRevenueData, setQuickBooksRevenueData] = useState<any>(null);
@@ -37,6 +46,9 @@ export default function Dashboard() {
   const [acquisitionCosts, setAcquisitionCosts] = useState<any>(null);
   const [aiSummary, setAiSummary] = useState<any>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [savedSessions, setSavedSessions] = useState<any[]>([]);
+  const [savedReports, setSavedReports] = useState<any[]>([]);
+  const [hasLoadedSavedItems, setHasLoadedSavedItems] = useState(false);
   const [periodAnalyticsData, setPeriodAnalyticsData] = useState<Record<string, any[] | null>>({});
   const [periodAnalyticsLoading, setPeriodAnalyticsLoading] = useState<Record<string, boolean>>({});
   const [periodAnalyticsError, setPeriodAnalyticsError] = useState<Record<string, string | null>>({});
@@ -44,7 +56,7 @@ export default function Dashboard() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const greyfinchRequestRef = useRef<AbortController | null>(null);
   const greyfinchTimeoutRef = useRef<number | null>(null);
-  const fetchedPeriodKeysRef = useRef<Set<string>>(new Set());
+  const lastFetchedPeriodKeysRef = useRef<Record<string, string>>({});
 
   const getDefaultLocations = useCallback((): Location[] => ([
     {
@@ -234,10 +246,8 @@ export default function Dashboard() {
   // Fetch period-analytics data for a single period
   const fetchPeriodAnalytics = useCallback(async (period: PeriodConfig) => {
     if (!period.startDate || !period.endDate) return;
-    const toDateStr = (d: Date | string) =>
-      d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0];
-    const startDate = toDateStr(period.startDate);
-    const endDate = toDateStr(period.endDate);
+    const startDate = formatLocalDateForApi(period.startDate);
+    const endDate = formatLocalDateForApi(period.endDate);
     // Map numeric location IDs → Greyfinch UUIDs
     const selectedIds = period.locationIds || [];
     const uuids = (selectedIds.length > 0
@@ -314,13 +324,17 @@ export default function Dashboard() {
   }, [clearGreyfinchRequest, extractLocationsFromGreyfinchData])
 
   const loadGreyfinchData = useCallback(async () => {
+    if (isRefreshingGreyfinchData) {
+      return false;
+    }
+
     setIsRefreshingGreyfinchData(true);
     try {
       return await fetchGreyfinchData();
     } finally {
       setIsRefreshingGreyfinchData(false);
     }
-  }, [fetchGreyfinchData]);
+  }, [fetchGreyfinchData, isRefreshingGreyfinchData]);
 
   // Load Greyfinch data on first authenticated render.
   // Dashboard renders immediately using defaults; analytics call runs in the background.
@@ -530,11 +544,9 @@ export default function Dashboard() {
     if (locations.length === 0) return;
     for (const period of periods) {
       if (!period.startDate || !period.endDate) continue;
-      const toDateStr = (d: Date | string) =>
-        d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0];
-      const key = `${period.id}:${toDateStr(period.startDate)}:${toDateStr(period.endDate)}:${(period.locationIds || []).join(',')}`;
-      if (!fetchedPeriodKeysRef.current.has(key)) {
-        fetchedPeriodKeysRef.current.add(key);
+      const key = `${period.id}:${formatLocalDateForApi(period.startDate)}:${formatLocalDateForApi(period.endDate)}:${(period.locationIds || []).join(',')}`;
+      if (lastFetchedPeriodKeysRef.current[period.id] !== key) {
+        lastFetchedPeriodKeysRef.current[period.id] = key;
         void fetchPeriodAnalytics(period);
       }
     }
@@ -769,7 +781,9 @@ export default function Dashboard() {
                     isRefreshingGreyfinchData={isRefreshingGreyfinchData}
                     onGreyfinchDataUpdate={handleGreyfinchDataUpdate}
                     onRefreshGreyfinchData={loadGreyfinchData}
+                    initialCounts={greyfinchCounts}
                     onCountsUpdate={setGreyfinchCounts}
+                    onDataLoadingChange={setIsLiveDataPulling}
                   />
                 </TabsContent>
 
@@ -1005,6 +1019,12 @@ export default function Dashboard() {
                     locations={locations}
                     greyfinchData={greyfinchData}
                     user={user}
+                    initialSessions={savedSessions}
+                    initialReports={savedReports}
+                    hasLoadedInitialData={hasLoadedSavedItems}
+                    onSessionsChange={setSavedSessions}
+                    onReportsChange={setSavedReports}
+                    onInitialDataLoaded={() => setHasLoadedSavedItems(true)}
                   />
                 </TabsContent>
               </Tabs>
@@ -1070,6 +1090,7 @@ export default function Dashboard() {
                 acquisitionCosts={acquisitionCosts}
                 aiSummary={aiSummary}
                 dataCounts={greyfinchCounts}
+                isDataFetching={isLiveDataPulling}
                 selectedPeriod={periods.length > 0 ? periods[0] : undefined}
                 selectedCharts={[]} // Charts are managed locally in PeriodColumn components
                 periodData={periods.length > 0 ? generatePeriodData(periods[0], greyfinchData) : undefined}
