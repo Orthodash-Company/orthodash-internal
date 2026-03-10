@@ -12,8 +12,8 @@ import { format } from "date-fns";
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 
 interface PeriodDraft {
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date;
+  endDate?: Date;
   locationId: string;
   locationIds: string[];
 }
@@ -22,7 +22,7 @@ interface HorizontalFixedColumnLayoutProps {
   periods: PeriodConfig[];
   locations: Location[];
   periodQueries: any[];
-  onAddPeriod: (period: Omit<PeriodConfig, 'id'>) => void;
+  onAddPeriod: (period: Omit<PeriodConfig, 'id'>) => PeriodConfig | void;
   onRemovePeriod: (periodId: string) => void;
   onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
 }
@@ -52,8 +52,8 @@ export function HorizontalFixedColumnLayout({
   }, [periods.length]);
 
   const createDraftFromPeriod = (period: PeriodConfig): PeriodDraft => ({
-    startDate: new Date(period.startDate),
-    endDate: new Date(period.endDate),
+    startDate: period.startDate ? new Date(period.startDate) : undefined,
+    endDate: period.endDate ? new Date(period.endDate) : undefined,
     locationId: period.locationId,
     locationIds: [...(period.locationIds || [])],
   });
@@ -111,11 +111,14 @@ export function HorizontalFixedColumnLayout({
       title: `Period ${nextPeriodLetter}`,
       locationId: 'all',
       locationIds: [],
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-      endDate: new Date(), // today
+      startDate: undefined,
+      endDate: undefined,
       visualizations: []
     };
-    onAddPeriod(newPeriod);
+    const createdPeriod = onAddPeriod(newPeriod);
+    if (createdPeriod) {
+      setPeriodEditing(createdPeriod, true);
+    }
     
     // Show success animation
     setShowSuccessAnimation(true);
@@ -211,6 +214,11 @@ export function HorizontalFixedColumnLayout({
           const query = periodQueries[index];
           const periodCostsList = periodCosts[period.id] || [];
           const periodDraft = periodDrafts[period.id] || createDraftFromPeriod(period);
+          const hasInvalidDateRange = Boolean(
+            periodDraft.startDate &&
+            periodDraft.endDate &&
+            periodDraft.endDate < periodDraft.startDate
+          );
           
           return (
             <div 
@@ -311,6 +319,7 @@ export function HorizontalFixedColumnLayout({
                               date={periodDraft.startDate}
                               setDate={(date) => updatePeriodDraft(period.id, { startDate: date })}
                               label="Start Date"
+                              maxDate={periodDraft.endDate}
                             />
                           </div>
                           <div>
@@ -318,6 +327,7 @@ export function HorizontalFixedColumnLayout({
                               date={periodDraft.endDate}
                               setDate={(date) => updatePeriodDraft(period.id, { endDate: date })}
                               label="End Date"
+                              minDate={periodDraft.startDate}
                             />
                           </div>
                         </div>
@@ -344,6 +354,12 @@ export function HorizontalFixedColumnLayout({
                               placeholder="Select locations"
                             />
                           </div>
+
+                          {hasInvalidDateRange && (
+                            <p className="text-sm text-red-600">
+                              End date cannot be before the start date.
+                            </p>
+                          )}
                           
                           <div className="flex gap-2 pt-2">
                             <Button
@@ -359,6 +375,7 @@ export function HorizontalFixedColumnLayout({
                                 setPeriodEditing(period, false);
                               }}
                               className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                              disabled={hasInvalidDateRange}
                             >
                               Done
                             </Button>

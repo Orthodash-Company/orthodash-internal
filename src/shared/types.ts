@@ -5,8 +5,8 @@ export interface PeriodConfig {
   title: string;
   locationId: string; // Keep for backward compatibility
   locationIds: string[]; // New field for multiple locations
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date;
+  endDate?: Date;
   visualizations?: VisualizationOption[];
 }
 

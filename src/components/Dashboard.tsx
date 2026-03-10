@@ -163,6 +163,7 @@ export default function Dashboard() {
       id: `period-${Date.now()}`
     };
     setPeriods(prev => [...prev, newPeriod]);
+    return newPeriod;
   };
 
   const handleRemovePeriod = (periodId: string) => {

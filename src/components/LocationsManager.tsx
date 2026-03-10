@@ -336,7 +336,9 @@ export function LocationsManager({
                     ) : (dataCounts[card.key] || 0)}
                   </div>
                 )}
-                <div className="text-sm text-gray-600">{card.label}</div>
+                <div className="text-sm text-gray-600 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
+                  {card.label}
+                </div>
               </button>
             </TooltipTrigger>
             <TooltipContent className="max-w-56 text-center">

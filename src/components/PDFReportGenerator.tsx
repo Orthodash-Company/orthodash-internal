@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Download, Eye, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -16,7 +17,7 @@ interface PDFReportGeneratorProps {
   periods: any[];
   acquisitionCosts: any[];
   aiSummary: any;
-  dataCounts?: { activeTxPatients?: number; newPatientsCreated?: number; caseStarts?: number };
+  dataCounts?: { activeTxPatients?: number; appointments?: number; leads?: number; newPatientsCreated?: number; caseStarts?: number };
   isDataFetching?: boolean;
   selectedPeriod?: any; // The specific period to generate charts for
   selectedCharts?: string[]; // The charts selected for this period
@@ -51,6 +52,12 @@ export function PDFReportGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedReports, setGeneratedReports] = useState<ReportData[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const previewCardTooltips = {
+    patients: 'Active treatment patients from the Greyfinch Practice Monitor report, year to date.',
+    appointments: 'Total completed appointments from the Greyfinch Practice Efficiency report, year to date.',
+    leads: 'Total prospects currently counted in Greyfinch leads data.',
+    periods: 'Number of analysis periods currently included in this report.',
+  } as const;
 
   // Extract counter data — dataCounts comes from /api/greyfinch/live-counts (PRACTICE_MONITOR YTD)
   const getCounterData = useMemo(() => {
@@ -59,6 +66,8 @@ export function PDFReportGenerator({
       : 0;
     return {
       activeTxPatients: dataCounts?.activeTxPatients ?? 0,
+      appointments: dataCounts?.appointments ?? 0,
+      leads: dataCounts?.leads ?? 0,
       newPatientsCreated: dataCounts?.newPatientsCreated ?? 0,
       caseStarts: dataCounts?.caseStarts ?? 0,
       locations: locationCount,
@@ -282,7 +291,7 @@ export function PDFReportGenerator({
     periodsOverride?: any[];
     acquisitionCostsOverride?: any[];
     aiSummaryOverride?: any;
-    counterDataOverride?: { activeTxPatients?: number; newPatientsCreated?: number; caseStarts?: number; locations?: number };
+    counterDataOverride?: { activeTxPatients?: number; appointments?: number; leads?: number; newPatientsCreated?: number; caseStarts?: number; locations?: number };
     selectedPeriodOverride?: any;
     selectedChartsOverride?: string[];
     periodDataOverride?: any;
@@ -329,10 +338,11 @@ export function PDFReportGenerator({
 
     const counterTableData = [
       ['Metric', 'Count'],
-      ['Active Tx Patients', String(resolvedCounterData.activeTxPatients ?? 0)],
-      ['New Patients (YTD)', String(resolvedCounterData.newPatientsCreated ?? 0)],
-      ['Case Starts (YTD)', String(resolvedCounterData.caseStarts ?? 0)],
-      ['Active Locations', String(resolvedCounterData.locations ?? 0)]
+      ['Patients', String(resolvedCounterData.activeTxPatients ?? 0)],
+      ['Appointments', String(resolvedCounterData.appointments ?? 0)],
+      ['Leads', String(resolvedCounterData.leads ?? 0)],
+      ['Locations', String(resolvedCounterData.locations ?? 0)],
+      ['Analysis Periods', String(resolvedPeriods.length ?? 0)]
     ];
 
     autoTable(doc, {
@@ -710,7 +720,7 @@ export function PDFReportGenerator({
         </CardTitle>
       </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-end gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Report Type
@@ -832,7 +842,16 @@ export function PDFReportGenerator({
                   {getCounterData.activeTxPatients || 0}
                 </p>
               )}
-              <p className="text-sm text-blue-700">Active Patients</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-sm text-blue-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
+                    Patients
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-56 text-center">
+                  {previewCardTooltips.patients}
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             <div className="text-center p-3 bg-green-50 rounded-lg">
@@ -841,10 +860,19 @@ export function PDFReportGenerator({
                 <Skeleton className="mx-auto mb-2 h-9 w-20 bg-green-100" />
               ) : (
                 <p className="text-2xl font-bold text-green-900">
-                  {getCounterData.newPatientsCreated || 0}
+                  {getCounterData.appointments || 0}
                 </p>
               )}
-              <p className="text-sm text-green-700">New Patients YTD</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-sm text-green-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
+                    Appointments
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-56 text-center">
+                  {previewCardTooltips.appointments}
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             <div className="text-center p-3 bg-purple-50 rounded-lg">
@@ -853,14 +881,23 @@ export function PDFReportGenerator({
                 <Skeleton className="mx-auto mb-2 h-9 w-20 bg-purple-100" />
               ) : (
                 <p className="text-2xl font-bold text-purple-900">
-                  {getCounterData.caseStarts || 0}
+                  {getCounterData.leads || 0}
                 </p>
               )}
-              <p className="text-sm text-purple-700">Case Starts YTD</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-sm text-purple-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
+                    Leads
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-56 text-center">
+                  {previewCardTooltips.leads}
+                </TooltipContent>
+              </Tooltip>
         </div>
 
             <div className="text-center p-3 bg-orange-50 rounded-lg">
-              <DollarSign className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+              <FileText className="h-8 w-8 text-orange-600 mx-auto mb-2" />
               {isDataFetching ? (
                 <Skeleton className="mx-auto mb-2 h-9 w-20 bg-orange-100" />
               ) : (
@@ -868,7 +905,16 @@ export function PDFReportGenerator({
                   {periods.length}
                 </p>
               )}
-              <p className="text-sm text-orange-700">Analysis Periods</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-sm text-orange-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
+                    Analysis Periods
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-56 text-center">
+                  {previewCardTooltips.periods}
+                </TooltipContent>
+              </Tooltip>
             </div>
         </div>
       </CardContent>

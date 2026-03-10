@@ -21,8 +21,8 @@ export function EditPeriodModal({ period, locations, onUpdatePeriod, trigger }: 
   const [title, setTitle] = useState(period.title);
   const [locationId, setLocationId] = useState(period.locationId);
   const [locationIds, setLocationIds] = useState(period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all'));
-  const [startDate, setStartDate] = useState<Date>(period.startDate);
-  const [endDate, setEndDate] = useState<Date>(period.endDate);
+  const [startDate, setStartDate] = useState<Date | undefined>(period.startDate);
+  const [endDate, setEndDate] = useState<Date | undefined>(period.endDate);
 
   const handleSaveChanges = () => {
     if (!startDate || !endDate) return;

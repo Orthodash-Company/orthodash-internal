@@ -44,6 +44,11 @@ interface Session {
   updatedAt: string;
 }
 
+type SessionApiResponse = {
+  session?: any;
+  data?: any;
+};
+
 interface Report {
   id: string;
   sessionId: string;
@@ -86,6 +91,34 @@ export function SessionManager({
   
   const { toast } = useToast();
   const { user: authUser } = useAuth();
+
+  const replaceSessions = useCallback((nextSessions: Session[]) => {
+    setSessions(nextSessions);
+    onSessionsChange?.(nextSessions);
+  }, [onSessionsChange]);
+
+  const updateSessions = useCallback((updater: (currentSessions: Session[]) => Session[]) => {
+    let nextSessions: Session[] = [];
+    setSessions((currentSessions) => {
+      nextSessions = updater(currentSessions);
+      return nextSessions;
+    });
+    onSessionsChange?.(nextSessions);
+  }, [onSessionsChange]);
+
+  const replaceReports = useCallback((nextReports: Report[]) => {
+    setReports(nextReports);
+    onReportsChange?.(nextReports);
+  }, [onReportsChange]);
+
+  const updateReports = useCallback((updater: (currentReports: Report[]) => Report[]) => {
+    let nextReports: Report[] = [];
+    setReports((currentReports) => {
+      nextReports = updater(currentReports);
+      return nextReports;
+    });
+    onReportsChange?.(nextReports);
+  }, [onReportsChange]);
 
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()),
@@ -153,12 +186,18 @@ export function SessionManager({
 
   const normalizeSession = (session: any): Session => ({
     ...session,
+    id: String(session?.id ?? ''),
+    name: typeof session?.name === 'string' && session.name.trim() ? session.name : 'Untitled Session',
+    description: typeof session?.description === 'string' ? session.description : '',
     periods: Array.isArray(session?.periods) ? session.periods : [],
     locations: Array.isArray(session?.locations)
       ? session.locations
       : Array.isArray(session?.metadata?.locations)
         ? session.metadata.locations
         : [],
+    isActive: session?.isActive ?? true,
+    createdAt: session?.createdAt ?? new Date().toISOString(),
+    updatedAt: session?.updatedAt ?? session?.createdAt ?? new Date().toISOString(),
   });
 
   useEffect(() => {
@@ -204,8 +243,7 @@ export function SessionManager({
       if (response.ok) {
         const data = await response.json();
         const nextSessions = (data.sessions || []).map(normalizeSession);
-        setSessions(nextSessions);
-        onSessionsChange?.(nextSessions);
+        replaceSessions(nextSessions);
         onInitialDataLoaded?.();
       }
     } catch (error) {
@@ -219,8 +257,7 @@ export function SessionManager({
       if (response.ok) {
         const data = await response.json();
         const nextReports = data.reports || [];
-        setReports(nextReports);
-        onReportsChange?.(nextReports);
+        replaceReports(nextReports);
         onInitialDataLoaded?.();
       }
     } catch (error) {
@@ -264,13 +301,14 @@ export function SessionManager({
       });
 
       if (response.ok) {
-        const createdSession = await response.json();
-        setSessions(prev => {
-          const nextSessions = [...prev, normalizeSession(createdSession.session)];
-          onSessionsChange?.(nextSessions);
-          return nextSessions;
-        });
-        console.log('✅ Auto-created session:', createdSession.session.name);
+        const createdSession = await response.json() as SessionApiResponse;
+        const sessionRecord = createdSession.session ?? createdSession.data;
+        if (!sessionRecord) {
+          throw new Error('Session create response did not include session data');
+        }
+        const normalizedSession = normalizeSession(sessionRecord);
+        updateSessions((currentSessions) => [...currentSessions, normalizedSession]);
+        console.log('✅ Auto-created session:', normalizedSession.name);
       }
     } catch (error) {
       console.error('Error auto-creating session:', error);
@@ -291,15 +329,16 @@ export function SessionManager({
       });
 
       if (response.ok) {
-        const updatedSession = await response.json();
-        setSessions(prev => {
-          const nextSessions = prev.map(s => 
-            s.id === sessionId ? normalizeSession(updatedSession.session) : s
-          );
-          onSessionsChange?.(nextSessions);
-          return nextSessions;
-        });
-        console.log('✅ Updated existing session:', updatedSession.session.name);
+        const updatedSession = await response.json() as SessionApiResponse;
+        const sessionRecord = updatedSession.session ?? updatedSession.data;
+        if (!sessionRecord) {
+          throw new Error('Session update response did not include session data');
+        }
+        const normalizedSession = normalizeSession(sessionRecord);
+        updateSessions((currentSessions) => currentSessions.map((s) =>
+          s.id === sessionId ? normalizedSession : s
+        ));
+        console.log('✅ Updated existing session:', normalizedSession.name);
       }
     } catch (error) {
       console.error('Error updating session:', error);
@@ -345,12 +384,12 @@ export function SessionManager({
       });
 
       if (response.ok) {
-        const createdSession = await response.json();
-        setSessions(prev => {
-          const nextSessions = [...prev, normalizeSession(createdSession.session)];
-          onSessionsChange?.(nextSessions);
-          return nextSessions;
-        });
+        const createdSession = await response.json() as SessionApiResponse;
+        const sessionRecord = createdSession.session ?? createdSession.data;
+        if (!sessionRecord) {
+          throw new Error('Session create response did not include session data');
+        }
+        updateSessions((currentSessions) => [...currentSessions, normalizeSession(sessionRecord)]);
         
         // Reset form
         setNewSession({
@@ -406,11 +445,7 @@ export function SessionManager({
 
       if (response.ok) {
         const createdReport = await response.json();
-        setReports(prev => {
-          const nextReports = [...prev, createdReport.report];
-          onReportsChange?.(nextReports);
-          return nextReports;
-        });
+        updateReports((currentReports) => [...currentReports, createdReport.report]);
         
         toast({
           title: "Report Generated",
@@ -438,11 +473,7 @@ export function SessionManager({
       });
 
       if (response.ok) {
-        setSessions(prev => {
-          const nextSessions = prev.filter(s => s.id !== sessionId);
-          onSessionsChange?.(nextSessions);
-          return nextSessions;
-        });
+        updateSessions((currentSessions) => currentSessions.filter(s => s.id !== sessionId));
         toast({
           title: "Session Deleted",
           description: "The session has been removed successfully.",
@@ -547,11 +578,7 @@ export function SessionManager({
         throw new Error('Failed to delete report');
       }
 
-      setReports((prev) => {
-        const nextReports = prev.filter((report) => report.id !== reportId);
-        onReportsChange?.(nextReports);
-        return nextReports;
-      });
+      updateReports((currentReports) => currentReports.filter((report) => report.id !== reportId));
       toast({
         title: "Report Deleted",
         description: "The report has been removed successfully.",
@@ -604,7 +631,7 @@ export function SessionManager({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold">{session.name}</h3>
-                      {session.name.includes('Auto-created') && (
+                      {session.name?.includes('Auto-created') && (
                         <Badge variant="secondary" className="text-xs">Auto</Badge>
                       )}
                     </div>

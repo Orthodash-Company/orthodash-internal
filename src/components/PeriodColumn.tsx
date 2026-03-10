@@ -4,15 +4,11 @@ import { CompactDateInput } from "@/components/ui/compact-date-input";
 import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Calendar, 
-  MapPin, 
+  MapPin,
   BarChart3, 
   TrendingUp, 
   Users, 
@@ -20,13 +16,8 @@ import {
   Clock, 
   Target,
   Edit2,
-  Trash2,
   Plus,
-  Download,
-  Share2,
   Settings,
-  Eye,
-  EyeOff
 } from "lucide-react";
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
@@ -86,11 +77,38 @@ const formatPieLabel = (
   { name, percent }: { name?: string; percent?: number }
 ) => (hasData ? `${name ?? 'Unknown'} ${((percent ?? 0) * 100).toFixed(0)}%` : (name ?? 'Unknown'));
 
+function MetricTooltip({
+  label,
+  tooltip,
+  className = "",
+}: {
+  label: string;
+  tooltip: string;
+  className?: string;
+}) {
+  return (
+    <UITooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className={`text-left underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35 ${className}`}
+        >
+          {label}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-56 text-center">
+        {tooltip}
+      </TooltipContent>
+    </UITooltip>
+  );
+}
+
 export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false, periodCosts = [], selectedCharts = [] }: PeriodColumnPropsExtended) {
   const data = query?.data;
   const isLoading = query?.isLoading;
   const error = query?.error;
   const [localSelectedCharts, setLocalSelectedCharts] = useState<string[]>(selectedCharts);
+  const [isChartSelectorOpen, setIsChartSelectorOpen] = useState(false);
   
   // Calculate total costs for this period
   const totalCosts = periodCosts.reduce((sum, cost) => sum + cost.amount, 0);
@@ -110,9 +128,15 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
     const emptyMargin = isCompact ? 'mb-3' : 'mb-4';
     const emptyTextSize = isCompact ? 'text-sm font-medium' : 'text-lg font-semibold';
     const emptyDescClass = isCompact ? 'hidden' : 'text-gray-500 mb-6';
-
     return (
       <div className={sectionSpacing}>
+        <ChartSelectorModal
+          selectedCharts={localSelectedCharts}
+          onChartsChange={setLocalSelectedCharts}
+          open={isChartSelectorOpen}
+          onOpenChange={setIsChartSelectorOpen}
+        />
+
         {localSelectedCharts.length > 0 ? (
           <>
             {/* Chart Selector Header */}
@@ -120,16 +144,15 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               <h3 className={headerSize}>
                 {isCompact ? 'Charts' : 'Analytics Charts'}
               </h3>
-              <ChartSelectorModal
-                selectedCharts={localSelectedCharts}
-                onChartsChange={setLocalSelectedCharts}
-                trigger={
-                  <Button variant="outline" size={buttonSize} className={`${buttonClass} touch-manipulation`}>
-                    <Settings className={iconSize} />
-                    {isCompact ? `(${localSelectedCharts.length})` : `Manage Charts (${localSelectedCharts.length})`}
-                  </Button>
-                }
-              />
+              <Button
+                variant="outline"
+                size={buttonSize}
+                className={`${buttonClass} touch-manipulation`}
+                onClick={() => setIsChartSelectorOpen(true)}
+              >
+                <Settings className={iconSize} />
+                {isCompact ? `(${localSelectedCharts.length})` : `Manage Charts (${localSelectedCharts.length})`}
+              </Button>
             </div>
             
             {/* Render selected charts using single renderer */}
@@ -143,16 +166,14 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <BarChart3 className={`${emptyIconSize} mx-auto ${emptyMargin} text-gray-400`} />
             <h3 className={`${emptyTextSize} text-gray-700 mb-2`}>No Charts Selected</h3>
             {!isCompact && <p className={emptyDescClass}>Select charts to display your analytics data</p>}
-            <ChartSelectorModal
-              selectedCharts={localSelectedCharts}
-              onChartsChange={setLocalSelectedCharts}
-              trigger={
-                  <Button size={buttonSize} className="gap-2 mb-4 touch-manipulation">
-                    <BarChart3 className={iconSize} />
-                    Select Charts
-                  </Button>
-              }
-            />
+            <Button
+              size={buttonSize}
+              className="gap-2 mb-4 touch-manipulation"
+              onClick={() => setIsChartSelectorOpen(true)}
+            >
+              <BarChart3 className={iconSize} />
+              Select Charts
+            </Button>
           </div>
         )}
       </div>
@@ -416,62 +437,10 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Date Range Selection */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Select Date Range
-            </Label>
-            <div className="grid grid-cols-1 gap-2">
-              <CompactDateInput
-                date={period.startDate}
-                setDate={(date) => {
-                  console.log('Start date changed:', date);
-                  onUpdatePeriod(period.id, { startDate: date });
-                }}
-                label="Start Date"
-              />
-              <CompactDateInput
-                date={period.endDate}
-                setDate={(date) => {
-                  console.log('End date changed:', date);
-                  onUpdatePeriod(period.id, { endDate: date });
-                }}
-                label="End Date"
-              />
-            </div>
-          </div>
-
-          {/* Location Selection */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Locations
-            </Label>
-            <MultiLocationSelector
-              locations={locations.map(loc => ({
-                id: loc.id.toString(),
-                name: loc.name,
-                isActive: loc.isActive
-              }))}
-              selectedLocationIds={period.locationIds || [period.locationId || 'all'].filter(id => id !== 'all')}
-              onSelectionChange={(locationIds) => {
-                const primaryLocationId = locationIds.length === 1 ? locationIds[0] : 
-                                        locationIds.length === 0 ? 'all' : 
-                                        locationIds.length === locations.length ? 'all' : locationIds[0];
-                onUpdatePeriod(period.id, { 
-                  locationIds,
-                  locationId: primaryLocationId // Keep for backward compatibility
-                });
-              }}
-              placeholder="Select locations"
-            />
-          </div>
-
           {/* Empty State Message - Enhanced for Period A */}
           <div className="text-center py-8 text-gray-500">
             <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm mb-4">Select a date range to view analytics data</p>
+            <p className="text-sm mb-4">Use the open editor above to set dates and locations for this period.</p>
             
             {/* Add Period CTA for Period A only when it's the first period */}
             {isFirstPeriod && onAddPeriod && (
@@ -522,7 +491,11 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           <div className="bg-white p-4 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600">Net Production</p>
+                <MetricTooltip
+                  label="Net Production"
+                  tooltip="Total revenue for this period minus the acquisition costs entered for this period."
+                  className="text-xs text-gray-600"
+                />
                 <p className="text-lg font-semibold">${actualNetProduction.toLocaleString()}</p>
               </div>
               <DollarSign className="h-8 w-8 text-[#1d1d52]" />
@@ -532,7 +505,11 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           <div className="bg-white p-4 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600">No-Show Rate</p>
+                <MetricTooltip
+                  label="No-Show Rate"
+                  tooltip="No-show and cancellation events divided by active treatment patients for the selected period."
+                  className="text-xs text-gray-600"
+                />
                 <p className="text-lg font-semibold">{safeData.noShowRate.toFixed(1)}%</p>
               </div>
               <Clock className="h-8 w-8 text-red-500" />
@@ -545,20 +522,35 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           <h4 className="text-sm font-medium mb-3">Financial Summary</h4>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Total Production:</span>
+              <MetricTooltip
+                label="Total Production:"
+                tooltip="Gross production reported for the selected period before acquisition costs are applied."
+                className="text-gray-600"
+              />
               <span className="font-medium">${actualProduction.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Total Revenue:</span>
+              <MetricTooltip
+                label="Total Revenue:"
+                tooltip="Net collections or revenue recognized for the selected period."
+                className="text-gray-600"
+              />
               <span className="font-medium">${actualRevenue.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Acquisition Costs:</span>
+              <MetricTooltip
+                label="Acquisition Costs:"
+                tooltip="Sum of the manually entered acquisition costs attached to this analysis period."
+                className="text-gray-600"
+              />
               <span className="font-medium text-red-600">-${totalCosts.toLocaleString()}</span>
             </div>
             <Separator />
             <div className="flex justify-between text-sm font-semibold">
-              <span>Net Production:</span>
+              <MetricTooltip
+                label="Net Production:"
+                tooltip="Total revenue minus acquisition costs for this analysis period."
+              />
               <span className={`${actualNetProduction >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ${actualNetProduction.toLocaleString()}
               </span>
@@ -599,48 +591,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           >
             <Edit2 className="h-4 w-4" />
           </Button>
-        </div>
-
-        {/* Period Configuration */}
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <Label className="text-xs text-gray-600">Location</Label>
-              <Select
-                value={period.locationId}
-                onValueChange={(value) => onUpdatePeriod(period.id, { locationId: value })}
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id.toString()}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <CompactDateInput
-                  date={period.startDate}
-                  setDate={(date) => onUpdatePeriod(period.id, { startDate: date })}
-                  label="Start Date"
-                />
-              </div>
-              <div>
-                <CompactDateInput
-                  date={period.endDate}
-                  setDate={(date) => onUpdatePeriod(period.id, { endDate: date })}
-                  label="End Date"
-                />
-              </div>
-            </div>
-          </div>
         </div>
       </CardHeader>
 
