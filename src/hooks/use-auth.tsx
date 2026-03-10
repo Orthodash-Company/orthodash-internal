@@ -4,6 +4,8 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from "
 import { type User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
+const ACCOUNT_CREATION_DISABLED_MESSAGE = "Account creation is disabled. Contact an administrator for access.";
+
 type AuthResult = {
   user: User | null;
   session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"] | null;
@@ -85,25 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastName?: string;
     }
   ): Promise<AuthResult> => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: options?.firstName,
-          last_name: options?.lastName,
-        },
-      },
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    return {
-      user: data.user,
-      session: data.session,
-    };
+    void email;
+    void password;
+    void options;
+    throw new Error(ACCOUNT_CREATION_DISABLED_MESSAGE);
   };
 
   const signOut = async (): Promise<void> => {

@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Input } from '@/components/ui/input';
@@ -21,13 +20,7 @@ const Page = () => {
 
   const router = useRouter();
 
-  const { signIn, user, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading && user) {
-      router.push('/');
-    }
-  }, [loading, user, router]);
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
 
@@ -156,11 +149,8 @@ const Page = () => {
           
           <div className="mt-6 text-center">
             <p className="text-sm text-[#1C1F4F]/70">
-              Don't have an account?{' '}
-                <Link href="/signup" className="text-[#1C1F4F] hover:underline font-medium">
-                  Sign up
-                </Link>
-              </p>
+              Account creation is disabled. Contact an administrator if you need access.
+            </p>
           </div>
           
         </CardContent>
