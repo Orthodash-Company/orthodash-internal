@@ -208,29 +208,83 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Build PeriodData from period-analytics API response (LocationPeriodData[])
-  const buildPeriodDataFromApi = useCallback((locationRows: any[] | null | undefined) => {
+  // Build PeriodData from period-analytics API response
+  const buildPeriodDataFromApi = useCallback((periodAnalytics: any | null | undefined) => {
+    const locationRows = Array.isArray(periodAnalytics?.locations)
+      ? periodAnalytics.locations
+      : Array.isArray(periodAnalytics)
+        ? periodAnalytics
+        : null;
+
     if (!locationRows || locationRows.length === 0) return null;
+
     let activeTxPatients = 0, newPatientsCreated = 0, netProduction = 0;
     let grossProduction = 0, netCollection = 0;
     let professional = 0, familyReferral = 0, online = 0, noShowCancellations = 0;
+    let appointments = 0, bookings = 0;
+    let weightedDigitalConversion = 0, weightedProfessionalConversion = 0, weightedDirectConversion = 0;
+    const locationData = {
+      gilbert: {
+        patients: 0,
+        appointments: 0,
+        leads: 0,
+        bookings: 0,
+        revenue: 0,
+        production: 0,
+        netProduction: 0,
+        acquisitionCosts: 0,
+      },
+      phoenix: {
+        patients: 0,
+        appointments: 0,
+        leads: 0,
+        bookings: 0,
+        revenue: 0,
+        production: 0,
+        netProduction: 0,
+        acquisitionCosts: 0,
+      },
+    };
+
     for (const loc of locationRows) {
       activeTxPatients += loc.activeTxPatients || 0;
       newPatientsCreated += loc.newPatientsCreated || 0;
       netProduction += loc.netProduction || 0;
       grossProduction += loc.grossProduction || 0;
       netCollection += loc.netCollection || 0;
+      appointments += loc.appointments || 0;
+      bookings += loc.startApptCompleted || 0;
       professional += loc.referralBreakdown?.Professional || 0;
       familyReferral += loc.referralBreakdown?.['Family Referral'] || 0;
       online += loc.referralBreakdown?.Online || 0;
       noShowCancellations += loc.totalNoShowCancellations || 0;
+      weightedProfessionalConversion += (loc.conversionBreakdown?.Professional || 0) * (loc.referralBreakdown?.Professional || 0);
+      weightedDirectConversion += (loc.conversionBreakdown?.['Family Referral'] || 0) * (loc.referralBreakdown?.['Family Referral'] || 0);
+      weightedDigitalConversion += (loc.conversionBreakdown?.Online || 0) * (loc.referralBreakdown?.Online || 0);
+
+      const targetLocation = String(loc.location || '').toLowerCase().includes('gilbert')
+        ? locationData.gilbert
+        : locationData.phoenix;
+
+      targetLocation.patients += loc.activeTxPatients || 0;
+      targetLocation.appointments += loc.appointments || 0;
+      targetLocation.leads += loc.newPatientsCreated || 0;
+      targetLocation.bookings += loc.startApptCompleted || 0;
+      targetLocation.revenue += loc.netCollection || 0;
+      targetLocation.production += loc.grossProduction || 0;
+      targetLocation.netProduction += loc.netProduction || 0;
     }
+
+    const digitalConversionDenominator = online || 0;
+    const professionalConversionDenominator = professional || 0;
+    const directConversionDenominator = familyReferral || 0;
+
     return {
       patients: activeTxPatients,
-      appointments: 0,
+      appointments,
       leads: newPatientsCreated,
       locations: locationRows.length,
-      bookings: 0,
+      bookings,
       revenue: netCollection,
       production: grossProduction,
       netProduction,
@@ -239,8 +293,13 @@ export default function Dashboard() {
       avgAcquisitionCost: 0,
       noShowRate: activeTxPatients > 0 ? (noShowCancellations / activeTxPatients) * 100 : 0,
       referralSources: { professional, digital: online, direct: familyReferral },
-      conversionRates: { digital: 0, professional: 0, direct: 0 },
-      trends: { weekly: [] },
+      conversionRates: {
+        digital: digitalConversionDenominator > 0 ? weightedDigitalConversion / digitalConversionDenominator : 0,
+        professional: professionalConversionDenominator > 0 ? weightedProfessionalConversion / professionalConversionDenominator : 0,
+        direct: directConversionDenominator > 0 ? weightedDirectConversion / directConversionDenominator : 0,
+      },
+      trends: { weekly: periodAnalytics?.trends?.weekly || [] },
+      locationData,
     };
   }, []);
 
@@ -264,7 +323,7 @@ export default function Dashboard() {
       const params = new URLSearchParams({ startDate, endDate, locationIds: uuids.join(',') });
       const res = await fetch(`/api/greyfinch/period-analytics?${params}`);
       const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
+      if (json.success && json.data) {
         setPeriodAnalyticsData((prev) => ({ ...prev, [period.id]: json.data }));
       } else {
         setPeriodAnalyticsError((prev) => ({ ...prev, [period.id]: json.error || 'Fetch failed' }));
@@ -1067,11 +1126,17 @@ export default function Dashboard() {
 
           {/* Enhanced AI Analysis */}
           <EnhancedAIAnalysis
-            selectedPeriods={periods.map(p => p.startDate?.toISOString().split('T')[0] || '')}
+            periods={periods}
+            periodQueries={periodQueries}
             selectedLocations={locations.map(l => l.name)}
             onAnalysisComplete={(data) => {
-              console.log('AI Analysis completed:', data)
-              // Store analysis data for potential use in other components
+              const normalizedAiSummary = {
+                summary: data.summary.overview,
+                insights: data.summary.keyInsights,
+                strategicRecommendations: data.recommendations?.strategic || [],
+                analysis: data.trends.analysis,
+              };
+              setAiSummary(normalizedAiSummary)
               localStorage.setItem('orthodash-ai-analysis', JSON.stringify(data))
             }}
           />

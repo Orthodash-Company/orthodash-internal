@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Download, Share2, TrendingUp, TrendingDown, DollarSign, Users, Calendar, Target } from 'lucide-react'
+import { PeriodConfig } from '@/shared/types'
 
 interface AIAnalysisData {
   success: boolean
@@ -68,13 +69,15 @@ interface AIAnalysisData {
 }
 
 interface EnhancedAIAnalysisProps {
-  selectedPeriods?: string[]
+  periods?: PeriodConfig[]
+  periodQueries?: Array<{ data?: any; isLoading?: boolean; error?: unknown }>
   selectedLocations?: string[]
   onAnalysisComplete?: (data: AIAnalysisData) => void
 }
 
 export function EnhancedAIAnalysis({ 
-  selectedPeriods = [], 
+  periods = [],
+  periodQueries = [],
   selectedLocations = [],
   onAnalysisComplete 
 }: EnhancedAIAnalysisProps) {
@@ -82,8 +85,24 @@ export function EnhancedAIAnalysis({
   const [isLoading, setIsLoading] = useState(false)
   const [analysisData, setAnalysisData] = useState<AIAnalysisData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const isFetchingPeriodData = periodQueries.some((query) => query?.isLoading)
 
   const generateAnalysis = useCallback(async () => {
+    const reportBackedPeriods = periods
+      .map((period, index) => ({
+        title: period.title || period.name,
+        startDate: period.startDate ? new Date(period.startDate).toISOString() : null,
+        endDate: period.endDate ? new Date(period.endDate).toISOString() : null,
+        locationIds: period.locationIds || [],
+        data: periodQueries[index]?.data || null,
+      }))
+      .filter((period) => period.data);
+
+    if (reportBackedPeriods.length === 0) {
+      setError('Set up at least one analysis period with loaded report data before generating AI analysis.')
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     
@@ -96,8 +115,7 @@ export function EnhancedAIAnalysis({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          startDate: selectedPeriods.length > 0 ? selectedPeriods[0] : undefined,
-          endDate: selectedPeriods.length > 1 ? selectedPeriods[selectedPeriods.length - 1] : undefined,
+          periods: reportBackedPeriods,
           location: selectedLocations.length > 0 ? selectedLocations.join(',') : 'all',
           analysisType: 'comprehensive',
           includeRecommendations: true
@@ -128,7 +146,7 @@ export function EnhancedAIAnalysis({
     } finally {
       setIsLoading(false)
     }
-  }, [selectedPeriods, selectedLocations, onAnalysisComplete])
+  }, [periodQueries, periods, selectedLocations, onAnalysisComplete])
 
   const downloadReport = useCallback(() => {
     if (!analysisData) return
@@ -254,7 +272,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           <div className="flex gap-4">
             <Button 
               onClick={generateAnalysis} 
-              disabled={isLoading}
+              disabled={isLoading || isFetchingPeriodData}
               className="flex items-center gap-2"
             >
               {isLoading ? (
@@ -262,7 +280,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
               ) : (
                 <Target className="h-4 w-4" />
               )}
-              {isLoading ? 'Analyzing...' : 'Generate Analysis'}
+              {isLoading ? 'Analyzing...' : isFetchingPeriodData ? 'Loading Data...' : 'Generate Analysis'}
             </Button>
             
             {analysisData && (
@@ -298,7 +316,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
       {analysisData && (
         <div className="space-y-6">
           {/* Executive Summary */}
-          <Card>
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
             <CardHeader>
               <CardTitle>Executive Summary</CardTitle>
               <CardDescription>Period: {analysisData.period}</CardDescription>
@@ -309,7 +327,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           </Card>
 
           {/* Key Performance Metrics */}
-          <Card>
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
             <CardHeader>
               <CardTitle>Key Performance Metrics</CardTitle>
             </CardHeader>
@@ -355,7 +373,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           </Card>
 
           {/* Key Insights */}
-          <Card>
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
             <CardHeader>
               <CardTitle>Key Insights</CardTitle>
             </CardHeader>
@@ -372,7 +390,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           </Card>
 
           {/* Location Comparison */}
-          <Card>
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
             <CardHeader>
               <CardTitle>Location Performance Comparison</CardTitle>
             </CardHeader>
@@ -473,7 +491,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
 
           {/* Recommendations */}
           {analysisData.recommendations && (
-            <Card>
+            <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
               <CardHeader>
                 <CardTitle>Strategic Recommendations</CardTitle>
               </CardHeader>
@@ -525,7 +543,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           )}
 
           {/* Data Quality */}
-          <Card>
+          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
             <CardHeader>
               <CardTitle>Data Quality Assessment</CardTitle>
             </CardHeader>

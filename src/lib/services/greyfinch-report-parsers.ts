@@ -78,6 +78,7 @@ export interface PracticeEfficiencyRow {
   completedAppointment: string
   appointmentBookingId: string
   isEmergency: boolean
+  apptDate: string
 }
 
 export function parsePracticeEfficiency(data: ReportData): PracticeEfficiencyRow[] {
@@ -89,6 +90,7 @@ export function parsePracticeEfficiency(data: ReportData): PracticeEfficiencyRow
       completedAppointment: str(r.completedAppointment),
       appointmentBookingId: str(r.appointmentBookingId),
       isEmergency: Boolean(r.isEmergency),
+      apptDate: str(r.apptDate),
     }
   })
 }
@@ -102,19 +104,56 @@ export function parsePracticeEfficiency(data: ReportData): PracticeEfficiencyRow
 
 export type ReferralType = 'Professional' | 'Family Referral' | 'Online' | 'Other'
 
+export interface PatientReferralRow {
+  location: string
+  createdDate: string
+  treatmentStatus: string
+  referralType: ReferralType
+  netProduction: number
+  noShowCancellationAppointmentTotal: number
+}
+
 export interface PatientReferralsSummary {
   location: string
   totalNewPatients: number
   referralBreakdown: Record<ReferralType, number>
   totalNoShowCancellations: number
+  conversionBreakdown: Record<ReferralType, number>
+}
+
+function normalizeReferralType(value: string): ReferralType {
+  if (value === 'Professional' || value === 'Family Referral' || value === 'Online') {
+    return value
+  }
+  return 'Other'
+}
+
+// A referral row is treated as "converted" once it shows realized net production.
+function isConvertedReferral(netProduction: number): boolean {
+  return netProduction > 0
+}
+
+export function parsePatientReferralRows(data: ReportData): PatientReferralRow[] {
+  return data.values.map((row) => {
+    const r = rowToObject(data.columns, row)
+    return {
+      location: str(r.location),
+      createdDate: str(r.createdDate),
+      treatmentStatus: str(r.treatmentStatus),
+      referralType: normalizeReferralType(str(r.referralType)),
+      netProduction: num(r.netProduction),
+      noShowCancellationAppointmentTotal: num(r.noShowCancellationAppointmentTotal),
+    }
+  })
 }
 
 export function parsePatientReferrals(data: ReportData): PatientReferralsSummary[] {
+  const referralRows = parsePatientReferralRows(data)
+
   // Group rows by location
-  const byLocation = new Map<string, typeof data.values>()
-  for (const row of data.values) {
-    const r = rowToObject(data.columns, row)
-    const loc = str(r.location)
+  const byLocation = new Map<string, PatientReferralRow[]>()
+  for (const row of referralRows) {
+    const loc = row.location
     if (!byLocation.has(loc)) byLocation.set(loc, [])
     byLocation.get(loc)!.push(row)
   }
@@ -126,24 +165,42 @@ export function parsePatientReferrals(data: ReportData): PatientReferralsSummary
       Online: 0,
       Other: 0,
     }
+    const conversionNumerators: Record<ReferralType, number> = {
+      Professional: 0,
+      'Family Referral': 0,
+      Online: 0,
+      Other: 0,
+    }
     let totalNoShow = 0
 
     for (const row of rows) {
-      const r = rowToObject(data.columns, row)
-      const referralType = str(r.referralType) as ReferralType
-      if (referralType in breakdown) {
-        breakdown[referralType]++
-      } else {
-        breakdown.Other++
+      breakdown[row.referralType]++
+      if (isConvertedReferral(row.netProduction)) {
+        conversionNumerators[row.referralType]++
       }
-      totalNoShow += num(r.noShowCancellationAppointmentTotal)
+      totalNoShow += row.noShowCancellationAppointmentTotal
     }
+
+    const conversionBreakdown = (Object.keys(breakdown) as ReferralType[]).reduce<Record<ReferralType, number>>(
+      (acc, referralType) => {
+        const total = breakdown[referralType]
+        acc[referralType] = total > 0 ? (conversionNumerators[referralType] / total) * 100 : 0
+        return acc
+      },
+      {
+        Professional: 0,
+        'Family Referral': 0,
+        Online: 0,
+        Other: 0,
+      }
+    )
 
     return {
       location,
       totalNewPatients: rows.length,
       referralBreakdown: breakdown,
       totalNoShowCancellations: totalNoShow,
+      conversionBreakdown,
     }
   })
 }
@@ -162,16 +219,19 @@ export interface LocationPeriodData {
   newPatientsCreated: number
   caseStarts: number
   startApptCompleted: number
+  appointments: number
   avgCaseFee: number
   newPatExams: number
   // Referrals
   referralBreakdown: Record<ReferralType, number>
+  conversionBreakdown: Record<ReferralType, number>
   totalNoShowCancellations: number
 }
 
 export function mergePeriodData(
   monitorRows: PracticeMonitorRow[],
-  referralRows: PatientReferralsSummary[]
+  referralRows: PatientReferralsSummary[],
+  appointmentsByLocation: Map<string, number> = new Map()
 ): LocationPeriodData[] {
   const referralMap = new Map(referralRows.map((r) => [r.location, r]))
 
@@ -187,9 +247,16 @@ export function mergePeriodData(
       newPatientsCreated: refs?.totalNewPatients ?? m.newPatientsCreated,
       caseStarts: m.caseStarts,
       startApptCompleted: m.startApptCompleted,
+      appointments: appointmentsByLocation.get(m.location) ?? 0,
       avgCaseFee: m.avgCaseFee,
       newPatExams: m.newPatExams,
       referralBreakdown: refs?.referralBreakdown ?? {
+        Professional: 0,
+        'Family Referral': 0,
+        Online: 0,
+        Other: 0,
+      },
+      conversionBreakdown: refs?.conversionBreakdown ?? {
         Professional: 0,
         'Family Referral': 0,
         Online: 0,
