@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Download, Eye, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle } from 'lucide-react';
@@ -28,7 +27,6 @@ interface PDFReportGeneratorProps {
 interface ReportData {
   id: string;
   title: string;
-  type: 'summary' | 'detailed' | 'executive';
   createdAt: string;
   data: any;
   pdfUrl?: string;
@@ -48,7 +46,6 @@ export function PDFReportGenerator({
 }: PDFReportGeneratorProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [reportType, setReportType] = useState<'summary' | 'detailed' | 'executive'>('summary');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedReports, setGeneratedReports] = useState<ReportData[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -286,7 +283,6 @@ export function PDFReportGenerator({
   };
 
   const buildPdfDocument = useCallback((options?: {
-    reportTypeOverride?: 'summary' | 'detailed' | 'executive';
     greyfinchDataOverride?: any;
     periodsOverride?: any[];
     acquisitionCostsOverride?: any[];
@@ -296,7 +292,6 @@ export function PDFReportGenerator({
     selectedChartsOverride?: string[];
     periodDataOverride?: any;
   }) => {
-    const resolvedReportType = options?.reportTypeOverride ?? reportType;
     const resolvedGreyfinchData = options?.greyfinchDataOverride ?? greyfinchData;
     const resolvedPeriods = options?.periodsOverride ?? periods;
     const resolvedAcquisitionCosts = options?.acquisitionCostsOverride ?? acquisitionCosts;
@@ -321,12 +316,6 @@ export function PDFReportGenerator({
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
 
     yPosition += 20;
-
-    doc.setFontSize(16);
-    doc.setTextColor(29, 29, 82);
-    doc.text(`${resolvedReportType.charAt(0).toUpperCase() + resolvedReportType.slice(1)} Report`, 20, yPosition);
-
-    yPosition += 15;
 
     doc.setFontSize(14);
     doc.setTextColor(29, 29, 82);
@@ -548,10 +537,10 @@ export function PDFReportGenerator({
       doc.text('Orthodash Practice Analytics', 20, pageHeight - 10);
     }
 
-    const fileName = `orthodash-${resolvedReportType}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `orthodash-practice-report-${new Date().toISOString().split('T')[0]}.pdf`;
 
     return { doc, fileName };
-  }, [reportType, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, selectedPeriod, selectedCharts, periodData]);
+  }, [greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, selectedPeriod, selectedCharts, periodData]);
 
   // Save report to database - memoized for performance
   const saveReportToDatabase = useCallback(async (reportData: ReportData) => {
@@ -574,7 +563,6 @@ export function PDFReportGenerator({
           userId: user.id,
           sessionId: `session-${Date.now()}`, // Generate a session ID
           name: reportData.title,
-          type: reportData.type,
           data: reportData.data
         }),
       });
@@ -618,8 +606,7 @@ export function PDFReportGenerator({
         // Generate report metadata and save to state/DB
         const reportData: ReportData = {
           id: Date.now().toString(),
-          title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report - ${new Date().toLocaleDateString()}`,
-          type: reportType,
+          title: `Practice Report - ${new Date().toLocaleDateString()}`,
           createdAt: new Date().toISOString(),
           data: {
             greyfinchData,
@@ -662,7 +649,7 @@ export function PDFReportGenerator({
     } finally {
       setIsGenerating(false);
     }
-  }, [buildPdfDocument, reportType, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, onSaveReport, periodData, saveReportToDatabase, selectedCharts, selectedPeriod, toast]);
+  }, [buildPdfDocument, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, onSaveReport, periodData, saveReportToDatabase, selectedCharts, selectedPeriod, toast]);
 
   // View generated report - memoized for performance
   const viewReport = useCallback((report: ReportData) => {
@@ -680,7 +667,6 @@ export function PDFReportGenerator({
     previewWindow.document.body.innerHTML = '<div style="font-family: system-ui; padding: 24px;">Preparing PDF preview...</div>';
 
     const { doc } = buildPdfDocument({
-      reportTypeOverride: report.type,
       greyfinchDataOverride: report.data.greyfinchData,
       periodsOverride: report.data.periods,
       acquisitionCostsOverride: report.data.acquisitionCosts,
@@ -719,45 +705,19 @@ export function PDFReportGenerator({
             Generate PDF Report
         </CardTitle>
       </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-end gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Report Type
-              </label>
-              <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="summary">Summary Report</SelectItem>
-                  <SelectItem value="detailed">Detailed Report</SelectItem>
-                  <SelectItem value="executive">Executive Report</SelectItem>
-                </SelectContent>
-              </Select>
-        </div>
-
-            <Button
-              onClick={() => generatePDF()}
-              disabled={isGenerating || isDataFetching}
-              className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
-            >
-              {isGenerating ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : isDataFetching ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
-              )}
-              {isGenerating ? 'Generating...' : isDataFetching ? 'Data Refreshing...' : 'Generate PDF'}
-            </Button>
-              </div>
-          
-          <div className="text-sm text-gray-600">
-            <p><strong>Summary Report:</strong> High-level overview with key metrics and insights</p>
-            <p><strong>Detailed Report:</strong> Comprehensive analysis with period breakdowns and charts</p>
-            <p><strong>Executive Report:</strong> Strategic insights and recommendations for stakeholders</p>
-          </div>
+        <CardContent>
+          <Button
+            onClick={() => generatePDF()}
+            disabled={isGenerating || isDataFetching}
+            className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
+          >
+            {isGenerating || isDataFetching ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {isGenerating ? 'Generating...' : isDataFetching ? 'Data Refreshing...' : 'Generate PDF'}
+          </Button>
         </CardContent>
       </Card>
 
@@ -779,7 +739,7 @@ export function PDFReportGenerator({
                     <div>
                       <p className="font-medium text-gray-900">{report.title}</p>
                       <p className="text-sm text-gray-500">
-                        {report.type.charAt(0).toUpperCase() + report.type.slice(1)} • {new Date(report.createdAt).toLocaleDateString()}
+                        {new Date(report.createdAt).toLocaleDateString()}
                       </p>
           </div>
         </div>
@@ -797,10 +757,7 @@ export function PDFReportGenerator({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setReportType(report.type);
-                        setTimeout(() => generatePDF(true), 100);
-                      }}
+                      onClick={() => generatePDF(true)}
                       disabled={isDataFetching || isGenerating}
                     >
                       <Download className="h-4 w-4 mr-1" />

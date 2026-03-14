@@ -16,6 +16,7 @@ export interface Location {
   id: number
   name: string
   greyfinchId?: string
+  timeZone?: string
   isActive?: boolean
 }
 

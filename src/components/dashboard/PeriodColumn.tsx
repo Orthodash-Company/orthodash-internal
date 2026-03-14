@@ -22,7 +22,6 @@ import {
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import type { PeriodQuery } from "@/lib/period-summary";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { MultiLocationComparisonChart } from './MultiLocationComparisonChart';
 import { ChartSelectorModal } from '../ui/chart-selector-modal';
 
 interface PeriodColumnProps {
@@ -384,7 +383,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
 
   // Check if multiple locations are selected
   const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
-  const hasMultipleLocations = selectedLocationIds.length > 1;
 
   // Check for empty state (no dates selected)
   if (!period.startDate || !period.endDate) {
@@ -526,14 +524,6 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
           </div>
         </div>
 
-        {/* Multi-Location Comparison Chart */}
-        {hasMultipleLocations && (
-          <MultiLocationComparisonChart
-            locationData={[]} // This will be populated with actual location data
-            selectedLocationIds={selectedLocationIds}
-            periodTitle={period.title}
-          />
-        )}
 
         {/* Charts - Compact */}
         {renderChartsSection(true)}
