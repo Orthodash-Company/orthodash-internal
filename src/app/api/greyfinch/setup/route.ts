@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { greyfinchService } from '@/lib/services/greyfinch'
+import { greyfinchService } from '@/lib/services/greyfinch/client'
+import { requireAuthUser } from '@/lib/require-auth-user'
 
 export async function POST(request: NextRequest) {
+  const { user, unauthorizedResponse } = await requireAuthUser()
+  if (!user) return unauthorizedResponse
+
   try {
     const { apiKey, apiSecret } = await request.json()
 

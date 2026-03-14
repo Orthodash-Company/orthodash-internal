@@ -2,10 +2,11 @@
 // Runs PRACTICE_MONITOR for the current year (YTD) to get real patient counts.
 // Much more meaningful than the GQL patients/appointmentBookings fields which are capped at 20.
 import { NextRequest, NextResponse } from 'next/server'
-import { greyfinchService } from '@/lib/services/greyfinch'
-import { GQL_BASIC_COUNTS, DASHBOARD_LOCATION_IDS } from '@/lib/services/greyfinch-queries'
-import { fetchReport } from '@/lib/services/greyfinch-reports'
-import { parsePracticeEfficiency, parsePracticeMonitor } from '@/lib/services/greyfinch-report-parsers'
+import { greyfinchService } from '@/lib/services/greyfinch/client'
+import { GQL_BASIC_COUNTS, DASHBOARD_LOCATION_IDS } from '@/lib/services/greyfinch/queries'
+import { fetchReport } from '@/lib/services/greyfinch/reports'
+import { parsePracticeEfficiency, parsePracticeMonitor } from '@/lib/services/greyfinch/parsers'
+import { requireAuthUser } from '@/lib/require-auth-user'
 
 interface LiveCountsData {
   activeTxPatients: number
@@ -18,6 +19,9 @@ interface LiveCountsData {
 }
 
 export async function GET(request: NextRequest) {
+  const { user, unauthorizedResponse } = await requireAuthUser()
+  if (!user) return unauthorizedResponse
+
   try {
     const today = new Date()
     const year = today.getFullYear()

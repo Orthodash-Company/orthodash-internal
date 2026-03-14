@@ -115,6 +115,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Verify the session belongs to the authenticated user before updating
+    const [existing] = await db
+      .select({ userId: sessions.userId })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId));
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    if (existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const updateData = {
       periods: periods || [],
       locations: locations || [],
@@ -127,13 +141,6 @@ export async function PUT(request: NextRequest) {
       .set(updateData)
       .where(eq(sessions.id, sessionId))
       .returning();
-
-    if (!updatedSession) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
-    }
 
     return NextResponse.json({
       success: true,

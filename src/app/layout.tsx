@@ -1,6 +1,6 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { ClientProviders } from '@/components/ClientProviders'
+import { ClientProviders } from '@/components/layout/ClientProviders'
 
 export const metadata: Metadata = {
   title: 'Orthodash - Analytics Platform',

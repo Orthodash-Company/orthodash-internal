@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { requireAuthUser } from '@/lib/require-auth-user'
 
 type PeriodPayload = {
   title: string
@@ -50,6 +51,9 @@ function getOpenAI() {
 }
 
 export async function POST(request: NextRequest) {
+  const { user, unauthorizedResponse } = await requireAuthUser()
+  if (!user) return unauthorizedResponse
+
   try {
     const body = await request.json()
     const periods = Array.isArray(body.periods) ? (body.periods as PeriodPayload[]) : []

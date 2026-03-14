@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuthUser } from '@/lib/require-auth-user'
-import { greyfinchSyncService } from '@/lib/services/greyfinch-sync'
-import { greyfinchService } from '@/lib/services/greyfinch'
-import { GQL_BASIC_COUNTS } from '@/lib/services/greyfinch-queries'
+import { greyfinchSyncService } from '@/lib/services/greyfinch/sync'
+import { greyfinchService } from '@/lib/services/greyfinch/client'
+import { GQL_BASIC_COUNTS } from '@/lib/services/greyfinch/queries'
 
 export async function POST(_request: NextRequest) {
   try {

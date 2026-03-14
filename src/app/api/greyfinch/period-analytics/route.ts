@@ -4,35 +4,23 @@
 // Cached in-memory for 1 hour per date range. Bust with ?refresh=true.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchReport } from '@/lib/services/greyfinch-reports'
+import { requireAuthUser } from '@/lib/require-auth-user'
+import { fetchReport } from '@/lib/services/greyfinch/reports'
 import {
   parsePracticeEfficiency,
   parsePracticeMonitor,
   parsePatientReferrals,
   mergePeriodData,
-  type LocationPeriodData,
-} from '@/lib/services/greyfinch-report-parsers'
-import { DASHBOARD_LOCATION_IDS } from '@/lib/services/greyfinch-queries'
+  type WeeklyTrendPoint,
+  type PeriodAnalyticsResponse,
+} from '@/lib/services/greyfinch/parsers'
+import { DASHBOARD_LOCATION_IDS } from '@/lib/services/greyfinch/queries'
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
 interface CacheEntry {
   data: PeriodAnalyticsResponse
   fetchedAt: number
-}
-
-interface WeeklyTrendPoint {
-  week: string
-  gilbert: number
-  phoenix: number
-  total: number
-}
-
-interface PeriodAnalyticsResponse {
-  locations: LocationPeriodData[]
-  trends: {
-    weekly: WeeklyTrendPoint[]
-  }
 }
 
 const cache = new Map<string, CacheEntry>()
@@ -45,6 +33,9 @@ function getCacheKey(startDate: string, endDate: string, locationIds: string[]):
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const { user, unauthorizedResponse } = await requireAuthUser()
+  if (!user) return unauthorizedResponse
+
   const { searchParams } = new URL(request.url)
   const startDate = searchParams.get('startDate')
   const endDate = searchParams.get('endDate')
