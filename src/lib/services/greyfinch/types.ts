@@ -7,3 +7,8 @@ export const LocationSchema = z.object({
 })
 
 export type Location = z.infer<typeof LocationSchema>
+
+export const LiveCountsParamsSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+})

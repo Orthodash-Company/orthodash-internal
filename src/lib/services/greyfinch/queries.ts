@@ -4,6 +4,11 @@
 // Confirmed via Postman — all dashboard locations share this timezone
 export const PRACTICE_TZ = 'America/Phoenix'
 
+// The two active dashboard locations — data comes from Greyfinch, filtered by these UUIDs
+export const GILBERT_UUID = '097eb1d8-ec62-45d9-8c21-d08af1cf66c8'
+export const PHOENIX_UUID = '4a2bf9bd-222b-4690-9d12-5fc95daa7d93'
+export const DASHBOARD_LOCATION_IDS = [GILBERT_UUID, PHOENIX_UUID] as const
+
 export const GQL_LOGIN = `
   mutation Login($key: String!, $secret: String!) {
     apiLogin(key: $key, secret: $secret) {

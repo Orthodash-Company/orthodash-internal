@@ -192,8 +192,6 @@ export function PracticeSnapshot({
     enabled: Boolean(user?.id),
   })
 
-  const queryLocations = locationsQuery.data ?? []
-
   const availableLocations = useMemo(() => {
     if (locations && locations.length > 0) {
       return locations
@@ -201,12 +199,12 @@ export function PracticeSnapshot({
         .map((location) => ({ id: location.greyfinchId as string, name: location.name }))
     }
 
-    if (queryLocations.length > 0) {
-      return queryLocations.map((location) => ({ id: location.id, name: location.name }))
+    if (locationsQuery.data && locationsQuery.data.length > 0) {
+      return locationsQuery.data.map((location) => ({ id: location.id, name: location.name }))
     }
 
     return [...FALLBACK_LOCATIONS]
-  }, [locations, queryLocations])
+  }, [locations, locationsQuery.data])
 
   const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>(
     () => availableLocations.map((location) => location.id)

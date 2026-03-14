@@ -58,21 +58,6 @@ export default function Dashboard() {
   const greyfinchTimeoutRef = useRef<number | null>(null);
   const lastFetchedPeriodKeysRef = useRef<Record<string, string>>({});
 
-  const getDefaultLocations = useCallback((): Location[] => ([
-    {
-      id: 1,
-      name: 'Gilbert',
-      greyfinchId: '097eb1d8-ec62-45d9-8c21-d08af1cf66c8',
-      isActive: true
-    },
-    {
-      id: 2,
-      name: 'Phoenix-Ahwatukee',
-      greyfinchId: '4a2bf9bd-222b-4690-9d12-5fc95daa7d93',
-      isActive: true
-    }
-  ]), []);
-
   const extractLocationsFromGreyfinchData = useCallback((apiResponse: unknown): Location[] => {
     const data = (apiResponse as { data?: unknown })?.data || apiResponse;
 
@@ -93,8 +78,8 @@ export default function Dashboard() {
       }
     }
 
-    return getDefaultLocations();
-  }, [getDefaultLocations]);
+    return [];
+  }, []);
 
 
   const handleAddPeriod = (period: Omit<PeriodConfig, 'id'>) => {
@@ -251,17 +236,15 @@ export default function Dashboard() {
       return;
     }
 
-    // Pre-set known locations so the dashboard is usable immediately
-    setLocations(getDefaultLocations());
     setIsInitialLoading(false);
 
-    // Confirm real connection in the background
+    // Fetch locations from Greyfinch in the background
     void fetchGreyfinchData();
 
     return () => {
       clearGreyfinchRequest();
     };
-  }, [clearGreyfinchRequest, fetchGreyfinchData, getDefaultLocations, user?.id]);
+  }, [clearGreyfinchRequest, fetchGreyfinchData, user?.id]);
 
 
   // Trigger period-analytics fetch when a period's dates or locations change
