@@ -33,9 +33,9 @@ export function ScrollDatePicker({
   maxDate
 }: ScrollDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(date ? date.getMonth() : new Date().getMonth());
-  const [selectedDay, setSelectedDay] = useState(date ? date.getDate() : new Date().getDate());
-  const [selectedYear, setSelectedYear] = useState(date ? date.getFullYear() : new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 20 }, (_, i) => currentYear - 10 + i);
@@ -43,14 +43,6 @@ export function ScrollDatePicker({
   const monthRef = useRef<HTMLDivElement>(null);
   const dayRef = useRef<HTMLDivElement>(null);
   const yearRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (date) {
-      setSelectedMonth(date.getMonth());
-      setSelectedDay(date.getDate());
-      setSelectedYear(date.getFullYear());
-    }
-  }, [date]);
 
   const updateDate = (month: number, day: number, year: number) => {
     const maxDays = daysInMonth(year, month);
@@ -68,7 +60,7 @@ export function ScrollDatePicker({
     setSelectedYear(year);
   };
 
-  const scrollToCenter = (ref: React.RefObject<HTMLDivElement>, index: number) => {
+  const scrollToCenter = (ref: React.RefObject<HTMLDivElement | null>, index: number) => {
     if (ref.current) {
       const itemHeight = 40; // Height of each scroll item
       const containerHeight = 128; // Updated height of visible container (h-32 = 128px)
@@ -104,8 +96,18 @@ export function ScrollDatePicker({
     return Array.from({ length: maxDays }, (_, i) => i + 1);
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      const baseDate = date ?? new Date();
+      setSelectedMonth(baseDate.getMonth());
+      setSelectedDay(baseDate.getDate());
+      setSelectedYear(baseDate.getFullYear());
+    }
+    setIsOpen(open);
+  };
+
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"

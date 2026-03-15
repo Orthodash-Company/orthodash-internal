@@ -1,32 +1,36 @@
 'use client'
 
 import { useEffect } from 'react'
-import { CheckCircle, ArrowRight, Users, BarChart3, Shield, Zap } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { CheckCircle, Users, BarChart3, Shield, Zap } from 'lucide-react'
 
-export default function WelcomePage() {
-  const { user } = useAuth()
+const Page = () => {
+
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   // Redirect to home if not logged in
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
+    if (!loading && !user) {
+      router.replace('/login')
     }
-  }, [user, router])
+  }, [loading, user, router])
 
   const handleGetStarted = () => {
     router.push('/')
   }
 
-  if (!user) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
@@ -110,4 +114,4 @@ export default function WelcomePage() {
   )
 }
 
-export const dynamic = 'force-dynamic'; 
+export default Page;

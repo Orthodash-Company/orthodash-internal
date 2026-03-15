@@ -2,26 +2,84 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { reports } from '@/shared/schema';
 import { eq } from 'drizzle-orm';
+import { requireAuthUser } from '@/lib/require-auth-user';
+
+function parseReportPayload(periodConfigs: string | null) {
+  if (!periodConfigs) {
+    return {
+      periodConfigs: [],
+      type: 'summary',
+      data: null,
+      sessionId: null,
+      thumbnail: null,
+      pdfUrl: null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(periodConfigs);
+    if (Array.isArray(parsed)) {
+      return {
+        periodConfigs: parsed,
+        type: 'summary',
+        data: null,
+        sessionId: null,
+        thumbnail: null,
+        pdfUrl: null,
+      };
+    }
+
+    return {
+      periodConfigs: Array.isArray(parsed.periodConfigs) ? parsed.periodConfigs : [],
+      type: typeof parsed.type === 'string' ? parsed.type : 'summary',
+      data: parsed.data ?? null,
+      sessionId: parsed.sessionId ?? null,
+      thumbnail: typeof parsed.thumbnail === 'string' ? parsed.thumbnail : null,
+      pdfUrl: typeof parsed.pdfUrl === 'string' ? parsed.pdfUrl : null,
+    };
+  } catch {
+    return {
+      periodConfigs: [],
+      type: 'summary',
+      data: null,
+      sessionId: null,
+      thumbnail: null,
+      pdfUrl: null,
+    };
+  }
+}
+
+function transformReport(report: typeof reports.$inferSelect) {
+  const payload = parseReportPayload(report.periodConfigs);
+
+  return {
+    ...report,
+    type: payload.type,
+    data: payload.data,
+    sessionId: payload.sessionId,
+    periodConfigs: payload.periodConfigs,
+    thumbnail: report.thumbnail ?? payload.thumbnail,
+    pdfUrl: report.pdfUrl ?? payload.pdfUrl,
+  };
+}
 
 // GET /api/reports - Get all reports for a user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) {
+      return unauthorizedResponse;
     }
 
     const userReports = await db
       .select()
       .from(reports)
-      .where(eq(reports.userId, userId))
+      .where(eq(reports.userId, user.id))
       .orderBy(reports.createdAt);
 
     return NextResponse.json({
       success: true,
-      reports: userReports
+      reports: userReports.map(transformReport)
     });
 
   } catch (error) {
@@ -42,23 +100,39 @@ export async function POST(request: NextRequest) {
       name,
       type,
       data,
-      userId
+      description,
+      thumbnail,
+      pdfUrl,
     } = body;
 
-    if (!userId || !sessionId || !name || !type) {
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) {
+      return unauthorizedResponse;
+    }
+
+    if (!name || !type) {
       return NextResponse.json(
-        { error: 'User ID, session ID, name, and type required' },
+        { error: 'Name and type required' },
         { status: 400 }
       );
     }
 
-    const reportData = {
-      userId,
-      sessionId,
-      name,
+    const serializedPayload = JSON.stringify({
+      sessionId: sessionId ?? null,
       type,
-      data: data || {},
-      status: 'completed',
+      data: data ?? null,
+      periodConfigs: data?.periods ?? data?.session?.periods ?? [],
+      thumbnail: thumbnail ?? null,
+      pdfUrl: pdfUrl ?? null,
+    });
+
+    const reportData = {
+      userId: user.id,
+      name,
+      description: description || `${type} report`,
+      periodConfigs: serializedPayload,
+      pdfUrl: pdfUrl || null,
+      thumbnail: thumbnail || null,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -70,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      report: newReport
+      report: transformReport(newReport)
     }, { status: 201 });
 
   } catch (error) {

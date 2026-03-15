@@ -13,19 +13,8 @@ const getOpenAI = () => {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Generate summary API called');
-    console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
-    
     const body = await request.json();
     const { rawDataDump, userId } = body;
-
-    console.log('Generate summary request:', { 
-      periodsCount: rawDataDump?.analysisPeriods?.length || 0, 
-      hasGreyfinchData: !!rawDataDump?.greyfinchData, 
-      userId: userId ? 'present' : 'missing',
-      locationsCount: rawDataDump?.allLocations?.length || 0,
-      dataSummary: rawDataDump?.dataSummary
-    });
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -38,14 +27,6 @@ export async function POST(request: NextRequest) {
 
     // Calculate KPIs from available data
     const kpis = calculateKPIs(rawDataDump?.analysisPeriods || [], rawDataDump?.greyfinchData || {});
-
-    console.log('Raw data dump prepared for AI analysis:', {
-      periodsCount: rawDataDump?.analysisPeriods?.length || 0,
-      locationsCount: rawDataDump?.allLocations?.length || 0,
-      hasLocationBreakdown: !!rawDataDump?.locationBreakdown,
-      kpis: kpis,
-      dataSummary: rawDataDump?.dataSummary
-    });
 
     // Create a dynamic prompt based on available data
     let dataDescription = '';
@@ -142,9 +123,6 @@ IMPORTANT GUIDELINES:
 7. Always respond with valid JSON format
 `;
 
-    console.log('Sending request to OpenAI...');
-    console.log('Prompt length:', prompt.length);
-
     let response: string;
     try {
       const openai = getOpenAI();
@@ -170,7 +148,6 @@ IMPORTANT GUIDELINES:
         throw new Error('No response from OpenAI');
       }
 
-      console.log('OpenAI response received, length:', response.length);
     } catch (openaiError) {
       console.error('OpenAI API error:', openaiError);
       throw new Error(`OpenAI API error: ${openaiError instanceof Error ? openaiError.message : 'Unknown error'}`);
@@ -180,10 +157,8 @@ IMPORTANT GUIDELINES:
     let parsedResponse;
     try {
       parsedResponse = JSON.parse(response);
-      console.log('Successfully parsed JSON response');
     } catch (e) {
       console.error('Failed to parse JSON response:', e);
-      console.log('Raw response:', response);
       
       // If JSON parsing fails, create a structured response
       parsedResponse = {

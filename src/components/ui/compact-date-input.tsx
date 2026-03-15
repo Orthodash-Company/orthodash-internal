@@ -8,6 +8,8 @@ interface CompactDateInputProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
 export function CompactDateInput({ 
@@ -16,13 +18,22 @@ export function CompactDateInput({
   label,
   placeholder = "Select date",
   className,
-  disabled = false
+  disabled = false,
+  minDate,
+  maxDate,
 }: CompactDateInputProps) {
+  const formatDateForInput = (value: Date) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const handleCalendarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value) {
-      const newDate = new Date(value);
+      const [year, month, day] = value.split('-').map(Number);
+      const newDate = new Date(year, month - 1, day);
       setDate(newDate);
     }
   };
@@ -34,9 +45,11 @@ export function CompactDateInput({
       )}
       <Input
         type="date"
-        value={date ? date.toISOString().split('T')[0] : ''}
+        value={date ? formatDateForInput(date) : ''}
         onChange={handleCalendarChange}
         disabled={disabled}
+        min={minDate ? formatDateForInput(minDate) : undefined}
+        max={maxDate ? formatDateForInput(maxDate) : undefined}
         className={`h-8 text-sm ${className || ''}`}
         placeholder={placeholder}
       />

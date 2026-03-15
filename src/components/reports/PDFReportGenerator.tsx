@@ -1,0 +1,753 @@
+'use client'
+
+import { useState, useCallback, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Download, Eye, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle, Trash2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+
+interface PDFReportGeneratorProps {
+  greyfinchData: any;
+  periods: any[];
+  acquisitionCosts: any[];
+  aiSummary: any;
+  dataCounts?: { activeTxPatients?: number; appointments?: number; leads?: number; newPatientsCreated?: number; caseStarts?: number };
+  isDataFetching?: boolean;
+  selectedPeriod?: any; // The specific period to generate charts for
+  selectedCharts?: string[]; // The charts selected for this period
+  periodData?: any; // The processed data for the selected period
+}
+
+interface ReportData {
+  id: string;
+  title: string;
+  createdAt: string;
+  data: any;
+  pdfUrl?: string;
+}
+
+export function PDFReportGenerator({
+  greyfinchData,
+  periods,
+  acquisitionCosts,
+  aiSummary,
+  dataCounts,
+  isDataFetching = false,
+  selectedPeriod,
+  selectedCharts = [],
+  periodData,
+}: PDFReportGeneratorProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedReports, setGeneratedReports] = useState<ReportData[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const previewCardTooltips = {
+    patients: 'Active treatment patients from the Greyfinch Practice Monitor report, year to date.',
+    appointments: 'Total completed appointments from the Greyfinch Practice Efficiency report, year to date.',
+    leads: 'Total prospects currently counted in Greyfinch leads data.',
+    periods: 'Number of analysis periods currently included in this report.',
+  } as const;
+
+  // Extract counter data — dataCounts comes from /api/greyfinch/live-counts (PRACTICE_MONITOR YTD)
+  const getCounterData = useMemo(() => {
+    const locationCount = Array.isArray(greyfinchData?.data?.locations)
+      ? greyfinchData.data.locations.length
+      : 0;
+    return {
+      activeTxPatients: dataCounts?.activeTxPatients ?? 0,
+      appointments: dataCounts?.appointments ?? 0,
+      leads: dataCounts?.leads ?? 0,
+      newPatientsCreated: dataCounts?.newPatientsCreated ?? 0,
+      caseStarts: dataCounts?.caseStarts ?? 0,
+      locations: locationCount,
+    };
+  }, [greyfinchData, dataCounts]);
+
+  // Generate chart data for PDF - similar to PeriodColumn renderChart
+  const generateChartData = (chartId: string, data: any) => {
+    switch (chartId) {
+      case 'referral-sources':
+        return {
+          title: 'Referral Sources',
+          type: 'pie',
+          data: [
+            { name: 'Digital', value: data.referralSources?.digital || 0 },
+            { name: 'Professional', value: data.referralSources?.professional || 0 },
+            { name: 'Direct', value: data.referralSources?.direct || 0 }
+          ]
+        };
+      
+      case 'conversion-rates':
+        return {
+          title: 'Conversion Rates',
+          type: 'bar',
+          data: [
+            { source: 'Digital', rate: data.conversionRates?.digital || 0 },
+            { source: 'Professional', rate: data.conversionRates?.professional || 0 },
+            { source: 'Direct', rate: data.conversionRates?.direct || 0 }
+          ]
+        };
+      
+      case 'weekly-trends':
+        return {
+          title: 'Weekly Trends',
+          type: 'line',
+          data: (data.trends?.weekly || []).map((week: any) => ({
+            week: week.week || 'Week',
+            gilbert: week.gilbert || 0,
+            phoenix: week.phoenix || 0,
+            total: week.total || 0
+          }))
+        };
+      
+      case 'financial-summary':
+        return {
+          title: 'Financial Summary',
+          type: 'bar',
+          data: [
+            { metric: 'Revenue', value: data.revenue || 0 },
+            { metric: 'Production', value: data.production || 0 },
+            { metric: 'Net Production', value: data.netProduction || 0 },
+            { metric: 'Acquisition Costs', value: data.acquisitionCosts || 0 }
+          ]
+        };
+      
+      case 'patient-metrics':
+        return {
+          title: 'Patient Metrics',
+          type: 'bar',
+          data: [
+            { metric: 'Patients', value: data.patients || 0 },
+            { metric: 'Appointments', value: data.appointments || 0 },
+            { metric: 'Leads', value: data.leads || 0 },
+            { metric: 'Bookings', value: data.bookings || 0 }
+          ]
+        };
+      
+      case 'no-show-analysis':
+        return {
+          title: 'No-Show Analysis',
+          type: 'metric',
+          data: {
+            noShowRate: data.noShowRate || 0,
+            totalAppointments: data.appointments || 0
+          }
+        };
+      
+      default:
+        return null;
+    }
+  };
+
+  // Extract analysis data for a specific period
+  const getPeriodAnalysisData = (period: any) => {
+    if (!greyfinchData?.data) return {};
+    
+    const { data } = greyfinchData;
+    const startDate = period.startDate ? new Date(period.startDate) : null;
+    const endDate = period.endDate ? new Date(period.endDate) : null;
+    
+    // Filter data by date range and location
+    let filteredData = { ...data };
+    
+    if (startDate && endDate) {
+      const startTime = startDate.getTime();
+      const endTime = endDate.getTime();
+      
+      // Filter appointments, leads, etc. by date range
+      if (data.appointments?.data) {
+        filteredData.appointments.data = data.appointments.data.filter((apt: any) => {
+          const aptTime = new Date(apt.scheduledDate || apt.createdAt).getTime();
+          return aptTime >= startTime && aptTime <= endTime;
+        });
+      }
+      
+      if (data.leads?.data) {
+        filteredData.leads.data = data.leads.data.filter((lead: any) => {
+          const leadTime = new Date(lead.createdAt).getTime();
+          return leadTime >= startTime && leadTime <= endTime;
+        });
+      }
+    }
+    
+    if (period.locationId && period.locationId !== 'all') {
+      // Filter by specific location
+      if (filteredData.appointments?.data) {
+        filteredData.appointments.data = filteredData.appointments.data.filter((apt: any) => 
+          apt.locationId === period.locationId
+        );
+      }
+      if (filteredData.leads?.data) {
+        filteredData.leads.data = filteredData.leads.data.filter((lead: any) => 
+          lead.locationId === period.locationId
+        );
+      }
+    }
+    
+    return filteredData;
+  };
+
+  // Add charts section to PDF
+  const addChartsToPDF = (doc: jsPDF, yPosition: number, pageWidth: number, pageHeight: number) => {
+    let currentY = yPosition;
+    
+    if (selectedPeriod && selectedCharts.length > 0 && periodData) {
+      // Add new page for charts if needed
+      if (currentY > pageHeight - 100) {
+        doc.addPage();
+        currentY = 20;
+      }
+      
+      doc.setFontSize(16);
+      doc.setTextColor(29, 29, 82);
+      doc.text('Analytics Charts', 20, currentY);
+      currentY += 15;
+      
+      // Period info
+      doc.setFontSize(12);
+      doc.setTextColor(29, 29, 82);
+      doc.text(`${selectedPeriod.title || 'Selected Period'}`, 20, currentY);
+      currentY += 8;
+      
+      if (selectedPeriod.startDate && selectedPeriod.endDate) {
+        const startDate = new Date(selectedPeriod.startDate).toLocaleDateString();
+        const endDate = new Date(selectedPeriod.endDate).toLocaleDateString();
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Date Range: ${startDate} - ${endDate}`, 20, currentY);
+        currentY += 6;
+      }
+      
+      // Generate chart tables
+      selectedCharts.forEach((chartId) => {
+        if (currentY > pageHeight - 80) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        const chartData = generateChartData(chartId, periodData);
+        if (!chartData) return;
+        
+        doc.setFontSize(14);
+        doc.setTextColor(29, 29, 82);
+        doc.text(chartData.title, 20, currentY);
+        currentY += 10;
+        
+        if (chartData.type === 'metric') {
+          // Special handling for no-show analysis
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          doc.text(`No-Show Rate: ${chartData.data.noShowRate.toFixed(1)}%`, 25, currentY);
+          currentY += 6;
+          doc.text(`Total Appointments: ${chartData.data.totalAppointments}`, 25, currentY);
+          currentY += 10;
+        } else {
+          // Create table for chart data
+          const tableData = [['Metric', 'Value']];
+          
+          chartData.data.forEach((item: any) => {
+            if (chartData.type === 'pie') {
+              tableData.push([item.name, item.value.toString()]);
+            } else if (chartData.type === 'bar' && item.metric) {
+              tableData.push([item.metric, item.value.toString()]);
+            } else if (chartData.type === 'bar' && item.source) {
+              tableData.push([item.source, `${item.rate.toFixed(1)}%`]);
+            } else if (chartData.type === 'line') {
+              tableData.push([item.week, `Gilbert: ${item.gilbert}, Phoenix: ${item.phoenix}, Total: ${item.total}`]);
+            }
+          });
+          
+          autoTable(doc, {
+            head: [tableData[0]],
+            body: tableData.slice(1),
+            startY: currentY,
+            theme: 'grid',
+            headStyles: { fillColor: [29, 29, 82] },
+            styles: { fontSize: 9 }
+          });
+          
+          currentY = (doc as any).lastAutoTable.finalY + 15;
+        }
+      });
+    }
+    
+    return currentY;
+  };
+
+  const buildPdfDocument = useCallback((options?: {
+    greyfinchDataOverride?: any;
+    periodsOverride?: any[];
+    acquisitionCostsOverride?: any[];
+    aiSummaryOverride?: any;
+    counterDataOverride?: { activeTxPatients?: number; appointments?: number; leads?: number; newPatientsCreated?: number; caseStarts?: number; locations?: number };
+    selectedPeriodOverride?: any;
+    selectedChartsOverride?: string[];
+    periodDataOverride?: any;
+  }) => {
+    const resolvedGreyfinchData = options?.greyfinchDataOverride ?? greyfinchData;
+    const resolvedPeriods = options?.periodsOverride ?? periods;
+    const resolvedAcquisitionCosts = options?.acquisitionCostsOverride ?? acquisitionCosts;
+    const resolvedAiSummary = options?.aiSummaryOverride ?? aiSummary;
+    const resolvedCounterData = options?.counterDataOverride ?? getCounterData;
+    const resolvedSelectedPeriod = options?.selectedPeriodOverride ?? selectedPeriod;
+    const resolvedSelectedCharts = options?.selectedChartsOverride ?? selectedCharts;
+    const resolvedPeriodData = options?.periodDataOverride ?? periodData;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    doc.setFontSize(24);
+    doc.setTextColor(29, 29, 82);
+    doc.text('Orthodash Practice Report', pageWidth / 2, yPosition, { align: 'center' });
+
+    yPosition += 15;
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
+
+    yPosition += 20;
+
+    doc.setFontSize(14);
+    doc.setTextColor(29, 29, 82);
+    doc.text('Practice Overview', 20, yPosition);
+
+    yPosition += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+
+    const counterTableData = [
+      ['Metric', 'Count'],
+      ['Patients', String(resolvedCounterData.activeTxPatients ?? 0)],
+      ['Appointments', String(resolvedCounterData.appointments ?? 0)],
+      ['Leads', String(resolvedCounterData.leads ?? 0)],
+      ['Locations', String(resolvedCounterData.locations ?? 0)],
+      ['Analysis Periods', String(resolvedPeriods.length ?? 0)]
+    ];
+
+    autoTable(doc, {
+      head: [counterTableData[0]],
+      body: counterTableData.slice(1),
+      startY: yPosition,
+      theme: 'grid',
+      headStyles: { fillColor: [29, 29, 82] },
+      styles: { fontSize: 10 }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+    if (resolvedPeriods.length > 0) {
+      doc.setFontSize(14);
+      doc.setTextColor(29, 29, 82);
+      doc.text('Period Analysis', 20, yPosition);
+
+      yPosition += 10;
+
+      resolvedPeriods.forEach((period, index) => {
+        if (yPosition > pageHeight - 40) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        const currentPeriodData = getPeriodAnalysisData(period);
+        const periodTitle = period.title || `Period ${String.fromCharCode(65 + index)}`;
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text(periodTitle, 20, yPosition);
+
+        yPosition += 8;
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+
+        if (period.startDate && period.endDate) {
+          const startDate = new Date(period.startDate).toLocaleDateString();
+          const endDate = new Date(period.endDate).toLocaleDateString();
+          doc.text(`Date Range: ${startDate} - ${endDate}`, 25, yPosition);
+          yPosition += 6;
+        }
+
+        if (period.locationId && period.locationId !== 'all') {
+          const location = resolvedGreyfinchData?.data?.locations?.find((loc: any) => loc.id === period.locationId);
+          if (location) {
+            doc.text(`Location: ${location.name}`, 25, yPosition);
+            yPosition += 6;
+          }
+        }
+
+        if (currentPeriodData.appointments?.data) {
+          doc.text(`Appointments: ${currentPeriodData.appointments.data.length}`, 25, yPosition);
+          yPosition += 6;
+        }
+
+        if (currentPeriodData.leads?.data) {
+          doc.text(`Leads: ${currentPeriodData.leads.data.length}`, 25, yPosition);
+          yPosition += 6;
+        }
+
+        yPosition += 5;
+      });
+    }
+
+    if (resolvedAcquisitionCosts && resolvedAcquisitionCosts.length > 0) {
+      if (yPosition > pageHeight - 60) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(29, 29, 82);
+      doc.text('Acquisition Costs', 20, yPosition);
+
+      yPosition += 10;
+
+      const costTableData = [
+        ['Period', 'Cost Type', 'Amount', 'Referral Source']
+      ];
+
+      resolvedAcquisitionCosts.forEach((cost: any) => {
+        costTableData.push([
+          cost.period || 'Unknown',
+          cost.type || 'Unknown',
+          `$${cost.amount?.toLocaleString() || '0'}`,
+          cost.source || 'Unknown'
+        ]);
+      });
+
+      autoTable(doc, {
+        head: [costTableData[0]],
+        body: costTableData.slice(1),
+        startY: yPosition,
+        theme: 'grid',
+        headStyles: { fillColor: [29, 29, 82] },
+        styles: { fontSize: 9 }
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    yPosition = addChartsToPDF(doc, yPosition, pageWidth, pageHeight);
+
+    if (resolvedAiSummary) {
+      if (yPosition > pageHeight - 80) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(16);
+      doc.setTextColor(29, 29, 82);
+      doc.text('AI Analysis & Insights', 20, yPosition);
+
+      yPosition += 15;
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+
+      if (resolvedAiSummary.summary) {
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Executive Summary:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        const summaryLines = doc.splitTextToSize(resolvedAiSummary.summary, pageWidth - 40);
+        doc.text(summaryLines, 20, yPosition);
+        yPosition += (summaryLines.length * 6) + 15;
+      }
+
+      if (resolvedAiSummary.insights && resolvedAiSummary.insights.length > 0) {
+        if (yPosition > pageHeight - 60) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Key Performance Indicators:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+
+        resolvedAiSummary.insights.forEach((insight: string, index: number) => {
+          const insightLines = doc.splitTextToSize(`${index + 1}. ${insight}`, pageWidth - 40);
+          doc.text(insightLines, 20, yPosition);
+          yPosition += (insightLines.length * 6) + 3;
+        });
+
+        yPosition += 10;
+      }
+
+      if (resolvedAiSummary.strategicRecommendations && resolvedAiSummary.strategicRecommendations.length > 0) {
+        if (yPosition > pageHeight - 80) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Strategic Recommendations:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+
+        resolvedAiSummary.strategicRecommendations.forEach((rec: string, index: number) => {
+          const recLines = doc.splitTextToSize(`${index + 1}. ${rec}`, pageWidth - 40);
+          doc.text(recLines, 20, yPosition);
+          yPosition += (recLines.length * 6) + 3;
+        });
+
+        yPosition += 10;
+      }
+
+      if (resolvedAiSummary.analysis) {
+        if (yPosition > pageHeight - 80) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setTextColor(29, 29, 82);
+        doc.text('Detailed Analysis:', 20, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        const analysisLines = doc.splitTextToSize(resolvedAiSummary.analysis, pageWidth - 40);
+        doc.text(analysisLines, 20, yPosition);
+      }
+    }
+
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
+      doc.text('Orthodash Practice Analytics', 20, pageHeight - 10);
+    }
+
+    const fileName = `orthodash-practice-report-${new Date().toISOString().split('T')[0]}.pdf`;
+
+    return { doc, fileName };
+  }, [greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, selectedPeriod, selectedCharts, periodData]);
+
+  // Save report to database - memoized for performance
+  const saveReportToDatabase = useCallback(async (reportData: ReportData) => {
+    if (!user?.id) return;
+
+    try {
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: reportData.title,
+          type: 'pdf',
+          description: `PDF report with ${periods.length} analysis period${periods.length !== 1 ? 's' : ''}`,
+          data: {
+            periods: periods.map((p: any) => ({
+              id: p.id,
+              name: p.name || p.title,
+              startDate: p.startDate,
+              endDate: p.endDate,
+            })),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save report: ${response.status}`);
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error saving report:', error);
+    }
+  }, [user?.id, periods]);
+
+  // Generate PDF report - memoized for performance
+  // skipHistory: true skips adding to generatedReports and saving to DB (used by Download button on existing reports)
+  const generatePDF = useCallback(async (skipHistory = false) => {
+    setIsGenerating(true);
+    
+    try {
+      const { doc, fileName } = buildPdfDocument();
+      doc.save(fileName);
+
+      if (!skipHistory) {
+        // Generate report metadata and save to state/DB
+        const reportData: ReportData = {
+          id: Date.now().toString(),
+          title: `Practice Report - ${new Date().toLocaleDateString()}`,
+          createdAt: new Date().toISOString(),
+          data: {
+            greyfinchData,
+            periods,
+            acquisitionCosts,
+            aiSummary,
+            counterData: getCounterData,
+            selectedPeriod,
+            selectedCharts,
+            periodData,
+          }
+        };
+
+        setGeneratedReports(prev => [...prev, reportData]);
+
+        await saveReportToDatabase(reportData);
+
+        toast({
+          title: "PDF Generated!",
+          description: "Your report has been generated and saved",
+        });
+      } else {
+        toast({
+          title: "PDF Downloaded",
+          description: "Your report has been downloaded",
+        });
+      }
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate PDF report",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [buildPdfDocument, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, periodData, saveReportToDatabase, selectedCharts, selectedPeriod, toast]);
+
+  // View generated report - memoized for performance
+  const viewReport = useCallback((report: ReportData) => {
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+      toast({
+        title: "Preview Blocked",
+        description: "Allow pop-ups to open the PDF preview in a new tab.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    previewWindow.document.title = report.title;
+    previewWindow.document.body.innerHTML = '<div style="font-family: system-ui; padding: 24px;">Preparing PDF preview...</div>';
+
+    const { doc } = buildPdfDocument({
+      greyfinchDataOverride: report.data.greyfinchData,
+      periodsOverride: report.data.periods,
+      acquisitionCostsOverride: report.data.acquisitionCosts,
+      aiSummaryOverride: report.data.aiSummary,
+      counterDataOverride: report.data.counterData,
+      selectedPeriodOverride: report.data.selectedPeriod,
+      selectedChartsOverride: report.data.selectedCharts,
+      periodDataOverride: report.data.periodData,
+    });
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    previewWindow.location.href = url;
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }, [buildPdfDocument, toast]);
+
+  // Delete generated report - memoized for performance
+  const deleteReport = useCallback((reportId: string) => {
+    setGeneratedReports(prev => prev.filter(r => r.id !== reportId));
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-right">
+          <CheckCircle className="h-5 w-5" />
+          <span>Report saved successfully!</span>
+        </div>
+      )}
+
+      {/* Report Generation Controls */}
+      <Button
+        onClick={() => generatePDF()}
+        disabled={isGenerating || isDataFetching}
+        className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
+      >
+        {isGenerating || isDataFetching ? (
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+        ) : (
+          <Download className="h-4 w-4 mr-2" />
+        )}
+        {isGenerating ? 'Generating...' : isDataFetching ? 'Data Refreshing...' : 'Generate PDF'}
+      </Button>
+
+      {/* Generated Reports List */}
+      {generatedReports.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Generated Reports
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {generatedReports.map((report) => (
+                <div key={report.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-[#1d1d52]" />
+                    <div>
+                      <p className="font-medium text-gray-900">{report.title}</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(report.createdAt).toLocaleDateString()}
+                      </p>
+          </div>
+        </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => viewReport(report)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => generatePDF(true)}
+                      disabled={isDataFetching || isGenerating}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteReport(report.id)}
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+    </div>
+  );
+}

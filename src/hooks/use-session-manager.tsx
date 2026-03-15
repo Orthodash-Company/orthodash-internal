@@ -1,262 +1,130 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './use-auth';
 import { toast } from '@/hooks/use-toast';
 
-interface SessionData {
-  id?: number;
+export interface PeriodFilterConfig {
+  id: string;
   name: string;
-  description?: string;
-  greyfinchData?: any;
-  acquisitionCosts?: any;
-  periods?: any[];
-  aiSummary?: any;
-  metadata?: any;
-  createdAt?: string;
-  updatedAt?: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  locationIds: string[];
+}
+
+export interface SavedSession {
+  id: number;
+  name: string;
+  periods: PeriodFilterConfig[];
+  snapshotStartDate?: string;
+  snapshotEndDate?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Normalises the raw jsonb stored in the DB — handles the old array format
+// (just PeriodFilterConfig[]) and the new object format that also carries
+// snapshot dates.
+function normalizeSession(raw: Record<string, unknown>): SavedSession {
+  let periods: PeriodFilterConfig[] = []
+  let snapshotStartDate: string | undefined
+  let snapshotEndDate: string | undefined
+
+  if (Array.isArray(raw.periods)) {
+    // Legacy format: periods column is a plain array
+    periods = raw.periods as PeriodFilterConfig[]
+  } else if (raw.periods && typeof raw.periods === 'object') {
+    // New format: { periods, snapshotStartDate, snapshotEndDate }
+    const p = raw.periods as Record<string, unknown>
+    periods = Array.isArray(p.periods) ? (p.periods as PeriodFilterConfig[]) : []
+    snapshotStartDate = typeof p.snapshotStartDate === 'string' ? p.snapshotStartDate : undefined
+    snapshotEndDate   = typeof p.snapshotEndDate   === 'string' ? p.snapshotEndDate   : undefined
+  }
+
+  return {
+    id:          raw.id          as number,
+    name:        raw.name        as string,
+    periods,
+    snapshotStartDate,
+    snapshotEndDate,
+    isActive:    raw.isActive    as boolean,
+    createdAt:   raw.createdAt   as string,
+    updatedAt:   raw.updatedAt   as string,
+  }
 }
 
 export function useSessionManager() {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<SessionData[]>([]);
+  const [sessions, setSessions] = useState<SavedSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentSession, setCurrentSession] = useState<SessionData | null>(null);
-  const [cachedData, setCachedData] = useState<any>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
 
-  // Load all sessions
   const loadSessions = useCallback(async () => {
-    if (!user?.id) return;
-    
+    if (!user?.id) {
+      loadAbortRef.current?.abort();
+      setSessions([]);
+      setIsLoading(false);
+      return;
+    }
+
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/sessions?userId=${user.id}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sessions: ${response.status}`);
-      }
+      const response = await fetch('/api/sessions', { signal: controller.signal });
+      if (!response.ok) throw new Error(`Failed to fetch sessions: ${response.status}`);
       const data = await response.json();
-      setSessions(data);
+      const normalized = (data.sessions ?? [])
+        .filter((s: Record<string, unknown>) => s.isActive !== false)
+        .map(normalizeSession)
+      setSessions(normalized);
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('Error loading sessions:', error);
-      // Don't show error toast for session loading failures
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, [user?.id]);
 
-  // Cache current session data (no API call)
-  const cacheSessionData = useCallback((sessionData: {
-    greyfinchData?: any;
-    acquisitionCosts?: any;
-    periods?: any[];
-    aiSummary?: any;
-  }) => {
-    const sessionName = `Session ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
-    
-    const cachedSession = {
-      name: sessionName,
-      description: "Cached session data",
-      ...sessionData,
-      cachedAt: new Date().toISOString()
-    };
-    
-    setCachedData(cachedSession);
-    
-    // Store in localStorage for persistence
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('orthodash_cached_session', JSON.stringify(cachedSession));
-    }
-  }, []);
-
-  // Save cached session to database (only called on page exit/refresh)
-  const saveCachedSession = useCallback(async () => {
-    if (!user?.id || !cachedData) return;
-    
-    try {
-      const response = await fetch('/api/sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...cachedData,
-          userId: user.id
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save session: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('Session saved successfully:', result);
-      
-      // Clear cached data after successful save
-      setCachedData(null);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('orthodash_cached_session');
-      }
-      
-      // Reload sessions
-      await loadSessions();
-      return result.data;
-    } catch (error) {
-      console.error('Error saving session:', error);
-      // Don't show error toast - this is background operation
-    }
-  }, [user?.id, cachedData, loadSessions]);
-
-  // Load a specific session
-  const loadSession = useCallback(async (sessionId: number) => {
+  const saveSession = useCallback(async (
+    name: string,
+    periodFilters: PeriodFilterConfig[],
+    snapshotStartDate?: string,
+    snapshotEndDate?: string,
+  ) => {
     if (!user?.id) return;
-    
-    try {
-      const response = await fetch(`/api/sessions/${sessionId}?userId=${user.id}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load session: ${response.status}`);
-      }
-      const session = await response.json();
-      setCurrentSession(session);
-      return session;
-    } catch (error) {
-      console.error('Error loading session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load session",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  }, [user?.id]);
 
-  // Delete a session
+    const response = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, periods: periodFilters, snapshotStartDate, snapshotEndDate }),
+    });
+
+    if (!response.ok) throw new Error(`Failed to save session: ${response.status}`);
+
+    const result = await response.json();
+    await loadSessions();
+    return result.session as SavedSession;
+  }, [user?.id, loadSessions]);
+
   const deleteSession = useCallback(async (sessionId: number) => {
     if (!user?.id) return;
-    
-    try {
-      const response = await fetch(`/api/sessions/${sessionId}?userId=${user.id}`, {
-        method: 'DELETE',
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete session: ${response.status}`);
-      }
+    const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`Failed to delete session: ${response.status}`);
 
-      toast({
-        title: "Success",
-        description: "Session deleted successfully",
-      });
-
-      // Reload sessions
-      await loadSessions();
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete session",
-        variant: "destructive"
-      });
-      throw error;
-    }
+    toast({ title: 'Session deleted' });
+    await loadSessions();
   }, [user?.id, loadSessions]);
 
-  // Update a session
-  const updateSession = useCallback(async (sessionId: number, sessionData: Partial<SessionData>) => {
-    if (!user?.id) return;
-    
-    try {
-      const response = await fetch(`/api/sessions/${sessionId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...sessionData,
-          userId: user.id
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to update session: ${response.status}`);
-      }
-
-      const result = await response.json();
-      toast({
-        title: "Success",
-        description: "Session updated successfully",
-      });
-
-      // Reload sessions
-      await loadSessions();
-      return result.data;
-    } catch (error) {
-      console.error('Error updating session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update session",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  }, [user?.id, loadSessions]);
-
-  // Load cached session from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('orthodash_cached_session');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setCachedData(parsed);
-        } catch (error) {
-          console.error('Error parsing cached session:', error);
-        }
-      }
-    }
-  }, []);
-
-  // Save session on page unload/refresh
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (cachedData) {
-        // Use sendBeacon for reliable data sending on page unload
-        const data = JSON.stringify({
-          ...cachedData,
-          userId: user?.id
-        });
-        
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon('/api/sessions', data);
-        } else {
-          // Fallback to synchronous XMLHttpRequest
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', '/api/sessions', false);
-          xhr.setRequestHeader('Content-Type', 'application/json');
-          xhr.send(data);
-        }
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [cachedData, user?.id]);
-
-  // Load sessions on mount
   useEffect(() => {
     loadSessions();
+    return () => { loadAbortRef.current?.abort(); };
   }, [loadSessions]);
 
-  return {
-    sessions,
-    currentSession,
-    cachedData,
-    isLoading,
-    loadSessions,
-    cacheSessionData,
-    saveCachedSession,
-    loadSession,
-    deleteSession,
-    updateSession,
-    setCurrentSession
-  };
+  return { sessions, isLoading, loadSessions, saveSession, deleteSession };
 }

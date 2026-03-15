@@ -27,6 +27,8 @@ interface ChartSelectorModalProps {
   selectedCharts: string[];
   onChartsChange: (chartIds: string[]) => void;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const CHART_OPTIONS: ChartOption[] = [
@@ -83,9 +85,13 @@ const CATEGORY_LABELS = {
 export function ChartSelectorModal({ 
   selectedCharts, 
   onChartsChange, 
-  trigger 
+  trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: ChartSelectorModalProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = controlledOnOpenChange ?? setUncontrolledOpen;
 
   const handleChartToggle = (chartId: string) => {
     const isSelected = selectedCharts.includes(chartId);
@@ -117,15 +123,16 @@ export function ChartSelectorModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {!trigger && controlledOpen === undefined && (
+        <DialogTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
             <Settings className="h-4 w-4" />
             Select Charts ({selectedCharts.length})
           </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden sm:max-w-4xl max-w-[95vw]">
+        </DialogTrigger>
+      )}
+      <DialogContent className="flex max-w-4xl max-h-[80vh] max-w-[95vw] flex-col overflow-hidden sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
@@ -133,7 +140,7 @@ export function ChartSelectorModal({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex flex-col gap-4 h-full">
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
           {/* Controls */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
@@ -178,7 +185,7 @@ export function ChartSelectorModal({
           )}
 
           {/* Chart Categories */}
-          <div className="flex-1 overflow-y-auto space-y-6">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
             {Object.entries(chartsByCategory).map(([category, charts]) => (
               <div key={category} className="space-y-3">
                 <Label className="text-lg font-semibold text-gray-900">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Input } from '@/components/ui/input';
 import { formatCurrencyInput, parseCurrency } from '@/lib/currency';
 
@@ -19,42 +19,23 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   id,
   disabled = false
 }) => {
-  const [displayValue, setDisplayValue] = useState<string>('');
-
-  // Update display value when prop value changes
-  useEffect(() => {
-    if (value === 0) {
-      setDisplayValue('');
-    } else {
-      setDisplayValue(formatCurrencyInput(value.toString()));
-    }
-  }, [value]);
+  const displayValue = value === 0 ? '' : formatCurrencyInput(value.toString())
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     
     // Allow empty input
     if (inputValue === '') {
-      setDisplayValue('');
       onChange(0);
       return;
     }
 
     // Format the input and update display
     const formatted = formatCurrencyInput(inputValue);
-    setDisplayValue(formatted);
     
     // Parse and send numeric value to parent
     const numericValue = parseCurrency(formatted);
     onChange(numericValue);
-  };
-
-  const handleBlur = () => {
-    // Ensure proper formatting on blur
-    if (displayValue && !isNaN(parseCurrency(displayValue))) {
-      const formatted = formatCurrencyInput(displayValue);
-      setDisplayValue(formatted);
-    }
   };
 
   return (
@@ -66,7 +47,6 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
         className={`pl-8 ${className}`}
         value={displayValue}
         onChange={handleChange}
-        onBlur={handleBlur}
         placeholder={placeholder}
         disabled={disabled}
       />

@@ -22,9 +22,7 @@ export async function POST(request: NextRequest) {
         message: 'User ID and prompt are required' 
       }, { status: 400 })
     }
-    
-    console.log('Generating AI analysis for user:', userId)
-    
+
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
       model: "gpt-4",

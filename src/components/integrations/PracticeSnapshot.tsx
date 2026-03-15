@@ -1,0 +1,584 @@
+'use client'
+
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { z } from 'zod'
+import { startOfWeek, format } from 'date-fns'
+import { CheckCircle, AlertCircle, RefreshCw, Database, Users, Calendar, DollarSign, BookOpen, ChevronDown, Check } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useToast } from '@/hooks/use-toast'
+import { PRACTICE_TZ } from '@/lib/services/greyfinch/queries'
+import { LocationSchema } from '@/lib/services/greyfinch/types'
+import { type DataCounts, type Location as DashboardLocation } from '@/shared/types'
+
+interface PracticeSnapshotProps {
+  greyfinchData?: unknown
+  locations?: DashboardLocation[]
+  isRefreshingGreyfinchData?: boolean
+  onRefreshGreyfinchData?: () => Promise<boolean>
+  initialCounts?: DataCounts
+  onCountsUpdate?: (counts: DataCounts) => void
+  onDataLoadingChange?: (isLoading: boolean) => void
+  restoredDates?: { startDate: string; endDate: string } | null
+  onDatesChange?: (startDate: string, endDate: string) => void
+}
+
+interface LocationCounts {
+  activeTxPatients: number
+  appointments: number
+  newPatientsCreated: number
+  caseStarts: number
+  newPatExams: number
+  leads: number
+  bookings: number
+}
+
+type GreyfinchLocation = z.infer<typeof LocationSchema>
+
+// Module-level cache — survives tab switches (component unmount/remount) but
+// resets to null on a full page refresh since the JS module is re-evaluated.
+let snapshotDateCache: {
+  startDate: string
+  endDate: string
+  committedStart: string
+  committedEnd: string
+} | null = null
+
+const FALLBACK_LOCATIONS = [
+  { id: '097eb1d8-ec62-45d9-8c21-d08af1cf66c8', name: 'Gilbert' },
+  { id: '4a2bf9bd-222b-4690-9d12-5fc95daa7d93', name: 'Phoenix-Ahwatukee' },
+] as const
+
+const metricCards = [
+  {
+    key: 'patients',
+    label: 'Patients',
+    tooltip: 'Active treatment patients (treatmentStatus is not "New Patient Lead") — activeTxPatients from PRACTICE_MONITOR.',
+    icon: Users,
+    iconClassName: 'text-blue-500',
+  },
+  {
+    key: 'appointments',
+    label: 'Appointments',
+    tooltip: 'All completed appointments in the selected date range — from PRACTICE_EFFICIENCY.',
+    icon: Calendar,
+    iconClassName: 'text-purple-500',
+  },
+  {
+    key: 'leads',
+    label: 'Leads',
+    tooltip: 'Patients with "New Patient Lead" treatment status in the selected date range — from PATIENT_REFERRALS.',
+    icon: DollarSign,
+    iconClassName: 'text-orange-500',
+  },
+  {
+    key: 'bookings',
+    label: 'Bookings',
+    tooltip: 'Patients with "Exam/Child" or "Exam/Adult" treatment status in the selected date range — from PATIENT_REFERRALS.',
+    icon: BookOpen,
+    iconClassName: 'text-red-500',
+  },
+] as const
+
+const periodAnalyticsLocationSchema = z.object({
+  location: z.string(),
+  activeTxPatients: z.number(),
+  appointments: z.number(),
+  newPatientsCreated: z.number(),
+  caseStarts: z.number(),
+  newPatExams: z.number(),
+  leads: z.number(),
+  bookings: z.number(),
+})
+
+const periodAnalyticsResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    locations: z.array(periodAnalyticsLocationSchema),
+  }),
+})
+
+const locationsResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    locations: z.array(LocationSchema),
+    lastUpdated: z.string(),
+  }),
+})
+
+function nowInTZ(tz: string): Date {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false,
+    }).formatToParts(new Date()).map((part) => [part.type, part.value])
+  )
+
+  return new Date(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second)
+}
+
+const reduceCounts = (locations: LocationCounts[]): DataCounts => (
+  locations.reduce<DataCounts>(
+    (acc, loc) => ({
+      patients: (acc.patients ?? 0) + loc.activeTxPatients,
+      appointments: (acc.appointments ?? 0) + loc.appointments,
+      activeTxPatients: (acc.activeTxPatients ?? 0) + loc.activeTxPatients,
+      newPatientsCreated: (acc.newPatientsCreated ?? 0) + loc.newPatientsCreated,
+      caseStarts: (acc.caseStarts ?? 0) + loc.caseStarts,
+      leads: (acc.leads ?? 0) + loc.leads,
+      bookings: (acc.bookings ?? 0) + loc.bookings,
+    }),
+    {}
+  )
+)
+
+async function fetchLocations(): Promise<GreyfinchLocation[]> {
+  const response = await fetch('/api/greyfinch/locations', { cache: 'no-store' })
+  const json = await response.json()
+
+  if (!response.ok) {
+    throw new Error(typeof json?.error === 'string' ? json.error : 'Unable to fetch Greyfinch locations.')
+  }
+
+  const parsed = locationsResponseSchema.safeParse(json)
+  if (!parsed.success) {
+    throw new Error('Received an invalid Greyfinch locations response.')
+  }
+
+  return parsed.data.data.locations
+}
+
+async function fetchPeriodAnalytics(startDate: string, endDate: string) {
+  const params = new URLSearchParams({ startDate, endDate })
+  const response = await fetch(`/api/greyfinch/period-analytics?${params.toString()}`, { cache: 'no-store' })
+  const json = await response.json()
+
+  if (!response.ok) {
+    throw new Error(typeof json?.error === 'string' ? json.error : 'Unable to fetch practice analytics.')
+  }
+
+  const parsed = periodAnalyticsResponseSchema.safeParse(json)
+  if (!parsed.success) {
+    throw new Error('Received an invalid practice analytics response.')
+  }
+
+  return parsed.data.data.locations
+}
+
+export function PracticeSnapshot({
+  greyfinchData,
+  locations,
+  isRefreshingGreyfinchData = false,
+  onRefreshGreyfinchData,
+  initialCounts,
+  onCountsUpdate,
+  onDataLoadingChange,
+  restoredDates,
+  onDatesChange,
+}: PracticeSnapshotProps) {
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const [isPullingAllData, setIsPullingAllData] = useState(false)
+  const [lastPullTime, setLastPullTime] = useState<string | null>(null)
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false)
+  const locationDropdownRef = useRef<HTMLDivElement>(null)
+  const locationErrorToastRef = useRef<string | null>(null)
+  const countsErrorToastRef = useRef<string | null>(null)
+
+  const tz = locations?.find((location) => location.timeZone)?.timeZone ?? PRACTICE_TZ
+  const now = nowInTZ(tz)
+  const defaultStart = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const defaultEnd = format(now, 'yyyy-MM-dd')
+
+  // Input state — falls back to module cache so tab switches don't reset the dates,
+  // but resets to current week on a full page refresh (cache is null after module reload).
+  const [startDate, setStartDate] = useState(() => snapshotDateCache?.startDate ?? defaultStart)
+  const [endDate, setEndDate] = useState(() => snapshotDateCache?.endDate ?? defaultEnd)
+
+  // Committed state — what the query actually uses; only advances when Fetch is clicked
+  const [committedStartDate, setCommittedStartDate] = useState(() => snapshotDateCache?.committedStart ?? defaultStart)
+  const [committedEndDate, setCommittedEndDate] = useState(() => snapshotDateCache?.committedEnd ?? defaultEnd)
+
+  // Stable ref for the callback so the cache effect doesn't need it as a dependency
+  const onDatesChangeRef = useRef(onDatesChange)
+  useEffect(() => { onDatesChangeRef.current = onDatesChange }, [onDatesChange])
+
+  // Keep the module cache in sync so it's ready when the component remounts
+  useEffect(() => {
+    snapshotDateCache = { startDate, endDate, committedStart: committedStartDate, committedEnd: committedEndDate }
+  }, [startDate, endDate, committedStartDate, committedEndDate])
+
+  // Notify parent when committed dates change (used by session save)
+  useEffect(() => {
+    onDatesChangeRef.current?.(committedStartDate, committedEndDate)
+  }, [committedStartDate, committedEndDate])
+
+  // Apply externally restored dates (session restore)
+  useEffect(() => {
+    if (!restoredDates) return
+    setStartDate(restoredDates.startDate)
+    setEndDate(restoredDates.endDate)
+    setCommittedStartDate(restoredDates.startDate)
+    setCommittedEndDate(restoredDates.endDate)
+  }, [restoredDates])
+
+  const locationsQuery = useQuery({
+    queryKey: ['greyfinch', 'locations'],
+    queryFn: fetchLocations,
+    enabled: Boolean(user?.id) && !locations?.length,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const liveCountsQuery = useQuery({
+    queryKey: ['greyfinch', 'period-analytics', committedStartDate, committedEndDate],
+    queryFn: () => fetchPeriodAnalytics(committedStartDate, committedEndDate),
+    enabled: Boolean(user?.id),
+  })
+
+  const availableLocations = useMemo(() => {
+    if (locations && locations.length > 0) {
+      return locations
+        .filter((location) => location.greyfinchId)
+        .map((location) => ({ id: location.greyfinchId as string, name: location.name }))
+    }
+
+    if (locationsQuery.data && locationsQuery.data.length > 0) {
+      return locationsQuery.data.map((location) => ({ id: location.id, name: location.name }))
+    }
+
+    return [...FALLBACK_LOCATIONS]
+  }, [locations, locationsQuery.data])
+
+  // Remap location names → UUIDs using availableLocations so filtering works by ID
+  const rawByLocation = useMemo<Record<string, LocationCounts>>(() => {
+    if (!liveCountsQuery.data) return {}
+    const nameToId = new Map(availableLocations.map((l) => [l.name, l.id]))
+    return Object.fromEntries(
+      liveCountsQuery.data.map((loc) => [
+        nameToId.get(loc.location) ?? loc.location,
+        {
+          activeTxPatients: loc.activeTxPatients,
+          appointments: loc.appointments,
+          newPatientsCreated: loc.newPatientsCreated,
+          caseStarts: loc.caseStarts,
+          newPatExams: loc.newPatExams,
+          leads: loc.leads,
+          bookings: loc.bookings,
+        },
+      ])
+    )
+  }, [liveCountsQuery.data, availableLocations])
+
+  const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>(
+    () => availableLocations.map((location) => location.id)
+  )
+
+  useEffect(() => {
+    setSelectedLocationIds(availableLocations.map((location) => location.id))
+  }, [availableLocations])
+
+  useEffect(() => {
+    if (!locationsQuery.error) {
+      locationErrorToastRef.current = null
+      return
+    }
+
+    const message = locationsQuery.error instanceof Error
+      ? locationsQuery.error.message
+      : 'Unable to fetch Greyfinch locations.'
+
+    if (locationErrorToastRef.current === message) return
+
+    locationErrorToastRef.current = message
+    toast({
+      title: 'Failed to fetch locations.',
+      description: message,
+      variant: 'destructive',
+    })
+  }, [locationsQuery.error, toast])
+
+  useEffect(() => {
+    if (!liveCountsQuery.error) {
+      countsErrorToastRef.current = null
+      return
+    }
+
+    const message = liveCountsQuery.error instanceof Error
+      ? liveCountsQuery.error.message
+      : 'Unable to fetch Greyfinch live counts.'
+
+    if (countsErrorToastRef.current === message) return
+
+    countsErrorToastRef.current = message
+    toast({
+      title: 'Failed to fetch live counts.',
+      description: message,
+      variant: 'destructive',
+    })
+  }, [liveCountsQuery.error, toast])
+
+  useEffect(() => {
+    if (!Object.keys(rawByLocation).length) return
+    onCountsUpdate?.(reduceCounts(Object.values(rawByLocation)))
+  }, [rawByLocation, onCountsUpdate])
+
+  const toggleLocation = useCallback((id: string) => {
+    setSelectedLocationIds((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) return prev
+        return prev.filter((value) => value !== id)
+      }
+
+      return [...prev, id]
+    })
+  }, [])
+
+  const dataCounts = useMemo<DataCounts>(() => {
+    const filtered = Object.entries(rawByLocation).filter(([id]) => selectedLocationIds.includes(id))
+
+    if (filtered.length === 0) {
+      return initialCounts ?? {}
+    }
+
+    return reduceCounts(filtered.map(([, location]) => location))
+  }, [initialCounts, rawByLocation, selectedLocationIds])
+
+  const isConnected = Boolean(user?.id) && (Boolean(greyfinchData) || locationsQuery.isSuccess || Boolean(locations?.length))
+  const isLoadingCounts = liveCountsQuery.isLoading || liveCountsQuery.isFetching
+  const isLoadingLocations = locationsQuery.isLoading || locationsQuery.isFetching
+
+  useEffect(() => {
+    onDataLoadingChange?.(isRefreshingGreyfinchData || isPullingAllData || isLoadingCounts || isLoadingLocations)
+  }, [isRefreshingGreyfinchData, isPullingAllData, isLoadingCounts, isLoadingLocations, onDataLoadingChange])
+
+  const handlePullAllData = useCallback(async () => {
+    if (!user?.id) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to pull data.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (isPullingAllData || isRefreshingGreyfinchData) return
+
+    setIsPullingAllData(true)
+
+    // Commit the currently-entered dates so the query key updates before refetch
+    setCommittedStartDate(startDate)
+    setCommittedEndDate(endDate)
+
+    try {
+      if (onRefreshGreyfinchData) {
+        const success = await onRefreshGreyfinchData()
+        if (!success) {
+          throw new Error('Failed to refresh Greyfinch connection data.')
+        }
+      }
+
+      await Promise.all([
+        liveCountsQuery.refetch(),
+        locations?.length ? Promise.resolve() : locationsQuery.refetch(),
+      ])
+
+      setLastPullTime(new Date().toLocaleString())
+    } catch (error) {
+      toast({
+        title: 'Data Pull Failed',
+        description: error instanceof Error ? error.message : 'Failed to pull data from Greyfinch. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsPullingAllData(false)
+    }
+  }, [endDate, isPullingAllData, isRefreshingGreyfinchData, liveCountsQuery, locations?.length, locationsQuery, onRefreshGreyfinchData, startDate, toast, user?.id])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+        setLocationDropdownOpen(false)
+      }
+    }
+
+    if (locationDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [locationDropdownOpen])
+
+  const locationDisplayText = useMemo(() => {
+    if (selectedLocationIds.length === availableLocations.length) return 'All locations'
+
+    return availableLocations
+      .filter((location) => selectedLocationIds.includes(location.id))
+      .map((location) => location.name)
+      .join(', ')
+  }, [availableLocations, selectedLocationIds])
+
+  const showCountsSkeleton = !liveCountsQuery.data || isLoadingCounts || isRefreshingGreyfinchData || isPullingAllData
+
+  const countsDisplay = useMemo(() => (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {metricCards.map((card) => {
+        const Icon = card.icon
+
+        return (
+          <Tooltip key={card.key}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="rounded-lg border border-gray-200 bg-white p-3 text-center transition-colors hover:border-[#1C1F4F]/30 hover:bg-gray-50"
+              >
+                <Icon className={`mx-auto mb-1.5 h-5 w-5 ${card.iconClassName}`} />
+                {showCountsSkeleton ? (
+                  <Skeleton className="mx-auto mb-1.5 h-7 w-14 bg-gray-200" />
+                ) : (
+                  <div className="text-xl font-bold text-[#1C1F4F]">
+                    {dataCounts[card.key] ?? 0}
+                  </div>
+                )}
+                <div className="mt-0.5 text-xs text-gray-500 underline decoration-dotted decoration-[#1d1d52]/35 underline-offset-4">
+                  {card.label}
+                </div>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-56 text-center">
+              {card.tooltip}
+            </TooltipContent>
+          </Tooltip>
+        )
+      })}
+    </div>
+  ), [dataCounts, showCountsSkeleton])
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-semibold text-[#1C1F4F]">
+            <Database className="h-5 w-5" />
+            Practice Snapshot
+          </h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">Key metrics from Greyfinch for the selected date range and locations</p>
+        </div>
+        <div className="ml-4 flex shrink-0 items-center gap-1.5 text-xs font-medium">
+          {isConnected ? (
+            <>
+              <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+              <span className="text-green-600">Connected</span>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+              <span className="text-red-500">Not connected</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Filters: flex-col on mobile, flex-row on desktop */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-2">
+        <div className="sm:min-w-[160px] sm:flex-1" ref={locationDropdownRef}>
+          <label className="mb-1 block text-xs font-medium text-gray-400">Locations</label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setLocationDropdownOpen((open) => !open)}
+              className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-[#1C1F4F] hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
+            >
+              <span className="truncate">{locationDisplayText}</span>
+              <ChevronDown className={`ml-1.5 h-3 w-3 shrink-0 text-gray-400 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {locationDropdownOpen && (
+              <div className="absolute z-20 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-md">
+                {availableLocations.map((location) => {
+                  const active = selectedLocationIds.includes(location.id)
+
+                  return (
+                    <button
+                      key={location.id}
+                      type="button"
+                      onClick={() => toggleLocation(location.id)}
+                      className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-xs hover:bg-gray-50 first:rounded-t-md last:rounded-b-md"
+                    >
+                      <div className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${active ? 'border-[#1C1F4F] bg-[#1C1F4F]' : 'border-gray-300'}`}>
+                        {active && <Check className="h-2.5 w-2.5 text-white" />}
+                      </div>
+                      <span className={active ? 'font-medium text-[#1C1F4F]' : 'text-gray-600'}>{location.name}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+
+
+
+
+
+
+        <div className="sm:flex-1">
+          <label className="mb-1 block text-xs font-medium text-gray-400">Start</label>
+          <input
+            type="date"
+            value={startDate}
+            max={endDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="w-full rounded-md border border-gray-300 bg-white py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30 sm:px-2.5"
+          />
+        </div>
+
+        <div className="sm:flex-1">
+          <label className="mb-1 block text-xs font-medium text-gray-400">End</label>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            max={format(nowInTZ(tz), 'yyyy-MM-dd')}
+            onChange={(event) => setEndDate(event.target.value)}
+            className="w-full rounded-md border border-gray-300 bg-white py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30 sm:px-2.5"
+          />
+        </div>
+
+
+
+
+
+
+
+        
+      </div>
+
+      {countsDisplay}
+
+      <div className="flex items-center gap-3">
+        <Button
+          onClick={handlePullAllData}
+          disabled={isPullingAllData || isLoadingCounts || isRefreshingGreyfinchData || !isConnected}
+          className="w-full bg-[#1C1F4F] text-white hover:bg-[#1C1F4F]/90 sm:w-auto"
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${isPullingAllData || isLoadingCounts || isRefreshingGreyfinchData ? 'animate-spin' : ''}`} />
+          {isPullingAllData || isLoadingCounts || isRefreshingGreyfinchData ? 'Fetching...' : 'Fetch'}
+        </Button>
+        {lastPullTime && (
+          <p className="text-xs text-gray-400">Last fetched: {lastPullTime}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default PracticeSnapshot

@@ -2,14 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiConfigurations } from '@/shared/schema'
 import { eq, and } from 'drizzle-orm'
+import { requireAuthUser } from '@/lib/require-auth-user'
+
+const redactConfig = (config: typeof apiConfigurations.$inferSelect) => ({
+  id: config.id,
+  userId: config.userId,
+  name: config.name,
+  type: config.type,
+  expiresAt: config.expiresAt,
+  isActive: config.isActive,
+  metadata: config.metadata,
+  lastSyncDate: config.lastSyncDate,
+  createdAt: config.createdAt,
+  updatedAt: config.updatedAt,
+  apiKeyPreview: config.apiKey ? `${config.apiKey.slice(0, 4)}...${config.apiKey.slice(-4)}` : null,
+  hasApiSecret: Boolean(config.apiSecret),
+  hasAccessToken: Boolean(config.accessToken),
+  hasRefreshToken: Boolean(config.refreshToken),
+})
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     // Check if database is available
@@ -23,14 +39,14 @@ export async function GET(request: NextRequest) {
 
     const configs = await db.select().from(apiConfigurations).where(
       and(
-        eq(apiConfigurations.userId, userId),
+        eq(apiConfigurations.userId, user.id),
         eq(apiConfigurations.isActive, true)
       )
     ).orderBy(apiConfigurations.createdAt);
 
     return NextResponse.json({
       success: true,
-      data: configs
+      data: configs.map(redactConfig)
     })
   } catch (error) {
     console.error('Error fetching API configurations:', error)
@@ -45,16 +61,21 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, name, type, apiKey, apiSecret, accessToken, refreshToken, metadata } = body
+    const { name, type, apiKey, apiSecret, accessToken, refreshToken, metadata } = body
+    const { user, unauthorizedResponse } = await requireAuthUser()
 
-    if (!userId || !name || !type || !apiKey) {
+    if (!user) {
+      return unauthorizedResponse
+    }
+
+    if (!name || !type || !apiKey) {
       return NextResponse.json({ 
-        error: "userId, name, type, and apiKey are required" 
+        error: "name, type, and apiKey are required" 
       }, { status: 400 })
     }
 
     const config = await db.insert(apiConfigurations).values({
-      userId,
+      userId: user.id,
       name,
       type,
       apiKey,
@@ -67,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: config[0],
+      data: redactConfig(config[0]),
       message: "API configuration created successfully"
     })
   } catch (error) {
@@ -79,10 +100,15 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, userId, name, apiKey, apiSecret, accessToken, refreshToken, metadata, isActive } = body
+    const { id, name, apiKey, apiSecret, accessToken, refreshToken, metadata, isActive } = body
+    const { user, unauthorizedResponse } = await requireAuthUser()
 
-    if (!id || !userId) {
-      return NextResponse.json({ error: "id and userId are required" }, { status: 400 })
+    if (!user) {
+      return unauthorizedResponse
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 })
     }
 
     const updateData: any = {
@@ -102,14 +128,14 @@ export async function PUT(request: NextRequest) {
       .where(
         and(
           eq(apiConfigurations.id, parseInt(id)),
-          eq(apiConfigurations.userId, userId)
+          eq(apiConfigurations.userId, user.id)
         )
       )
       .returning();
 
     return NextResponse.json({
       success: true,
-      data: config[0],
+      data: config[0] ? redactConfig(config[0]) : null,
       message: "API configuration updated successfully"
     })
   } catch (error) {
@@ -122,10 +148,14 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    const userId = searchParams.get('userId')
+    const { user, unauthorizedResponse } = await requireAuthUser()
 
-    if (!id || !userId) {
-      return NextResponse.json({ error: "id and userId are required" }, { status: 400 })
+    if (!user) {
+      return unauthorizedResponse
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 })
     }
 
     // Soft delete by setting isActive to false
@@ -137,7 +167,7 @@ export async function DELETE(request: NextRequest) {
       .where(
         and(
           eq(apiConfigurations.id, parseInt(id)),
-          eq(apiConfigurations.userId, userId)
+          eq(apiConfigurations.userId, user.id)
         )
       );
 

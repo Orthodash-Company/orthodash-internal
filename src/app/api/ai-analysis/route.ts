@@ -1,333 +1,396 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MultiLocationDataProcessor } from '@/lib/services/multi-location-data-processor'
-import { GreyfinchService } from '@/lib/services/greyfinch'
-import { GREYFINCH_QUERIES } from '@/lib/services/greyfinch-schema'
+import OpenAI from 'openai'
+import { requireAuthUser } from '@/lib/require-auth-user'
+
+type PeriodPayload = {
+  title: string
+  startDate: string | null
+  endDate: string | null
+  locationIds: string[]
+  data: {
+    patients: number
+    appointments: number
+    leads: number
+    locations: number
+    bookings: number
+    revenue: number
+    production: number
+    netProduction: number
+    acquisitionCosts: number
+    noShowRate: number
+    referralSources: { digital: number; professional: number; direct: number }
+    conversionRates: { digital: number; professional: number; direct: number }
+    trends: { weekly: Array<{ week: string; gilbert: number; phoenix: number; total: number }> }
+    locationData?: {
+      gilbert?: LocationMetrics
+      phoenix?: LocationMetrics
+    }
+  } | null
+}
+
+type LocationMetrics = {
+  patients: number
+  appointments: number
+  leads: number
+  bookings: number
+  revenue: number
+  production: number
+  netProduction: number
+  acquisitionCosts: number
+}
+
+function getOpenAI() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured')
+  }
+
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    organization: process.env.OPENAI_ORG_ID,
+  })
+}
 
 export async function POST(request: NextRequest) {
+  const { user, unauthorizedResponse } = await requireAuthUser()
+  if (!user) return unauthorizedResponse
+
   try {
     const body = await request.json()
-    const { 
-      startDate, 
-      endDate, 
-      location, 
-      analysisType = 'comprehensive',
-      includeRecommendations = true 
-    } = body
+    const periods = Array.isArray(body.periods) ? (body.periods as PeriodPayload[]) : []
+    const analysisType = typeof body.analysisType === 'string' ? body.analysisType : 'comprehensive'
+    const includeRecommendations = body.includeRecommendations !== false
 
-    console.log('🤖 Starting AI analysis with comprehensive data...', { startDate, endDate, location, analysisType })
+    const validPeriods = periods.filter((period) => period.data)
 
-    // Fetch comprehensive multi-location data
-    const greyfinchService = new GreyfinchService()
-    greyfinchService.updateCredentials(
-      process.env.GREYFINCH_API_KEY || '', 
-      process.env.GREYFINCH_API_SECRET || ''
-    )
-
-    // Try to fetch data from the working analytics endpoint first
-    const analyticsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/greyfinch/analytics?location=all`)
-    const analyticsData = await analyticsResponse.json()
-    
-    if (!analyticsData || !analyticsData.data) {
-      throw new Error('Failed to fetch data from Greyfinch analytics endpoint')
-    }
-    
-    const rawData = analyticsData.data
-
-    // Process data with multi-location processor
-    const processedData = MultiLocationDataProcessor.processMultiLocationData(rawData, startDate, endDate)
-
-    // Prepare comprehensive data for AI analysis
-    const analysisData = {
-      summary: {
-        period: processedData.total.period,
-        totalPatients: processedData.total.patients,
-        totalAppointments: processedData.total.appointments,
-        totalLeads: processedData.total.leads,
-        totalProduction: processedData.financialMetrics.totalProduction,
-        totalRevenue: processedData.financialMetrics.totalRevenue,
-        totalNetProduction: processedData.financialMetrics.totalNetProduction,
-        profitMargin: processedData.financialMetrics.profitMargin,
-        roi: processedData.financialMetrics.roi
-      },
-      locations: {
-        gilbert: {
-          patients: processedData.locations.gilbert.patients,
-          appointments: processedData.locations.gilbert.appointments,
-          leads: processedData.locations.gilbert.leads,
-          production: processedData.locations.gilbert.production,
-          revenue: processedData.locations.gilbert.revenue,
-          netProduction: processedData.locations.gilbert.netProduction,
-          acquisitionCosts: processedData.locations.gilbert.acquisitionCosts
-        },
-        phoenix: {
-          patients: processedData.locations.phoenix.patients,
-          appointments: processedData.locations.phoenix.appointments,
-          leads: processedData.locations.phoenix.leads,
-          production: processedData.locations.phoenix.production,
-          revenue: processedData.locations.phoenix.revenue,
-          netProduction: processedData.locations.phoenix.netProduction,
-          acquisitionCosts: processedData.locations.phoenix.acquisitionCosts
-        }
-      },
-      trends: {
-        weekly: processedData.trends.weekly.slice(-12), // Last 12 weeks
-        monthly: processedData.trends.monthly.slice(-6) // Last 6 months
-      },
-      performance: {
-        noShowRate: processedData.total.noShowRate,
-        referralSources: processedData.total.referralSources,
-        conversionRates: processedData.total.conversionRates
-      }
+    if (validPeriods.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'At least one report-backed period is required for AI analysis.' },
+        { status: 400 }
+      )
     }
 
-    // Generate AI analysis prompt
-    const prompt = generateAnalysisPrompt(analysisData, analysisType, includeRecommendations)
+    const aggregated = aggregatePeriods(validPeriods)
+    const latestPeriod = getLatestPeriod(validPeriods)
+    const prompt = buildAnalysisPrompt(validPeriods, aggregated, latestPeriod, includeRecommendations)
+    const aiResult = await callOpenAI(prompt, includeRecommendations)
 
-    // Call OpenAI API
-    const openaiResponse = await callOpenAI(prompt)
-
-    // Structure the response
-    const response = {
+    return NextResponse.json({
       success: true,
       analysisType,
-      period: processedData.total.period,
+      period: aggregated.periodLabel,
       summary: {
-        overview: openaiResponse.summary || 'Analysis completed successfully',
-        keyInsights: openaiResponse.keyInsights || [],
+        overview: aiResult.summary,
+        keyInsights: aiResult.keyInsights,
         performanceMetrics: {
-          totalProduction: processedData.financialMetrics.totalProduction,
-          totalRevenue: processedData.financialMetrics.totalRevenue,
-          totalNetProduction: processedData.financialMetrics.totalNetProduction,
-          profitMargin: processedData.financialMetrics.profitMargin,
-          roi: processedData.financialMetrics.roi,
-          noShowRate: processedData.total.noShowRate
-        }
+          totalProduction: aggregated.totalProduction,
+          totalRevenue: aggregated.totalRevenue,
+          totalNetProduction: aggregated.totalNetProduction,
+          profitMargin: aggregated.profitMargin,
+          roi: aggregated.roi,
+          noShowRate: aggregated.noShowRate,
+        },
       },
       locationComparison: {
         gilbert: {
-          performance: processedData.locations.gilbert,
-          insights: openaiResponse.gilbertInsights || []
+          performance: aggregated.locationComparison.gilbert,
+          insights: aiResult.gilbertInsights,
         },
         phoenix: {
-          performance: processedData.locations.phoenix,
-          insights: openaiResponse.phoenixInsights || []
-        }
+          performance: aggregated.locationComparison.phoenix,
+          insights: aiResult.phoenixInsights,
+        },
       },
       trends: {
-        weekly: processedData.trends.weekly,
-        monthly: processedData.trends.monthly,
-        analysis: openaiResponse.trendAnalysis || 'Trend analysis completed'
+        weekly: latestPeriod.data?.trends.weekly || [],
+        monthly: [],
+        analysis: aiResult.trendAnalysis,
       },
-      recommendations: includeRecommendations ? {
-        immediate: openaiResponse.immediateRecommendations || [],
-        strategic: openaiResponse.strategicRecommendations || [],
-        financial: openaiResponse.financialRecommendations || []
-      } : null,
+      recommendations: includeRecommendations
+        ? {
+            immediate: aiResult.immediateRecommendations,
+            strategic: aiResult.strategicRecommendations,
+            financial: aiResult.financialRecommendations,
+          }
+        : null,
       dataQuality: {
-        completeness: assessDataQuality(processedData),
-        recommendations: getDataQualityRecommendations(processedData)
+        completeness: assessDataQuality(validPeriods, aggregated),
+        recommendations: getDataQualityRecommendations(validPeriods, aggregated),
       },
-      generatedAt: new Date().toISOString()
-    }
-
-    return NextResponse.json(response)
-
+      generatedAt: new Date().toISOString(),
+    })
   } catch (error) {
     console.error('Error in AI analysis:', error)
-    return NextResponse.json({ 
-      success: false,
-      error: 'Failed to generate AI analysis',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to generate AI analysis',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    )
   }
 }
 
-/**
- * Generate comprehensive analysis prompt for OpenAI
- */
-function generateAnalysisPrompt(data: any, analysisType: string, includeRecommendations: boolean): string {
-  const basePrompt = `
-You are an expert dental practice analyst with deep expertise in orthodontic practice management, revenue optimization, and multi-location operations. Analyze the following comprehensive data for Gilbert and Phoenix-Ahwatukee orthodontic practices:
+function aggregatePeriods(periods: PeriodPayload[]) {
+  const totals = periods.reduce(
+    (acc, period) => {
+      const data = period.data!
+      acc.totalPatients += data.patients || 0
+      acc.totalAppointments += data.appointments || 0
+      acc.totalLeads += data.leads || 0
+      acc.totalBookings += data.bookings || 0
+      acc.totalProduction += data.production || 0
+      acc.totalRevenue += data.revenue || 0
+      acc.totalNetProduction += data.netProduction || 0
+      acc.totalAcquisitionCosts += data.acquisitionCosts || 0
+      acc.weightedNoShowNumerator += (data.noShowRate || 0) * Math.max(data.appointments || 0, 1)
+      acc.weightedNoShowDenominator += Math.max(data.appointments || 0, 1)
+      acc.referralSources.digital += data.referralSources?.digital || 0
+      acc.referralSources.professional += data.referralSources?.professional || 0
+      acc.referralSources.direct += data.referralSources?.direct || 0
+      acc.weightedConversion.digital += (data.conversionRates?.digital || 0) * (data.referralSources?.digital || 0)
+      acc.weightedConversion.professional += (data.conversionRates?.professional || 0) * (data.referralSources?.professional || 0)
+      acc.weightedConversion.direct += (data.conversionRates?.direct || 0) * (data.referralSources?.direct || 0)
+      acc.conversionDenominators.digital += data.referralSources?.digital || 0
+      acc.conversionDenominators.professional += data.referralSources?.professional || 0
+      acc.conversionDenominators.direct += data.referralSources?.direct || 0
 
-## PRACTICE OVERVIEW
-Period: ${data.summary.period}
-Total Patients: ${data.summary.totalPatients}
-Total Appointments: ${data.summary.totalAppointments}
-Total Leads: ${data.summary.totalLeads}
+      addLocationMetrics(acc.locationComparison.gilbert, data.locationData?.gilbert)
+      addLocationMetrics(acc.locationComparison.phoenix, data.locationData?.phoenix)
+      return acc
+    },
+    {
+      totalPatients: 0,
+      totalAppointments: 0,
+      totalLeads: 0,
+      totalBookings: 0,
+      totalProduction: 0,
+      totalRevenue: 0,
+      totalNetProduction: 0,
+      totalAcquisitionCosts: 0,
+      weightedNoShowNumerator: 0,
+      weightedNoShowDenominator: 0,
+      referralSources: { digital: 0, professional: 0, direct: 0 },
+      weightedConversion: { digital: 0, professional: 0, direct: 0 },
+      conversionDenominators: { digital: 0, professional: 0, direct: 0 },
+      locationComparison: {
+        gilbert: emptyLocationMetrics(),
+        phoenix: emptyLocationMetrics(),
+      },
+    }
+  )
 
-## FINANCIAL PERFORMANCE
-Total Production: $${data.summary.totalProduction.toLocaleString()}
-Total Revenue: $${data.summary.totalRevenue.toLocaleString()}
-Net Production: $${data.summary.totalNetProduction.toLocaleString()}
-Profit Margin: ${data.summary.profitMargin.toFixed(1)}%
-ROI: ${data.summary.roi.toFixed(1)}%
+  const profitMargin = totals.totalProduction > 0
+    ? (totals.totalNetProduction / totals.totalProduction) * 100
+    : 0
+  const roi = totals.totalAcquisitionCosts > 0
+    ? ((totals.totalNetProduction - totals.totalAcquisitionCosts) / totals.totalAcquisitionCosts) * 100
+    : 0
 
-## LOCATION PERFORMANCE
+  return {
+    ...totals,
+    noShowRate: totals.weightedNoShowDenominator > 0
+      ? totals.weightedNoShowNumerator / totals.weightedNoShowDenominator
+      : 0,
+    conversionRates: {
+      digital: totals.conversionDenominators.digital > 0 ? totals.weightedConversion.digital / totals.conversionDenominators.digital : 0,
+      professional: totals.conversionDenominators.professional > 0 ? totals.weightedConversion.professional / totals.conversionDenominators.professional : 0,
+      direct: totals.conversionDenominators.direct > 0 ? totals.weightedConversion.direct / totals.conversionDenominators.direct : 0,
+    },
+    profitMargin,
+    roi,
+    periodLabel: periods.map((period) => period.title).join(', '),
+  }
+}
 
-### Gilbert Location:
-- Patients: ${data.locations.gilbert.patients}
-- Appointments: ${data.locations.gilbert.appointments}
-- Leads: ${data.locations.gilbert.leads}
-- Production: $${data.locations.gilbert.production.toLocaleString()}
-- Revenue: $${data.locations.gilbert.revenue.toLocaleString()}
-- Net Production: $${data.locations.gilbert.netProduction.toLocaleString()}
-- Acquisition Costs: $${data.locations.gilbert.acquisitionCosts.toLocaleString()}
+function getLatestPeriod(periods: PeriodPayload[]): PeriodPayload {
+  return [...periods].sort((a, b) => {
+    const aTime = a.endDate ? new Date(a.endDate).getTime() : 0
+    const bTime = b.endDate ? new Date(b.endDate).getTime() : 0
+    return bTime - aTime
+  })[0]
+}
 
-### Phoenix-Ahwatukee Location:
-- Patients: ${data.locations.phoenix.patients}
-- Appointments: ${data.locations.phoenix.appointments}
-- Leads: ${data.locations.phoenix.leads}
-- Production: $${data.locations.phoenix.production.toLocaleString()}
-- Revenue: $${data.locations.phoenix.revenue.toLocaleString()}
-- Net Production: $${data.locations.phoenix.netProduction.toLocaleString()}
-- Acquisition Costs: $${data.locations.phoenix.acquisitionCosts.toLocaleString()}
+function buildAnalysisPrompt(
+  periods: PeriodPayload[],
+  aggregated: ReturnType<typeof aggregatePeriods>,
+  latestPeriod: PeriodPayload,
+  includeRecommendations: boolean
+) {
+  const periodDetails = periods.map((period) => {
+    const data = period.data!
+    return {
+      title: period.title,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      patients: data.patients,
+      appointments: data.appointments,
+      leads: data.leads,
+      bookings: data.bookings,
+      production: data.production,
+      revenue: data.revenue,
+      netProduction: data.netProduction,
+      noShowRate: data.noShowRate,
+      referralSources: data.referralSources,
+      conversionRates: data.conversionRates,
+    }
+  })
 
-## PERFORMANCE METRICS
-No-Show Rate: ${data.performance.noShowRate.toFixed(1)}%
-Referral Sources: Digital ${data.performance.referralSources.digital}, Professional ${data.performance.referralSources.professional}, Direct ${data.performance.referralSources.direct}
-Conversion Rates: Digital ${data.performance.conversionRates.digital.toFixed(1)}%, Professional ${data.performance.conversionRates.professional.toFixed(1)}%, Direct ${data.performance.conversionRates.direct.toFixed(1)}%
+  return `
+You are an expert orthodontic practice analyst. Analyze the following report-backed practice data and respond with valid JSON only.
 
-## TRENDS DATA
-Weekly Trends: ${JSON.stringify(data.trends.weekly.slice(-4))}
-Monthly Trends: ${JSON.stringify(data.trends.monthly.slice(-3))}
+AGGREGATED PERFORMANCE
+- Periods included: ${aggregated.periodLabel}
+- Total Patients: ${aggregated.totalPatients}
+- Total Appointments: ${aggregated.totalAppointments}
+- Total Leads: ${aggregated.totalLeads}
+- Total Bookings: ${aggregated.totalBookings}
+- Total Production: $${aggregated.totalProduction.toLocaleString()}
+- Total Revenue: $${aggregated.totalRevenue.toLocaleString()}
+- Total Net Production: $${aggregated.totalNetProduction.toLocaleString()}
+- Profit Margin: ${aggregated.profitMargin.toFixed(1)}%
+- ROI: ${aggregated.roi.toFixed(1)}%
+- No-Show Rate: ${aggregated.noShowRate.toFixed(1)}%
 
-Please provide a comprehensive analysis in the following JSON format:
+LOCATION BREAKDOWN
+- Gilbert: ${JSON.stringify(aggregated.locationComparison.gilbert)}
+- Phoenix-Ahwatukee: ${JSON.stringify(aggregated.locationComparison.phoenix)}
+
+REFERRAL SOURCES
+- ${JSON.stringify(aggregated.referralSources)}
+
+CONVERSION RATES
+- ${JSON.stringify(aggregated.conversionRates)}
+
+LATEST PERIOD WEEKLY TRENDS
+- ${JSON.stringify(latestPeriod.data?.trends.weekly || [])}
+
+PER-PERIOD DETAILS
+${JSON.stringify(periodDetails, null, 2)}
+
+Return JSON in this shape:
 {
-  "summary": "Overall practice performance summary (2-3 sentences)",
-  "keyInsights": ["Key insight 1", "Key insight 2", "Key insight 3"],
-  "gilbertInsights": ["Gilbert-specific insight 1", "Gilbert-specific insight 2"],
-  "phoenixInsights": ["Phoenix-specific insight 1", "Phoenix-specific insight 2"],
-  "trendAnalysis": "Analysis of weekly and monthly trends",
+  "summary": "2-3 sentence executive overview",
+  "keyInsights": ["Insight 1", "Insight 2", "Insight 3"],
+  "gilbertInsights": ["Gilbert insight 1", "Gilbert insight 2"],
+  "phoenixInsights": ["Phoenix insight 1", "Phoenix insight 2"],
+  "trendAnalysis": "Short trend analysis",
   ${includeRecommendations ? `
   "immediateRecommendations": ["Immediate action 1", "Immediate action 2"],
   "strategicRecommendations": ["Strategic recommendation 1", "Strategic recommendation 2"],
-  "financialRecommendations": ["Financial optimization 1", "Financial optimization 2"]
+  "financialRecommendations": ["Financial recommendation 1", "Financial recommendation 2"]
   ` : ''}
 }
-
-Focus on:
-1. Revenue and production optimization opportunities
-2. Location-specific performance differences
-3. Patient acquisition and conversion improvements
-4. Operational efficiency gains
-5. Financial performance analysis
-6. Trend identification and forecasting
-
-Provide actionable, specific recommendations based on the data.
 `
-
-  return basePrompt
 }
 
-/**
- * Call OpenAI API for analysis
- */
-async function callOpenAI(prompt: string): Promise<any> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
+async function callOpenAI(prompt: string, includeRecommendations: boolean) {
+  const openai = getOpenAI()
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You are an expert orthodontic practice analyst. Use only the provided data. Always return valid JSON matching the requested schema.',
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert dental practice analyst specializing in orthodontic practice management and revenue optimization. Always respond with valid JSON format as requested.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
-      })
-    })
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    temperature: 0.4,
+    max_tokens: 1800,
+  })
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`)
+  const content = completion.choices[0]?.message?.content?.trim()
+  if (!content) {
+    throw new Error('No content received from OpenAI')
+  }
+
+  const cleaned = content
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+
+  try {
+    const parsed = JSON.parse(cleaned)
+    return {
+      summary: parsed.summary || 'Analysis completed successfully.',
+      keyInsights: Array.isArray(parsed.keyInsights) ? parsed.keyInsights : [],
+      gilbertInsights: Array.isArray(parsed.gilbertInsights) ? parsed.gilbertInsights : [],
+      phoenixInsights: Array.isArray(parsed.phoenixInsights) ? parsed.phoenixInsights : [],
+      trendAnalysis: parsed.trendAnalysis || 'Trend analysis completed.',
+      immediateRecommendations: includeRecommendations && Array.isArray(parsed.immediateRecommendations) ? parsed.immediateRecommendations : [],
+      strategicRecommendations: includeRecommendations && Array.isArray(parsed.strategicRecommendations) ? parsed.strategicRecommendations : [],
+      financialRecommendations: includeRecommendations && Array.isArray(parsed.financialRecommendations) ? parsed.financialRecommendations : [],
     }
-
-    const data = await response.json()
-    const content = data.choices[0]?.message?.content
-
-    if (!content) {
-      throw new Error('No content received from OpenAI')
+  } catch {
+    return {
+      summary: cleaned,
+      keyInsights: ['AI analysis completed, but the response format was not structured as JSON.'],
+      gilbertInsights: [],
+      phoenixInsights: [],
+      trendAnalysis: 'Trend analysis completed.',
+      immediateRecommendations: [],
+      strategicRecommendations: [],
+      financialRecommendations: [],
     }
-
-    try {
-      // Clean the content by removing markdown formatting
-      let cleanContent = content.trim()
-      
-      // Remove ```json and ``` blocks if present
-      if (cleanContent.startsWith('```json')) {
-        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-      } else if (cleanContent.startsWith('```')) {
-        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '')
-      }
-      
-      return JSON.parse(cleanContent)
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response as JSON:', parseError)
-      console.log('Raw response:', content)
-      
-      // Return structured response even if JSON parsing fails
-      return {
-        summary: content,
-        keyInsights: ["Analysis completed successfully"],
-        gilbertInsights: ["Gilbert location analysis completed"],
-        phoenixInsights: ["Phoenix location analysis completed"],
-        trendAnalysis: "Trend analysis completed",
-        immediateRecommendations: ["Review the generated summary for specific recommendations"],
-        strategicRecommendations: ["Consider implementing the suggested improvements"],
-        financialRecommendations: ["Focus on revenue optimization strategies"]
-      }
-    }
-  } catch (error) {
-    console.error('OpenAI API call failed:', error)
-    throw error
   }
 }
 
-/**
- * Assess data quality
- */
-function assessDataQuality(processedData: any): string {
-  const totalData = processedData.total
-  const hasFinancialData = totalData.production > 0 || totalData.revenue > 0
-  const hasPatientData = totalData.patients > 0
-  const hasAppointmentData = totalData.appointments > 0
-  
-  if (hasFinancialData && hasPatientData && hasAppointmentData) {
-    return 'High - Complete financial and operational data available'
-  } else if (hasPatientData && hasAppointmentData) {
-    return 'Medium - Patient and appointment data available, financial data limited'
-  } else {
-    return 'Low - Limited data available for comprehensive analysis'
+function assessDataQuality(periods: PeriodPayload[], aggregated: ReturnType<typeof aggregatePeriods>) {
+  if (periods.length >= 2 && aggregated.totalProduction > 0 && aggregated.totalAppointments > 0) {
+    return 'High - Multiple report-backed periods with financial and operational metrics are available.'
+  }
+  if (aggregated.totalProduction > 0 || aggregated.totalAppointments > 0) {
+    return 'Medium - Report-backed data is available, but the analysis would improve with more periods.'
+  }
+  return 'Low - Limited report-backed data is available for AI analysis.'
+}
+
+function getDataQualityRecommendations(periods: PeriodPayload[], aggregated: ReturnType<typeof aggregatePeriods>) {
+  const recommendations: string[] = []
+
+  if (periods.length < 2) {
+    recommendations.push('Add another analysis period to give the AI a clearer comparison baseline.')
+  }
+  if (aggregated.totalLeads === 0) {
+    recommendations.push('Validate lead tracking so conversion and referral insights are fully populated.')
+  }
+  if (aggregated.totalAcquisitionCosts === 0) {
+    recommendations.push('Enter acquisition costs for each period to improve ROI and recommendation quality.')
+  }
+  if (aggregated.totalAppointments === 0) {
+    recommendations.push('Verify the Practice Efficiency report is returning completed appointments for the selected range.')
+  }
+
+  return recommendations.length > 0
+    ? recommendations
+    : ['The current report-backed dataset is sufficient for a reliable AI summary.']
+}
+
+function emptyLocationMetrics(): LocationMetrics {
+  return {
+    patients: 0,
+    appointments: 0,
+    leads: 0,
+    bookings: 0,
+    revenue: 0,
+    production: 0,
+    netProduction: 0,
+    acquisitionCosts: 0,
   }
 }
 
-/**
- * Get data quality recommendations
- */
-function getDataQualityRecommendations(processedData: any): string[] {
-  const recommendations = []
-  const totalData = processedData.total
-  
-  if (totalData.production === 0 && totalData.revenue === 0) {
-    recommendations.push('Implement production and revenue tracking for better financial analysis')
-  }
-  
-  if (totalData.leads === 0) {
-    recommendations.push('Set up lead tracking system to measure marketing effectiveness')
-  }
-  
-  if (processedData.locations.gilbert.acquisitionCosts === 0 && processedData.locations.phoenix.acquisitionCosts === 0) {
-    recommendations.push('Track marketing and acquisition costs for ROI analysis')
-  }
-  
-  return recommendations.length > 0 ? recommendations : ['Data quality is good - continue current tracking practices']
+function addLocationMetrics(target: LocationMetrics, source?: LocationMetrics) {
+  if (!source) return
+  target.patients += source.patients || 0
+  target.appointments += source.appointments || 0
+  target.leads += source.leads || 0
+  target.bookings += source.bookings || 0
+  target.revenue += source.revenue || 0
+  target.production += source.production || 0
+  target.netProduction += source.netProduction || 0
+  target.acquisitionCosts += source.acquisitionCosts || 0
 }

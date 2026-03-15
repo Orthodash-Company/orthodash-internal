@@ -4,23 +4,97 @@ import { reports } from '@/shared/schema'
 import { eq, and } from 'drizzle-orm'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { requireAuthUser } from '@/lib/require-auth-user'
+
+function parseReportPayload(periodConfigs: string | null) {
+  if (!periodConfigs) {
+    return {
+      periodConfigs: [],
+      type: 'summary',
+      data: null,
+      sessionId: null,
+      thumbnail: null,
+      pdfUrl: null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(periodConfigs);
+    if (Array.isArray(parsed)) {
+      return {
+        periodConfigs: parsed,
+        type: 'summary',
+        data: null,
+        sessionId: null,
+        thumbnail: null,
+        pdfUrl: null,
+      };
+    }
+
+    return {
+      periodConfigs: Array.isArray(parsed.periodConfigs) ? parsed.periodConfigs : [],
+      type: typeof parsed.type === 'string' ? parsed.type : 'summary',
+      data: parsed.data ?? null,
+      sessionId: parsed.sessionId ?? null,
+      thumbnail: typeof parsed.thumbnail === 'string' ? parsed.thumbnail : null,
+      pdfUrl: typeof parsed.pdfUrl === 'string' ? parsed.pdfUrl : null,
+    };
+  } catch {
+    return {
+      periodConfigs: [],
+      type: 'summary',
+      data: null,
+      sessionId: null,
+      thumbnail: null,
+      pdfUrl: null,
+    };
+  }
+}
+
+function transformReport(report: typeof reports.$inferSelect) {
+  const payload = parseReportPayload(report.periodConfigs);
+
+  return {
+    ...report,
+    type: payload.type,
+    data: payload.data,
+    sessionId: payload.sessionId,
+    periodConfigs: payload.periodConfigs,
+    thumbnail: report.thumbnail ?? payload.thumbnail,
+    pdfUrl: report.pdfUrl ?? payload.pdfUrl,
+  };
+}
+
+function getCounterTableData(counterData: Record<string, unknown>) {
+  const activeTxPatients = Number(counterData.activeTxPatients ?? counterData.patients ?? 0);
+  const newPatientsCreated = Number(counterData.newPatientsCreated ?? counterData.leads ?? 0);
+  const caseStarts = Number(counterData.caseStarts ?? counterData.bookings ?? 0);
+  const activeLocations = Number(counterData.locations ?? 0);
+
+  return [
+    ['Metric', 'Count'],
+    ['Active Tx Patients', String(activeTxPatients)],
+    ['New Patients (YTD)', String(newPatientsCreated)],
+    ['Case Starts (YTD)', String(caseStarts)],
+    ['Active Locations', String(activeLocations)],
+  ];
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { id } = await params
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     const report = await db.select().from(reports).where(
       and(
-        eq(reports.id, parseInt(params.id)),
-        eq(reports.userId, userId)
+        eq(reports.id, parseInt(id)),
+        eq(reports.userId, user.id)
       )
     ).limit(1);
 
@@ -28,7 +102,7 @@ export async function GET(
       return NextResponse.json({ error: "Report not found" }, { status: 404 })
     }
 
-    return NextResponse.json(report[0])
+    return NextResponse.json(transformReport(report[0]))
   } catch (error) {
     console.error('Error fetching report:', error)
     return NextResponse.json({ error: "Failed to fetch report" }, { status: 500 })
@@ -37,21 +111,20 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { id } = await params
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     // Get the report data
     const report = await db.select().from(reports).where(
       and(
-        eq(reports.id, parseInt(params.id)),
-        eq(reports.userId, userId)
+        eq(reports.id, parseInt(id)),
+        eq(reports.userId, user.id)
       )
     ).limit(1);
 
@@ -59,7 +132,7 @@ export async function POST(
       return NextResponse.json({ error: "Report not found" }, { status: 404 })
     }
 
-    const reportData = report[0];
+    const reportData = transformReport(report[0]);
     
     // Generate PDF from report data
     const doc = new jsPDF();
@@ -100,14 +173,7 @@ export async function POST(
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
         
-        const counterTableData = [
-          ['Metric', 'Count'],
-          ['Total Patients', (data.counterData.patients || 0).toString()],
-          ['Total Appointments', (data.counterData.appointments || 0).toString()],
-          ['Total Leads', (data.counterData.leads || 0).toString()],
-          ['Total Bookings', (data.counterData.bookings || 0).toString()],
-          ['Active Locations', (data.counterData.locations || 0).toString()]
-        ];
+        const counterTableData = getCounterTableData(data.counterData);
         
         autoTable(doc, {
           head: [counterTableData[0]],
@@ -215,7 +281,7 @@ export async function POST(
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="orthodash-report-${params.id}.pdf"`,
+        'Content-Disposition': `attachment; filename="orthodash-report-${id}.pdf"`,
       },
     });
     
@@ -227,23 +293,22 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { id } = await params
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     // Hard delete the report
     await db.delete(reports)
       .where(
-        and(
-          eq(reports.id, parseInt(params.id)),
-          eq(reports.userId, userId)
-        )
+      and(
+        eq(reports.id, parseInt(id)),
+        eq(reports.userId, user.id)
+      )
       );
 
     return NextResponse.json({

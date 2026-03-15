@@ -220,13 +220,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 })
     }
 
-    let query = db.select().from(apiSyncHistory).where(eq(apiSyncHistory.userId, userId));
+    const filters = [eq(apiSyncHistory.userId, userId)];
 
     if (configId) {
-      query = query.where(eq(apiSyncHistory.apiConfigId, parseInt(configId)));
+      filters.push(eq(apiSyncHistory.apiConfigId, parseInt(configId)));
     }
 
-    const history = await query.orderBy(apiSyncHistory.createdAt);
+    const history = await db
+      .select()
+      .from(apiSyncHistory)
+      .where(filters.length === 1 ? filters[0] : and(...filters))
+      .orderBy(apiSyncHistory.createdAt);
 
     return NextResponse.json({
       success: true,

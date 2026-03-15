@@ -2,141 +2,61 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sessions } from '@/shared/schema';
 import { eq } from 'drizzle-orm';
+import { requireAuthUser } from '@/lib/require-auth-user';
 
-// GET /api/sessions - Get all sessions for a user
-export async function GET(request: NextRequest) {
+// GET /api/sessions - Get all active sessions for the authenticated user
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
-    }
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) return unauthorizedResponse;
 
     const userSessions = await db
       .select()
       .from(sessions)
-      .where(eq(sessions.userId, userId))
+      .where(eq(sessions.userId, user.id))
       .orderBy(sessions.createdAt);
 
-    return NextResponse.json({
-      success: true,
-      sessions: userSessions
-    });
-
+    return NextResponse.json({ success: true, sessions: userSessions });
   } catch (error) {
     console.error('Error fetching sessions:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch sessions' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
   }
 }
 
-// POST /api/sessions - Create a new session
+// POST /api/sessions - Save a new session (period filters only — no raw data)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const {
-      name,
-      description,
-      periods,
-      locations,
-      greyfinchData,
-      userId,
-      includeCharts,
-      includeAIInsights,
-      includeRecommendations
-    } = body;
+    const { user, unauthorizedResponse } = await requireAuthUser();
+    if (!user) return unauthorizedResponse;
 
-    if (!userId || !name) {
-      return NextResponse.json(
-        { error: 'User ID and session name required' },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const { name, periods, snapshotStartDate, snapshotEndDate } = body;
+
+    if (!name) {
+      return NextResponse.json({ error: 'Session name required' }, { status: 400 });
     }
 
-    const sessionData = {
-      userId,
-      name,
-      description: description || '',
-      greyfinchData: greyfinchData || {},
-      periods: periods || [],
-      acquisitionCosts: [],
-      aiSummary: null,
-      metadata: {
-        includeCharts,
-        includeAIInsights,
-        includeRecommendations,
-        locations: locations || []
-      },
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    // Store periods alongside snapshot dates so both can be restored together.
+    // Handled as an object so legacy sessions (plain array) stay backward-compatible.
+    const periodsData = (snapshotStartDate || snapshotEndDate)
+      ? { periods: periods ?? [], snapshotStartDate, snapshotEndDate }
+      : periods ?? [];
 
     const [newSession] = await db
       .insert(sessions)
-      .values(sessionData)
+      .values({
+        userId: user.id,
+        name,
+        periods: periodsData,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
       .returning();
 
-    return NextResponse.json({
-      success: true,
-      session: newSession
-    }, { status: 201 });
-
+    return NextResponse.json({ success: true, session: newSession }, { status: 201 });
   } catch (error) {
     console.error('Error creating session:', error);
-    return NextResponse.json(
-      { error: 'Failed to create session' },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT /api/sessions - Update an existing session
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { sessionId, periods, locations, greyfinchData, updatedAt } = body;
-
-    if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Session ID required' },
-        { status: 400 }
-      );
-    }
-
-    const updateData = {
-      periods: periods || [],
-      locations: locations || [],
-      greyfinchData: greyfinchData || {},
-      updatedAt: updatedAt || new Date()
-    };
-
-    const [updatedSession] = await db
-      .update(sessions)
-      .set(updateData)
-      .where(eq(sessions.id, sessionId))
-      .returning();
-
-    if (!updatedSession) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      session: updatedSession
-    });
-
-  } catch (error) {
-    console.error('Error updating session:', error);
-    return NextResponse.json(
-      { error: 'Failed to update session' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
   }
 }

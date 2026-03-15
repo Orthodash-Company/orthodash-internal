@@ -2,23 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { reports } from '@/shared/schema'
 import { eq, and } from 'drizzle-orm'
+import { requireAuthUser } from '@/lib/require-auth-user'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const { id } = await params
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) {
+      return unauthorizedResponse
     }
 
     const report = await db.select().from(reports).where(
       and(
-        eq(reports.id, parseInt(params.id)),
-        eq(reports.userId, userId)
+        eq(reports.id, parseInt(id)),
+        eq(reports.userId, user.id)
       )
     ).limit(1);
 
@@ -33,7 +33,7 @@ export async function POST(
     return new NextResponse(pdfContent, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="orthodash-report-${params.id}.pdf"`
+        'Content-Disposition': `attachment; filename="orthodash-report-${id}.pdf"`
       }
     });
   } catch (error) {
