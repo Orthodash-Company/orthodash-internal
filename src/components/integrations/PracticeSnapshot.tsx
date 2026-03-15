@@ -22,6 +22,8 @@ interface PracticeSnapshotProps {
   initialCounts?: DataCounts
   onCountsUpdate?: (counts: DataCounts) => void
   onDataLoadingChange?: (isLoading: boolean) => void
+  restoredDates?: { startDate: string; endDate: string } | null
+  onDatesChange?: (startDate: string, endDate: string) => void
 }
 
 interface LocationCounts {
@@ -29,9 +31,21 @@ interface LocationCounts {
   appointments: number
   newPatientsCreated: number
   caseStarts: number
+  newPatExams: number
+  leads: number
+  bookings: number
 }
 
 type GreyfinchLocation = z.infer<typeof LocationSchema>
+
+// Module-level cache — survives tab switches (component unmount/remount) but
+// resets to null on a full page refresh since the JS module is re-evaluated.
+let snapshotDateCache: {
+  startDate: string
+  endDate: string
+  committedStart: string
+  committedEnd: string
+} | null = null
 
 const FALLBACK_LOCATIONS = [
   { id: '097eb1d8-ec62-45d9-8c21-d08af1cf66c8', name: 'Gilbert' },
@@ -42,36 +56,32 @@ const metricCards = [
   {
     key: 'patients',
     label: 'Patients',
-    tooltip: 'Active treatment patients (status is not "new patient lead") from the PRACTICE_MONITOR report for the selected date range.',
+    tooltip: 'Active treatment patients (treatmentStatus is not "New Patient Lead") — activeTxPatients from PRACTICE_MONITOR.',
     icon: Users,
     iconClassName: 'text-blue-500',
   },
   {
     key: 'appointments',
     label: 'Appointments',
-    tooltip: 'Completed bookings from the PRACTICE_EFFICIENCY report for the selected date range.',
+    tooltip: 'All completed appointments in the selected date range — from PRACTICE_EFFICIENCY.',
     icon: Calendar,
     iconClassName: 'text-purple-500',
   },
   {
     key: 'leads',
     label: 'Leads',
-    tooltip: 'New patients who have not yet had an appointment. Exact report and column mapping pending Postman validation.',
+    tooltip: 'Patients with "New Patient Lead" treatment status in the selected date range — from PATIENT_REFERRALS.',
     icon: DollarSign,
     iconClassName: 'text-orange-500',
-    tbd: true,
   },
   {
     key: 'bookings',
     label: 'Bookings',
-    tooltip: 'Patients with exam/child or exam/adult status with a future appointment scheduled. Exact report and column mapping pending Postman validation.',
+    tooltip: 'Patients with "Exam/Child" or "Exam/Adult" treatment status in the selected date range — from PATIENT_REFERRALS.',
     icon: BookOpen,
     iconClassName: 'text-red-500',
-    tbd: true,
   },
 ] as const
-
-const tbdBadge = <span className="text-sm font-medium text-gray-400">TBD</span>
 
 const periodAnalyticsLocationSchema = z.object({
   location: z.string(),
@@ -79,6 +89,9 @@ const periodAnalyticsLocationSchema = z.object({
   appointments: z.number(),
   newPatientsCreated: z.number(),
   caseStarts: z.number(),
+  newPatExams: z.number(),
+  leads: z.number(),
+  bookings: z.number(),
 })
 
 const periodAnalyticsResponseSchema = z.object({
@@ -121,6 +134,8 @@ const reduceCounts = (locations: LocationCounts[]): DataCounts => (
       activeTxPatients: (acc.activeTxPatients ?? 0) + loc.activeTxPatients,
       newPatientsCreated: (acc.newPatientsCreated ?? 0) + loc.newPatientsCreated,
       caseStarts: (acc.caseStarts ?? 0) + loc.caseStarts,
+      leads: (acc.leads ?? 0) + loc.leads,
+      bookings: (acc.bookings ?? 0) + loc.bookings,
     }),
     {}
   )
@@ -167,6 +182,8 @@ export function PracticeSnapshot({
   initialCounts,
   onCountsUpdate,
   onDataLoadingChange,
+  restoredDates,
+  onDatesChange,
 }: PracticeSnapshotProps) {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -182,13 +199,37 @@ export function PracticeSnapshot({
   const defaultStart = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const defaultEnd = format(now, 'yyyy-MM-dd')
 
-  // Input state — what the user sees in the date fields (changes freely, does NOT trigger a fetch)
-  const [startDate, setStartDate] = useState(defaultStart)
-  const [endDate, setEndDate] = useState(defaultEnd)
+  // Input state — falls back to module cache so tab switches don't reset the dates,
+  // but resets to current week on a full page refresh (cache is null after module reload).
+  const [startDate, setStartDate] = useState(() => snapshotDateCache?.startDate ?? defaultStart)
+  const [endDate, setEndDate] = useState(() => snapshotDateCache?.endDate ?? defaultEnd)
 
-  // Committed state — what the query actually uses; only advances when "Pull All Data" is clicked
-  const [committedStartDate, setCommittedStartDate] = useState(defaultStart)
-  const [committedEndDate, setCommittedEndDate] = useState(defaultEnd)
+  // Committed state — what the query actually uses; only advances when Fetch is clicked
+  const [committedStartDate, setCommittedStartDate] = useState(() => snapshotDateCache?.committedStart ?? defaultStart)
+  const [committedEndDate, setCommittedEndDate] = useState(() => snapshotDateCache?.committedEnd ?? defaultEnd)
+
+  // Stable ref for the callback so the cache effect doesn't need it as a dependency
+  const onDatesChangeRef = useRef(onDatesChange)
+  useEffect(() => { onDatesChangeRef.current = onDatesChange }, [onDatesChange])
+
+  // Keep the module cache in sync so it's ready when the component remounts
+  useEffect(() => {
+    snapshotDateCache = { startDate, endDate, committedStart: committedStartDate, committedEnd: committedEndDate }
+  }, [startDate, endDate, committedStartDate, committedEndDate])
+
+  // Notify parent when committed dates change (used by session save)
+  useEffect(() => {
+    onDatesChangeRef.current?.(committedStartDate, committedEndDate)
+  }, [committedStartDate, committedEndDate])
+
+  // Apply externally restored dates (session restore)
+  useEffect(() => {
+    if (!restoredDates) return
+    setStartDate(restoredDates.startDate)
+    setEndDate(restoredDates.endDate)
+    setCommittedStartDate(restoredDates.startDate)
+    setCommittedEndDate(restoredDates.endDate)
+  }, [restoredDates])
 
   const locationsQuery = useQuery({
     queryKey: ['greyfinch', 'locations'],
@@ -229,6 +270,9 @@ export function PracticeSnapshot({
           appointments: loc.appointments,
           newPatientsCreated: loc.newPatientsCreated,
           caseStarts: loc.caseStarts,
+          newPatExams: loc.newPatExams,
+          leads: loc.leads,
+          bookings: loc.bookings,
         },
       ])
     )
@@ -401,7 +445,7 @@ export function PracticeSnapshot({
                   <Skeleton className="mx-auto mb-1.5 h-7 w-14 bg-gray-200" />
                 ) : (
                   <div className="text-xl font-bold text-[#1C1F4F]">
-                    {'tbd' in card ? tbdBadge : (dataCounts[card.key] ?? 0)}
+                    {dataCounts[card.key] ?? 0}
                   </div>
                 )}
                 <div className="mt-0.5 text-xs text-gray-500 underline decoration-dotted decoration-[#1d1d52]/35 underline-offset-4">
@@ -451,7 +495,7 @@ export function PracticeSnapshot({
             <button
               type="button"
               onClick={() => setLocationDropdownOpen((open) => !open)}
-              className="flex w-full items-center justify-between rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-[#1C1F4F] hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
+              className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-[#1C1F4F] hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
             >
               <span className="truncate">{locationDisplayText}</span>
               <ChevronDown className={`ml-1.5 h-3 w-3 shrink-0 text-gray-400 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`} />
@@ -480,6 +524,12 @@ export function PracticeSnapshot({
           </div>
         </div>
 
+
+
+
+
+
+
         <div className="sm:flex-1">
           <label className="mb-1 block text-xs font-medium text-gray-400">Start</label>
           <input
@@ -487,7 +537,7 @@ export function PracticeSnapshot({
             value={startDate}
             max={endDate}
             onChange={(event) => setStartDate(event.target.value)}
-            className="w-full rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
+            className="w-full rounded-md border border-gray-300 bg-white py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30 sm:px-2.5"
           />
         </div>
 
@@ -499,9 +549,17 @@ export function PracticeSnapshot({
             min={startDate}
             max={format(nowInTZ(tz), 'yyyy-MM-dd')}
             onChange={(event) => setEndDate(event.target.value)}
-            className="w-full rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
+            className="w-full rounded-md border border-gray-300 bg-white py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30 sm:px-2.5"
           />
         </div>
+
+
+
+
+
+
+
+        
       </div>
 
       {countsDisplay}

@@ -82,8 +82,6 @@ export async function GET(request: NextRequest) {
 
   const { startDate, endDate, refresh } = parsed.data;
 
-  console.log(startDate, endDate, refresh)
-
   const cacheKey = getCacheKey(startDate, endDate)
 
   if (!refresh) {

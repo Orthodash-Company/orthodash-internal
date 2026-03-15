@@ -459,7 +459,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               <div>
                 <MetricTooltip
                   label="Net Production"
-                  tooltip="Total revenue for this period minus the acquisition costs entered for this period."
+                  tooltip="netCollection (PRACTICE_MONITOR) minus manually entered acquisition costs for this period."
                   className="text-xs text-gray-600"
                 />
                 <p className="text-lg font-semibold">${actualNetProduction.toLocaleString()}</p>
@@ -473,7 +473,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
               <div>
                 <MetricTooltip
                   label="No-Show Rate"
-                  tooltip="No-show and cancellation events divided by active treatment patients for the selected period."
+                  tooltip="noShowCancellationAppointmentTotal (PATIENT_REFERRALS) ÷ (completed appointments + no-shows) for the period."
                   className="text-xs text-gray-600"
                 />
                 <p className="text-lg font-semibold">{safeData.noShowRate.toFixed(1)}%</p>
@@ -490,7 +490,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="flex justify-between text-sm">
               <MetricTooltip
                 label="Total Production:"
-                tooltip="Gross production reported for the selected period before acquisition costs are applied."
+                tooltip="grossProduction from PRACTICE_MONITOR — production before adjustments."
                 className="text-gray-600"
               />
               <span className="font-medium">${actualProduction.toLocaleString()}</span>
@@ -498,7 +498,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="flex justify-between text-sm">
               <MetricTooltip
                 label="Total Revenue:"
-                tooltip="Net collections or revenue recognized for the selected period."
+                tooltip="netCollection from PRACTICE_MONITOR — net receipts/collections recognized for the period."
                 className="text-gray-600"
               />
               <span className="font-medium">${actualRevenue.toLocaleString()}</span>
@@ -506,7 +506,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="flex justify-between text-sm">
               <MetricTooltip
                 label="Acquisition Costs:"
-                tooltip="Sum of the manually entered acquisition costs attached to this analysis period."
+                tooltip="Manually entered acquisition costs attached to this analysis period — stored in the database, not from Greyfinch."
                 className="text-gray-600"
               />
               <span className="font-medium text-red-600">-${totalCosts.toLocaleString()}</span>
@@ -515,7 +515,7 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
             <div className="flex justify-between text-sm font-semibold">
               <MetricTooltip
                 label="Net Production:"
-                tooltip="Total revenue minus acquisition costs for this analysis period."
+                tooltip="netCollection (PRACTICE_MONITOR) minus manually entered acquisition costs."
               />
               <span className={`${actualNetProduction >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ${actualNetProduction.toLocaleString()}

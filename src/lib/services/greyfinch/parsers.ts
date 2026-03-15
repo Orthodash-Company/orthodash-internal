@@ -120,6 +120,8 @@ export interface PatientReferralRow {
 export interface PatientReferralsSummary {
   location: string
   totalNewPatients: number
+  leads: number
+  bookings: number
   referralBreakdown: Record<ReferralType, number>
   totalNoShowCancellations: number
   conversionBreakdown: Record<ReferralType, number>
@@ -176,6 +178,8 @@ export function parsePatientReferrals(data: ReportData): PatientReferralsSummary
       Other: 0,
     }
     let totalNoShow = 0
+    let leads = 0
+    let bookings = 0
 
     for (const row of rows) {
       breakdown[row.referralType]++
@@ -183,6 +187,8 @@ export function parsePatientReferrals(data: ReportData): PatientReferralsSummary
         conversionNumerators[row.referralType]++
       }
       totalNoShow += row.noShowCancellationAppointmentTotal
+      if (row.treatmentStatus === 'New Patient Lead') leads++
+      if (row.treatmentStatus === 'Exam/Child' || row.treatmentStatus === 'Exam/Adult') bookings++
     }
 
     const conversionBreakdown = (Object.keys(breakdown) as ReferralType[]).reduce<Record<ReferralType, number>>(
@@ -202,6 +208,8 @@ export function parsePatientReferrals(data: ReportData): PatientReferralsSummary
     return {
       location,
       totalNewPatients: rows.length,
+      leads,
+      bookings,
       referralBreakdown: breakdown,
       totalNoShowCancellations: totalNoShow,
       conversionBreakdown,
@@ -242,6 +250,8 @@ export interface LocationPeriodData {
   appointments: number
   avgCaseFee: number
   newPatExams: number
+  leads: number
+  bookings: number
   // Referrals
   referralBreakdown: Record<ReferralType, number>
   conversionBreakdown: Record<ReferralType, number>
@@ -270,6 +280,8 @@ export function mergePeriodData(
       appointments: appointmentsByLocation.get(m.location) ?? 0,
       avgCaseFee: m.avgCaseFee,
       newPatExams: m.newPatExams,
+      leads: refs?.leads ?? 0,
+      bookings: refs?.bookings ?? 0,
       referralBreakdown: refs?.referralBreakdown ?? {
         Professional: 0,
         'Family Referral': 0,

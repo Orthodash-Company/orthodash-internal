@@ -11,6 +11,8 @@ interface LocationsManagerProps {
   initialCounts?: DataCounts;
   onCountsUpdate?: (counts: DataCounts) => void;
   onDataLoadingChange?: (isLoading: boolean) => void;
+  restoredSnapshotDates?: { startDate: string; endDate: string } | null;
+  onSnapshotDatesChange?: (startDate: string, endDate: string) => void;
 }
 
 export function LocationsManager({
@@ -21,6 +23,8 @@ export function LocationsManager({
   initialCounts,
   onCountsUpdate,
   onDataLoadingChange,
+  restoredSnapshotDates,
+  onSnapshotDatesChange,
 }: LocationsManagerProps) {
   return (
     <PracticeSnapshot
@@ -31,6 +35,8 @@ export function LocationsManager({
       initialCounts={initialCounts}
       onCountsUpdate={onCountsUpdate}
       onDataLoadingChange={onDataLoadingChange}
+      restoredDates={restoredSnapshotDates}
+      onDatesChange={onSnapshotDatesChange}
     />
   );
 }

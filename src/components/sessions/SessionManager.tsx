@@ -13,7 +13,9 @@ const PAGE_SIZE = 5
 
 interface SessionManagerProps {
   periods: PeriodConfig[]
-  onRestoreSession: (periodFilters: PeriodFilterConfig[]) => void
+  onRestoreSession: (periodFilters: PeriodFilterConfig[], snapshotDates?: { startDate: string; endDate: string }) => void
+  snapshotStartDate?: string
+  snapshotEndDate?: string
 }
 
 interface SavedReport {
@@ -146,7 +148,7 @@ function useReports() {
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
-export function SessionManager({ periods, onRestoreSession }: SessionManagerProps) {
+export function SessionManager({ periods, onRestoreSession, snapshotStartDate, snapshotEndDate }: SessionManagerProps) {
   const { sessions, isLoading: sessionsLoading, saveSession, deleteSession } = useSessionManager()
   const { reports, isLoading: reportsLoading, activeId: reportActiveId, viewReport, downloadReport, deleteReport } = useReports()
   const [saveName, setSaveName] = useState('')
@@ -201,7 +203,7 @@ export function SessionManager({ periods, onRestoreSession }: SessionManagerProp
         endDate: formatDateForFilter(p.endDate),
         locationIds: p.locationIds ?? [],
       }))
-      await saveSession(saveName.trim(), periodFilters)
+      await saveSession(saveName.trim(), periodFilters, snapshotStartDate, snapshotEndDate)
       setSaveName('')
       setSessionPage(1)
       toast({ title: 'Session saved', description: `"${saveName.trim()}" has been saved.` })
@@ -212,9 +214,12 @@ export function SessionManager({ periods, onRestoreSession }: SessionManagerProp
     }
   }
 
-  const handleRestore = (session: { name: string; periods: any[] }) => {
+  const handleRestore = (session: { name: string; periods: PeriodFilterConfig[]; snapshotStartDate?: string; snapshotEndDate?: string }) => {
     const filters: PeriodFilterConfig[] = Array.isArray(session.periods) ? session.periods : []
-    onRestoreSession(filters)
+    const snapshotDates = (session.snapshotStartDate && session.snapshotEndDate)
+      ? { startDate: session.snapshotStartDate, endDate: session.snapshotEndDate }
+      : undefined
+    onRestoreSession(filters, snapshotDates)
     toast({ title: 'Session restored', description: `"${session.name}" has been restored. Data will re-fetch.` })
   }
 

@@ -30,18 +30,24 @@ export async function POST(request: NextRequest) {
     if (!user) return unauthorizedResponse;
 
     const body = await request.json();
-    const { name, periods } = body;
+    const { name, periods, snapshotStartDate, snapshotEndDate } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Session name required' }, { status: 400 });
     }
+
+    // Store periods alongside snapshot dates so both can be restored together.
+    // Handled as an object so legacy sessions (plain array) stay backward-compatible.
+    const periodsData = (snapshotStartDate || snapshotEndDate)
+      ? { periods: periods ?? [], snapshotStartDate, snapshotEndDate }
+      : periods ?? [];
 
     const [newSession] = await db
       .insert(sessions)
       .values({
         userId: user.id,
         name,
-        periods: periods ?? [],
+        periods: periodsData,
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),

@@ -73,6 +73,10 @@ export default function Dashboard() {
   const [periodAnalyticsLoading, setPeriodAnalyticsLoading] = useState<Record<string, boolean>>({});
   const [periodAnalyticsError, setPeriodAnalyticsError] = useState<Record<string, string | null>>({});
   const [greyfinchCounts, setGreyfinchCounts] = useState<Record<string, number | undefined>>({});
+  // Current committed snapshot dates — updated by PracticeSnapshot, read by SessionManager on save
+  const [snapshotDates, setSnapshotDates] = useState<{ startDate: string; endDate: string } | null>(null);
+  // Set on restore — PracticeSnapshot watches this and updates its own state
+  const [restoredSnapshotDates, setRestoredSnapshotDates] = useState<{ startDate: string; endDate: string } | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const greyfinchRequestRef = useRef<AbortController | null>(null);
   const greyfinchTimeoutRef = useRef<number | null>(null);
@@ -313,8 +317,15 @@ export default function Dashboard() {
     setPeriodQueries(periodQueriesMemo);
   }, [periodQueriesMemo]);
 
+  const handleSnapshotDatesChange = useCallback((startDate: string, endDate: string) => {
+    setSnapshotDates({ startDate, endDate });
+  }, []);
+
   // Restore a saved session — re-populate period configs so data re-fetches fresh
-  const handleRestoreSession = useCallback((periodFilters: PeriodFilterConfig[]) => {
+  const handleRestoreSession = useCallback((
+    periodFilters: PeriodFilterConfig[],
+    snapshotDates?: { startDate: string; endDate: string },
+  ) => {
     const restored: PeriodConfig[] = periodFilters.map(f => ({
       id: f.id,
       name: f.name,
@@ -326,6 +337,9 @@ export default function Dashboard() {
       visualizations: [],
     }))
     setPeriods(restored)
+    if (snapshotDates) {
+      setRestoredSnapshotDates(snapshotDates)
+    }
   }, []);
 
   if (isInitialLoading) {
@@ -418,6 +432,8 @@ export default function Dashboard() {
                     initialCounts={greyfinchCounts}
                     onCountsUpdate={setGreyfinchCounts}
                     onDataLoadingChange={setIsLiveDataPulling}
+                    restoredSnapshotDates={restoredSnapshotDates}
+                    onSnapshotDatesChange={handleSnapshotDatesChange}
                   />
                 </TabsContent>
 
@@ -429,6 +445,8 @@ export default function Dashboard() {
                   <SessionManager
                     periods={periods}
                     onRestoreSession={handleRestoreSession}
+                    snapshotStartDate={snapshotDates?.startDate}
+                    snapshotEndDate={snapshotDates?.endDate}
                   />
                 </TabsContent>
               </Tabs>

@@ -40,7 +40,6 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
     online = 0,
     noShowCancellations = 0
   let appointments = 0,
-    leads = 0,
     bookings = 0
   let weightedDigitalConversion = 0,
     weightedProfessionalConversion = 0,
@@ -58,8 +57,7 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
     grossProduction += loc.grossProduction
     netCollection += loc.netCollection
     appointments += loc.appointments
-    leads += loc.leads
-    bookings += loc.bookings
+    bookings += loc.startApptCompleted
     professional += loc.referralBreakdown?.Professional ?? 0
     familyReferral += loc.referralBreakdown?.['Family Referral'] ?? 0
     online += loc.referralBreakdown?.Online ?? 0
@@ -78,8 +76,8 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
 
     bucket.patients += loc.activeTxPatients
     bucket.appointments += loc.appointments
-    bucket.leads += loc.leads
-    bucket.bookings += loc.bookings
+    bucket.leads += loc.newPatientsCreated
+    bucket.bookings += loc.startApptCompleted
     bucket.revenue += loc.netCollection
     bucket.production += loc.grossProduction
     bucket.netProduction += loc.netProduction
@@ -88,7 +86,7 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
   return {
     patients: activeTxPatients,
     appointments,
-    leads,
+    leads: newPatientsCreated,
     locations: locationRows.length,
     bookings,
     revenue: netCollection,
@@ -97,7 +95,7 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
     acquisitionCosts: 0,
     avgNetProduction: activeTxPatients > 0 ? netProduction / activeTxPatients : 0,
     avgAcquisitionCost: 0,
-    noShowRate: (appointments + noShowCancellations) > 0 ? (noShowCancellations / (appointments + noShowCancellations)) * 100 : 0,
+    noShowRate: activeTxPatients > 0 ? (noShowCancellations / activeTxPatients) * 100 : 0,
     referralSources: { professional, digital: online, direct: familyReferral },
     conversionRates: {
       digital: online > 0 ? weightedDigitalConversion / online : 0,
