@@ -73,16 +73,19 @@ const metricCards = [
 
 const tbdBadge = <span className="text-sm font-medium text-gray-400">TBD</span>
 
-const liveCountsResponseSchema = z.object({
+const periodAnalyticsLocationSchema = z.object({
+  location: z.string(),
+  activeTxPatients: z.number(),
+  appointments: z.number(),
+  newPatientsCreated: z.number(),
+  caseStarts: z.number(),
+})
+
+const periodAnalyticsResponseSchema = z.object({
   success: z.literal(true),
-  byLocation: z.record(z.string(), z.object({
-    activeTxPatients: z.number(),
-    appointments: z.number(),
-    newPatientsCreated: z.number(),
-    caseStarts: z.number(),
-  })),
-  startDate: z.string(),
-  endDate: z.string(),
+  data: z.object({
+    locations: z.array(periodAnalyticsLocationSchema),
+  }),
 })
 
 const locationsResponseSchema = z.object({
@@ -139,21 +142,21 @@ async function fetchLocations(): Promise<GreyfinchLocation[]> {
   return parsed.data.data.locations
 }
 
-async function fetchLiveCounts(startDate: string, endDate: string): Promise<Record<string, LocationCounts>> {
+async function fetchPeriodAnalytics(startDate: string, endDate: string) {
   const params = new URLSearchParams({ startDate, endDate })
-  const response = await fetch(`/api/greyfinch/live-counts?${params.toString()}`, { cache: 'no-store' })
+  const response = await fetch(`/api/greyfinch/period-analytics?${params.toString()}`, { cache: 'no-store' })
   const json = await response.json()
 
   if (!response.ok) {
-    throw new Error(typeof json?.error === 'string' ? json.error : 'Unable to fetch Greyfinch live counts.')
+    throw new Error(typeof json?.error === 'string' ? json.error : 'Unable to fetch practice analytics.')
   }
 
-  const parsed = liveCountsResponseSchema.safeParse(json)
+  const parsed = periodAnalyticsResponseSchema.safeParse(json)
   if (!parsed.success) {
-    throw new Error('Received an invalid Greyfinch live counts response.')
+    throw new Error('Received an invalid practice analytics response.')
   }
 
-  return parsed.data.byLocation
+  return parsed.data.data.locations
 }
 
 export function PracticeSnapshot({
@@ -176,8 +179,16 @@ export function PracticeSnapshot({
 
   const tz = locations?.find((location) => location.timeZone)?.timeZone ?? PRACTICE_TZ
   const now = nowInTZ(tz)
-  const [startDate, setStartDate] = useState(format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd'))
-  const [endDate, setEndDate] = useState(format(now, 'yyyy-MM-dd'))
+  const defaultStart = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const defaultEnd = format(now, 'yyyy-MM-dd')
+
+  // Input state — what the user sees in the date fields (changes freely, does NOT trigger a fetch)
+  const [startDate, setStartDate] = useState(defaultStart)
+  const [endDate, setEndDate] = useState(defaultEnd)
+
+  // Committed state — what the query actually uses; only advances when "Pull All Data" is clicked
+  const [committedStartDate, setCommittedStartDate] = useState(defaultStart)
+  const [committedEndDate, setCommittedEndDate] = useState(defaultEnd)
 
   const locationsQuery = useQuery({
     queryKey: ['greyfinch', 'locations'],
@@ -187,8 +198,8 @@ export function PracticeSnapshot({
   })
 
   const liveCountsQuery = useQuery({
-    queryKey: ['greyfinch', 'live-counts', startDate, endDate],
-    queryFn: () => fetchLiveCounts(startDate, endDate),
+    queryKey: ['greyfinch', 'period-analytics', committedStartDate, committedEndDate],
+    queryFn: () => fetchPeriodAnalytics(committedStartDate, committedEndDate),
     enabled: Boolean(user?.id),
   })
 
@@ -205,6 +216,23 @@ export function PracticeSnapshot({
 
     return [...FALLBACK_LOCATIONS]
   }, [locations, locationsQuery.data])
+
+  // Remap location names → UUIDs using availableLocations so filtering works by ID
+  const rawByLocation = useMemo<Record<string, LocationCounts>>(() => {
+    if (!liveCountsQuery.data) return {}
+    const nameToId = new Map(availableLocations.map((l) => [l.name, l.id]))
+    return Object.fromEntries(
+      liveCountsQuery.data.map((loc) => [
+        nameToId.get(loc.location) ?? loc.location,
+        {
+          activeTxPatients: loc.activeTxPatients,
+          appointments: loc.appointments,
+          newPatientsCreated: loc.newPatientsCreated,
+          caseStarts: loc.caseStarts,
+        },
+      ])
+    )
+  }, [liveCountsQuery.data, availableLocations])
 
   const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>(
     () => availableLocations.map((location) => location.id)
@@ -255,9 +283,9 @@ export function PracticeSnapshot({
   }, [liveCountsQuery.error, toast])
 
   useEffect(() => {
-    if (!liveCountsQuery.data) return
-    onCountsUpdate?.(reduceCounts(Object.values(liveCountsQuery.data)))
-  }, [liveCountsQuery.data, onCountsUpdate])
+    if (!Object.keys(rawByLocation).length) return
+    onCountsUpdate?.(reduceCounts(Object.values(rawByLocation)))
+  }, [rawByLocation, onCountsUpdate])
 
   const toggleLocation = useCallback((id: string) => {
     setSelectedLocationIds((prev) => {
@@ -271,7 +299,6 @@ export function PracticeSnapshot({
   }, [])
 
   const dataCounts = useMemo<DataCounts>(() => {
-    const rawByLocation = liveCountsQuery.data ?? {}
     const filtered = Object.entries(rawByLocation).filter(([id]) => selectedLocationIds.includes(id))
 
     if (filtered.length === 0) {
@@ -279,7 +306,7 @@ export function PracticeSnapshot({
     }
 
     return reduceCounts(filtered.map(([, location]) => location))
-  }, [initialCounts, liveCountsQuery.data, selectedLocationIds])
+  }, [initialCounts, rawByLocation, selectedLocationIds])
 
   const isConnected = Boolean(user?.id) && (Boolean(greyfinchData) || locationsQuery.isSuccess || Boolean(locations?.length))
   const isLoadingCounts = liveCountsQuery.isLoading || liveCountsQuery.isFetching
@@ -302,6 +329,10 @@ export function PracticeSnapshot({
     if (isPullingAllData || isRefreshingGreyfinchData) return
 
     setIsPullingAllData(true)
+
+    // Commit the currently-entered dates so the query key updates before refetch
+    setCommittedStartDate(startDate)
+    setCommittedEndDate(endDate)
 
     try {
       if (onRefreshGreyfinchData) {
@@ -326,7 +357,7 @@ export function PracticeSnapshot({
     } finally {
       setIsPullingAllData(false)
     }
-  }, [isPullingAllData, isRefreshingGreyfinchData, liveCountsQuery, locations?.length, locationsQuery, onRefreshGreyfinchData, toast, user?.id])
+  }, [endDate, isPullingAllData, isRefreshingGreyfinchData, liveCountsQuery, locations?.length, locationsQuery, onRefreshGreyfinchData, startDate, toast, user?.id])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -351,7 +382,7 @@ export function PracticeSnapshot({
       .join(', ')
   }, [availableLocations, selectedLocationIds])
 
-  const showCountsSkeleton = !liveCountsQuery.data || isLoadingCounts || isRefreshingGreyfinchData
+  const showCountsSkeleton = !liveCountsQuery.data || isLoadingCounts || isRefreshingGreyfinchData || isPullingAllData
 
   const countsDisplay = useMemo(() => (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -391,11 +422,11 @@ export function PracticeSnapshot({
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-[#1C1F4F]">
-            <Database className="h-4 w-4" />
+          <h3 className="flex items-center gap-2 text-base font-semibold text-[#1C1F4F]">
+            <Database className="h-5 w-5" />
             Practice Snapshot
           </h3>
-          <p className="mt-0.5 text-xs text-[#1C1F4F]/50">Key metrics from Greyfinch for the selected date range and locations</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Key metrics from Greyfinch for the selected date range and locations</p>
         </div>
         <div className="ml-4 flex shrink-0 items-center gap-1.5 text-xs font-medium">
           {isConnected ? (
@@ -412,8 +443,9 @@ export function PracticeSnapshot({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[160px] flex-1" ref={locationDropdownRef}>
+      {/* Filters: flex-col on mobile, flex-row on desktop */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-2">
+        <div className="sm:min-w-[160px] sm:flex-1" ref={locationDropdownRef}>
           <label className="mb-1 block text-xs font-medium text-gray-400">Locations</label>
           <div className="relative">
             <button
@@ -448,18 +480,18 @@ export function PracticeSnapshot({
           </div>
         </div>
 
-        <div className="min-w-[120px] flex-1">
+        <div className="sm:flex-1">
           <label className="mb-1 block text-xs font-medium text-gray-400">Start</label>
           <input
             type="date"
             value={startDate}
             max={endDate}
             onChange={(event) => setStartDate(event.target.value)}
-            className="w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
+            className="w-full rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
           />
         </div>
 
-        <div className="min-w-[120px] flex-1">
+        <div className="sm:flex-1">
           <label className="mb-1 block text-xs font-medium text-gray-400">End</label>
           <input
             type="date"
@@ -467,7 +499,7 @@ export function PracticeSnapshot({
             min={startDate}
             max={format(nowInTZ(tz), 'yyyy-MM-dd')}
             onChange={(event) => setEndDate(event.target.value)}
-            className="w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
+            className="w-full rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-[#1C1F4F] focus:outline-none focus:ring-2 focus:ring-[#1C1F4F]/30"
           />
         </div>
       </div>
@@ -478,13 +510,13 @@ export function PracticeSnapshot({
         <Button
           onClick={handlePullAllData}
           disabled={isPullingAllData || isLoadingCounts || isRefreshingGreyfinchData || !isConnected}
-          className="bg-[#1C1F4F] text-white hover:bg-[#1C1F4F]/90"
+          className="w-full bg-[#1C1F4F] text-white hover:bg-[#1C1F4F]/90 sm:w-auto"
         >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {isPullingAllData || isLoadingCounts || isRefreshingGreyfinchData ? 'Refreshing...' : 'Pull All Data'}
+          <RefreshCw className={`mr-2 h-4 w-4 ${isPullingAllData || isLoadingCounts || isRefreshingGreyfinchData ? 'animate-spin' : ''}`} />
+          {isPullingAllData || isLoadingCounts || isRefreshingGreyfinchData ? 'Fetching...' : 'Fetch'}
         </Button>
         {lastPullTime && (
-          <p className="text-xs text-gray-400">Last pulled: {lastPullTime}</p>
+          <p className="text-xs text-gray-400">Last fetched: {lastPullTime}</p>
         )}
       </div>
     </div>

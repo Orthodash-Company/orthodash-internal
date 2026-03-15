@@ -29,20 +29,6 @@ export const GQL_LOCATIONS = `
   }
 `
 
-export const GQL_BASIC_COUNTS = `
-  query GetBasicCounts {
-    patients {
-      id
-    }
-    leads {
-      id
-    }
-    appointmentBookings {
-      id
-    }
-  }
-`
-
 export const GQL_TEST_CONNECTION = `
   query TestConnection {
     __typename

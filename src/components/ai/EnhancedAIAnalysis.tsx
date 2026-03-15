@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Download, Share2, TrendingUp, TrendingDown, DollarSign, Users, Calendar, Target } from 'lucide-react'
+import { Loader2, Download, Share2, TrendingUp, TrendingDown, DollarSign, Users, Calendar, Target, FileText, BarChart3, Lightbulb, MapPin, CheckCircle, Sparkles } from 'lucide-react'
 import { PeriodConfig } from '@/shared/types'
 
 interface AIAnalysisData {
@@ -258,7 +258,7 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
 
   return (
     <div className="space-y-6">
-      <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
@@ -270,10 +270,10 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
-            <Button 
-              onClick={generateAnalysis} 
+            <Button
+              onClick={generateAnalysis}
               disabled={isLoading || isFetchingPeriodData}
-              className="flex items-center gap-2"
+              className="bg-[#1d1d52] hover:bg-[#1d1d52]/90 flex items-center gap-2"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -316,9 +316,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
       {analysisData && (
         <div className="space-y-6">
           {/* Executive Summary */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Executive Summary</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5" />Executive Summary</CardTitle>
               <CardDescription>Period: {analysisData.period}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -327,9 +327,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           </Card>
 
           {/* Key Performance Metrics */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Key Performance Metrics</CardTitle>
+              <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" />Key Performance Metrics</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -373,9 +373,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           </Card>
 
           {/* Key Insights */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Key Insights</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Lightbulb className="h-5 w-5" />Key Insights</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -390,9 +390,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           </Card>
 
           {/* Location Comparison */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Location Performance Comparison</CardTitle>
+              <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5" />Location Performance Comparison</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-2 gap-6">
@@ -491,9 +491,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
 
           {/* Recommendations */}
           {analysisData.recommendations && (
-            <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Strategic Recommendations</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5" />Strategic Recommendations</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Immediate Actions */}
@@ -543,9 +543,9 @@ ${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
           )}
 
           {/* Data Quality */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Data Quality Assessment</CardTitle>
+              <CardTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5" />Data Quality Assessment</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">

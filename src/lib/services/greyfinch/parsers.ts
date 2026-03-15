@@ -5,11 +5,14 @@ import type { ReportData } from './reports'
 
 // ─── Shared helper ────────────────────────────────────────────────────────────
 
-function rowToObject(columns: string[], row: unknown[]): Record<string, unknown> {
+const rowToObject = (columns: string[], row: unknown[]) => {
+
   const obj: Record<string, unknown> = {}
+
   for (let i = 0; i < columns.length; i++) {
     obj[columns[i]] = row[i]
   }
+
   return obj
 }
 
@@ -47,6 +50,7 @@ export interface PracticeMonitorRow {
 }
 
 export function parsePracticeMonitor(data: ReportData): PracticeMonitorRow[] {
+
   return data.values.map((row) => {
     const r = rowToObject(data.columns, row)
     return {

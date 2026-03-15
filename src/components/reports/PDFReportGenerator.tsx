@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Download, Eye, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle } from 'lucide-react';
+import { Download, Eye, FileText, BarChart3, Users, Calendar, DollarSign, Target, CheckCircle, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '@/hooks/use-auth';
@@ -21,7 +21,6 @@ interface PDFReportGeneratorProps {
   selectedPeriod?: any; // The specific period to generate charts for
   selectedCharts?: string[]; // The charts selected for this period
   periodData?: any; // The processed data for the selected period
-  onSaveReport?: (reportData: any) => void;
 }
 
 interface ReportData {
@@ -42,7 +41,6 @@ export function PDFReportGenerator({
   selectedPeriod,
   selectedCharts = [],
   periodData,
-  onSaveReport
 }: PDFReportGeneratorProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -544,26 +542,24 @@ export function PDFReportGenerator({
 
   // Save report to database - memoized for performance
   const saveReportToDatabase = useCallback(async (reportData: ReportData) => {
-    if (!user?.id) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in to save reports",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!user?.id) return;
 
     try {
       const response = await fetch('/api/reports', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
-          sessionId: `session-${Date.now()}`, // Generate a session ID
           name: reportData.title,
-          data: reportData.data
+          type: 'pdf',
+          description: `PDF report with ${periods.length} analysis period${periods.length !== 1 ? 's' : ''}`,
+          data: {
+            periods: periods.map((p: any) => ({
+              id: p.id,
+              name: p.name || p.title,
+              startDate: p.startDate,
+              endDate: p.endDate,
+            })),
+          },
         }),
       });
 
@@ -571,27 +567,12 @@ export function PDFReportGenerator({
         throw new Error(`Failed to save report: ${response.status}`);
       }
 
-      const result = await response.json();
-      console.log('Report saved successfully:', result);
-
-        toast({
-        title: "Report Saved!",
-        description: "Your report has been saved to the reports history",
-      });
-
-      // Show success animation
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-
     } catch (error) {
       console.error('Error saving report:', error);
-      toast({
-        title: "Save Failed",
-        description: "Failed to save report to database",
-        variant: "destructive"
-      });
     }
-  }, [user?.id, toast]);
+  }, [user?.id, periods]);
 
   // Generate PDF report - memoized for performance
   // skipHistory: true skips adding to generatedReports and saving to DB (used by Download button on existing reports)
@@ -622,10 +603,6 @@ export function PDFReportGenerator({
 
         setGeneratedReports(prev => [...prev, reportData]);
 
-        if (onSaveReport) {
-          onSaveReport(reportData);
-        }
-
         await saveReportToDatabase(reportData);
 
         toast({
@@ -649,7 +626,7 @@ export function PDFReportGenerator({
     } finally {
       setIsGenerating(false);
     }
-  }, [buildPdfDocument, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, onSaveReport, periodData, saveReportToDatabase, selectedCharts, selectedPeriod, toast]);
+  }, [buildPdfDocument, greyfinchData, periods, acquisitionCosts, aiSummary, getCounterData, periodData, saveReportToDatabase, selectedCharts, selectedPeriod, toast]);
 
   // View generated report - memoized for performance
   const viewReport = useCallback((report: ReportData) => {
@@ -698,28 +675,18 @@ export function PDFReportGenerator({
       )}
 
       {/* Report Generation Controls */}
-      <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-            Generate PDF Report
-        </CardTitle>
-      </CardHeader>
-        <CardContent>
-          <Button
-            onClick={() => generatePDF()}
-            disabled={isGenerating || isDataFetching}
-            className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
-          >
-            {isGenerating || isDataFetching ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {isGenerating ? 'Generating...' : isDataFetching ? 'Data Refreshing...' : 'Generate PDF'}
-          </Button>
-        </CardContent>
-      </Card>
+      <Button
+        onClick={() => generatePDF()}
+        disabled={isGenerating || isDataFetching}
+        className="bg-[#1d1d52] hover:bg-[#1d1d52]/90"
+      >
+        {isGenerating || isDataFetching ? (
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+        ) : (
+          <Download className="h-4 w-4 mr-2" />
+        )}
+        {isGenerating ? 'Generating...' : isDataFetching ? 'Data Refreshing...' : 'Generate PDF'}
+      </Button>
 
       {/* Generated Reports List */}
       {generatedReports.length > 0 && (
@@ -768,8 +735,9 @@ export function PDFReportGenerator({
                       variant="outline"
                       size="sm"
                       onClick={() => deleteReport(report.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
                     >
+                      <Trash2 className="h-4 w-4 mr-1" />
                       Delete
                     </Button>
                   </div>
@@ -780,102 +748,6 @@ export function PDFReportGenerator({
         </Card>
       )}
 
-      {/* Data Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Report Data Preview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              {isDataFetching ? (
-                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-blue-100" />
-              ) : (
-                <p className="text-2xl font-bold text-blue-900">
-                  {getCounterData.activeTxPatients || 0}
-                </p>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="text-sm text-blue-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
-                    Patients
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-56 text-center">
-                  {previewCardTooltips.patients}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <Calendar className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              {isDataFetching ? (
-                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-green-100" />
-              ) : (
-                <p className="text-2xl font-bold text-green-900">
-                  {getCounterData.appointments || 0}
-                </p>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="text-sm text-green-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
-                    Appointments
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-56 text-center">
-                  {previewCardTooltips.appointments}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              {isDataFetching ? (
-                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-purple-100" />
-              ) : (
-                <p className="text-2xl font-bold text-purple-900">
-                  {getCounterData.leads || 0}
-                </p>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="text-sm text-purple-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
-                    Leads
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-56 text-center">
-                  {previewCardTooltips.leads}
-                </TooltipContent>
-              </Tooltip>
-        </div>
-
-            <div className="text-center p-3 bg-orange-50 rounded-lg">
-              <FileText className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-              {isDataFetching ? (
-                <Skeleton className="mx-auto mb-2 h-9 w-20 bg-orange-100" />
-              ) : (
-                <p className="text-2xl font-bold text-orange-900">
-                  {periods.length}
-                </p>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="text-sm text-orange-700 underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35">
-                    Analysis Periods
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-56 text-center">
-                  {previewCardTooltips.periods}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-        </div>
-      </CardContent>
-    </Card>
     </div>
   );
 }

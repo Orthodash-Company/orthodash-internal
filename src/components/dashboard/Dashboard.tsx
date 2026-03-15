@@ -12,15 +12,40 @@ import { PDFReportGenerator } from '../reports/PDFReportGenerator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Database, Settings, FileText, Trash2 } from 'lucide-react';
+import { Database, Settings, FileText, Trash2, BarChart3 } from 'lucide-react';
 import { PeriodConfig, Location, CompactCost } from '@/shared/types';
-import { DASHBOARD_LOCATION_IDS } from '@/lib/services/greyfinch/queries';
+import { DASHBOARD_LOCATION_IDS, PRACTICE_TZ } from '@/lib/services/greyfinch/queries';
 import { type Location as GreyfinchLocation } from '@/lib/services/greyfinch/types';
 import { buildPeriodSummary, type PeriodQuery } from '@/lib/period-summary';
 import type { PeriodAnalyticsResponse } from '@/lib/services/greyfinch/parsers';
-import { type Session, type Report } from '@/components/sessions/SessionManager';
-import { useSessionManager } from '@/hooks/use-session-manager';
+import { type PeriodFilterConfig } from '@/hooks/use-session-manager';
 import { useToast } from '@/hooks/use-toast';
+
+function createDefaultPeriod(): PeriodConfig {
+  const todayStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: PRACTICE_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+
+  const today = new Date(`${todayStr}T00:00:00`)
+  const dayOfWeek = today.getDay()
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff)
+
+  return {
+    id: `period-${Date.now()}`,
+    name: 'This Week',
+    title: 'This Week',
+    locationId: 'all',
+    locationIds: [],
+    startDate: monday,
+    endDate: today,
+    visualizations: [],
+  }
+}
 
 const formatLocalDateForApi = (value: Date | string) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -32,7 +57,6 @@ const formatLocalDateForApi = (value: Date | string) => {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { cacheSessionData } = useSessionManager();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
@@ -40,15 +64,11 @@ export default function Dashboard() {
   const [isLiveDataPulling, setIsLiveDataPulling] = useState(false);
   const [error, setError] = useState<string | null>(null)
   const [locations, setLocations] = useState<Location[]>([]);
-  const [periods, setPeriods] = useState<PeriodConfig[]>([]);
+  const [periods, setPeriods] = useState<PeriodConfig[]>(() => [createDefaultPeriod()]);
   const [periodQueries, setPeriodQueries] = useState<PeriodQuery[]>([]);
   const [greyfinchData, setGreyfinchData] = useState<unknown>(null);
   const [acquisitionCosts, setAcquisitionCosts] = useState<CompactCost[]>([]);
   const [aiSummary, setAiSummary] = useState<Record<string, unknown> | null>(null);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [savedSessions, setSavedSessions] = useState<Session[]>([]);
-  const [savedReports, setSavedReports] = useState<Report[]>([]);
-  const [hasLoadedSavedItems, setHasLoadedSavedItems] = useState(false);
   const [periodAnalyticsData, setPeriodAnalyticsData] = useState<Record<string, PeriodAnalyticsResponse | null>>({});
   const [periodAnalyticsLoading, setPeriodAnalyticsLoading] = useState<Record<string, boolean>>({});
   const [periodAnalyticsError, setPeriodAnalyticsError] = useState<Record<string, string | null>>({});
@@ -252,7 +272,8 @@ export default function Dashboard() {
     if (locations.length === 0) return;
     for (const period of periods) {
       if (!period.startDate || !period.endDate) continue;
-      const key = `${period.id}:${formatLocalDateForApi(period.startDate)}:${formatLocalDateForApi(period.endDate)}:${(period.locationIds || []).join(',')}`;
+      // locationIds intentionally excluded — API always returns all locations; filtering is client-side
+      const key = `${period.id}:${formatLocalDateForApi(period.startDate)}:${formatLocalDateForApi(period.endDate)}`;
       if (lastFetchedPeriodKeysRef.current[period.id] !== key) {
         lastFetchedPeriodKeysRef.current[period.id] = key;
         void fetchPeriodAnalytics(period);
@@ -260,101 +281,52 @@ export default function Dashboard() {
     }
   }, [periods, locations, fetchPeriodAnalytics]);
 
-  // Build periodQueries from fetched period-analytics data
+  // Build periodQueries from fetched period-analytics data, filtering location rows client-side
   const periodQueriesMemo = useMemo((): PeriodQuery[] => {
-    return periods.map((period) => ({
-      data: buildPeriodSummary(periodAnalyticsData[period.id]),
-      isLoading: periodAnalyticsLoading[period.id] ?? false,
-      error: periodAnalyticsError[period.id] ?? null,
-    }));
-  }, [periods, periodAnalyticsData, periodAnalyticsLoading, periodAnalyticsError]);
+    return periods.map((period) => {
+      const rawData = periodAnalyticsData[period.id]
+      const selectedIds = period.locationIds ?? []
+
+      // If specific locations are selected, filter the location rows before summarising
+      let filteredData = rawData
+      if (rawData && selectedIds.length > 0) {
+        const selectedNames = new Set(
+          selectedIds
+            .map((id) => locations.find((l) => l.id.toString() === id)?.name)
+            .filter(Boolean) as string[]
+        )
+        filteredData = {
+          ...rawData,
+          locations: rawData.locations.filter((loc) => selectedNames.has(loc.location)),
+        }
+      }
+
+      return {
+        data: buildPeriodSummary(filteredData),
+        isLoading: periodAnalyticsLoading[period.id] ?? false,
+        error: periodAnalyticsError[period.id] ?? null,
+      }
+    })
+  }, [periods, periodAnalyticsData, periodAnalyticsLoading, periodAnalyticsError, locations]);
 
   useEffect(() => {
     setPeriodQueries(periodQueriesMemo);
   }, [periodQueriesMemo]);
 
-  // Cache session data when data changes (no API call)
-  useEffect(() => {
-    if (user?.id && (greyfinchData || periods.length > 0 || acquisitionCosts || aiSummary)) {
-      const sessionData = {
-        greyfinchData,
-        periods,
-        acquisitionCosts,
-        aiSummary
-      };
-      cacheSessionData(sessionData);
-    }
-  }, [user?.id, greyfinchData, periods, acquisitionCosts, aiSummary, cacheSessionData]);
-
-
-  // Session management handlers - memoized for performance
-  const handleRestoreSession = useCallback((session: Record<string, unknown>) => {
-    if (session.greyfinchData) setGreyfinchData(session.greyfinchData)
-    if (Array.isArray(session.periods)) setPeriods(session.periods as PeriodConfig[])
-    if (Array.isArray(session.acquisitionCosts)) setAcquisitionCosts(session.acquisitionCosts as CompactCost[])
-
-    if (session.aiSummary && typeof session.aiSummary === 'object') setAiSummary(session.aiSummary as Record<string, unknown>)
+  // Restore a saved session — re-populate period configs so data re-fetches fresh
+  const handleRestoreSession = useCallback((periodFilters: PeriodFilterConfig[]) => {
+    const restored: PeriodConfig[] = periodFilters.map(f => ({
+      id: f.id,
+      name: f.name,
+      title: f.name,
+      locationId: 'all',
+      locationIds: f.locationIds ?? [],
+      startDate: f.startDate ? new Date(`${f.startDate}T00:00:00`) : undefined,
+      endDate: f.endDate ? new Date(`${f.endDate}T00:00:00`) : undefined,
+      visualizations: [],
+    }))
+    setPeriods(restored)
   }, []);
-
-  const handlePreviewSession = useCallback((_session: Record<string, unknown>) => {}, []);
-  const handleDownloadSession = useCallback((_session: Record<string, unknown>) => {}, []);
-  const handleShareSession = useCallback((_session: Record<string, unknown>) => {}, []);
-
-  // Save report to the reports system - memoized for performance
-  const handleSaveReport = useCallback(async (reportData: Record<string, unknown>) => {
-    if (!user?.id) {
-      console.error('User not authenticated');
-      return;
-    }
-
-    try {
-      // Create or get current session
-      let sessionId = currentSessionId;
-      if (!sessionId) {
-        // Create a new session for this report
-        const sessionResponse = await fetch('/api/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: `Report Session - ${new Date().toLocaleDateString()}`,
-            description: `Auto-generated session for ${reportData.title}`,
-            periods: periods,
-            locations: locations,
-            greyfinchData: greyfinchData,
-            includeCharts: true,
-            includeAIInsights: true,
-            includeRecommendations: true
-          })
-        });
-
-        if (sessionResponse.ok) {
-          const sessionResult = await sessionResponse.json();
-          sessionId = sessionResult.session.id;
-          setCurrentSessionId(sessionId);
-        }
-      }
-
-      // Save the report
-        const reportResponse = await fetch('/api/reports', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-          sessionId: sessionId,
-          name: reportData.title,
-          type: reportData.type,
-          data: reportData.data
-        })
-      });
-
-      if (reportResponse.ok) {
-        // You could show a success toast here
-      } else {
-        console.error('Failed to save report');
-      }
-    } catch (error) {
-      console.error('Error saving report:', error);
-    }
-  }, [user?.id, periods, locations, greyfinchData]);
 
   if (isInitialLoading) {
     return (
@@ -402,17 +374,12 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[#fafafa]">
 
-      <SimpleHeader
-        onRestoreSession={handleRestoreSession}
-        onPreviewSession={handlePreviewSession}
-        onDownloadSession={handleDownloadSession}
-        onShareSession={handleShareSession}
-      />
+      <SimpleHeader />
 
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Tabs Container */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg" ref={tabsRef}>
+          <Card className="shadow-sm" ref={tabsRef}>
             <CardHeader className="pb-4">
               <Tabs value={activeTab || "locations"} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
@@ -461,15 +428,7 @@ export default function Dashboard() {
                 <TabsContent value="export" className="mt-6">
                   <SessionManager
                     periods={periods}
-                    locations={locations}
-                    greyfinchData={greyfinchData}
-                    user={user}
-                    initialSessions={savedSessions}
-                    initialReports={savedReports}
-                    hasLoadedInitialData={hasLoadedSavedItems}
-                    onSessionsChange={setSavedSessions}
-                    onReportsChange={setSavedReports}
-                    onInitialDataLoaded={() => setHasLoadedSavedItems(true)}
+                    onRestoreSession={handleRestoreSession}
                   />
                 </TabsContent>
               </Tabs>
@@ -477,11 +436,11 @@ export default function Dashboard() {
           </Card>
 
           {/* Main Dashboard Content - Analysis Columns */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="text-[#1C1F4F]">Analysis Periods</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-[#1C1F4F]"><BarChart3 className="h-5 w-5" />Analysis Periods</CardTitle>
                   <CardDescription className="text-[#1C1F4F]/70">
                     Create and manage analysis periods for your practice data
                   </CardDescription>
@@ -527,10 +486,10 @@ export default function Dashboard() {
           />
 
           {/* PDF Report Generator */}
-          <Card className="bg-white border-[#1C1F4F]/20 shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-[#1C1F4F]">PDF Report Generator</CardTitle>
-              <CardDescription className="text-[#1C1F4F]/70">
+              <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />PDF Report Generator</CardTitle>
+              <CardDescription>
                 Generate comprehensive PDF reports with all practice data, analysis, and AI insights
               </CardDescription>
             </CardHeader>
@@ -545,7 +504,6 @@ export default function Dashboard() {
                 selectedPeriod={periods.length > 0 ? periods[0] : undefined}
                 selectedCharts={[]} // Charts are managed locally in PeriodColumn components
                 periodData={periods.length > 0 ? (periodQueries[0]?.data ?? undefined) : undefined}
-                onSaveReport={handleSaveReport}
               />
             </CardContent>
           </Card>

@@ -34,7 +34,7 @@ export function HorizontalFixedColumnLayout({
   periodQueries,
   onAddPeriod,
   onRemovePeriod,
-  onUpdatePeriod
+  onUpdatePeriod,
 }: HorizontalFixedColumnLayoutProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
@@ -268,7 +268,7 @@ export function HorizontalFixedColumnLayout({
                           <Minus className="h-4 w-4" />
                         </Button>
                       )}
-                      
+
                     </div>
                   </div>
 
