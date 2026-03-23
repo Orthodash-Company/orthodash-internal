@@ -8,11 +8,9 @@ const POLL_INTERVAL_MS = 2000
 const MAX_POLLS = 45 // 90 seconds max
 
 export type ReportType =
-  | 'PRACTICE_MONITOR'
   | 'PATIENT_REFERRALS'
   | 'PRODUCTION'
   | 'COLLECTIONS'
-  | 'PRACTICE_EFFICIENCY'
 
 export interface ReportParams {
   locationIds: string[]

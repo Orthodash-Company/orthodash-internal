@@ -7,7 +7,7 @@ import { CompactDateInput } from "@/components/ui/compact-date-input";
 import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "../costs/CompactCostManager";
-import { Plus, X, Edit3, Calendar, MapPin, Save, Minus } from "lucide-react";
+import { Plus, X, Edit3, Calendar, MapPin, Save, Minus, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import type { PeriodQuery } from "@/lib/period-summary";
@@ -26,6 +26,8 @@ interface HorizontalFixedColumnLayoutProps {
   onAddPeriod: (period: Omit<PeriodConfig, 'id'>) => PeriodConfig | void;
   onRemovePeriod: (periodId: string) => void;
   onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
+  onRetryPeriod?: (periodId: string) => void;
+  onRefreshPeriod?: (periodId: string) => void;
 }
 
 export function HorizontalFixedColumnLayout({
@@ -35,9 +37,12 @@ export function HorizontalFixedColumnLayout({
   onAddPeriod,
   onRemovePeriod,
   onUpdatePeriod,
+  onRetryPeriod,
+  onRefreshPeriod,
 }: HorizontalFixedColumnLayoutProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
+  const [editingTitles, setEditingTitles] = useState<Set<string>>(new Set());
   const [periodDrafts, setPeriodDrafts] = useState<Record<string, PeriodDraft>>({});
   const [periodCosts, setPeriodCosts] = useState<Record<string, CompactCost[]>>({});
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -201,13 +206,13 @@ export function HorizontalFixedColumnLayout({
       </div>
 
       {/* Horizontal Scrolling Container with Fixed Height */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory"
-        style={{ 
-          scrollbarWidth: 'none', 
+        className="flex gap-6 overflow-x-auto overflow-y-hidden pb-4 snap-x snap-mandatory"
+        style={{
+          scrollbarWidth: 'none',
           msOverflowStyle: 'none',
-          height: 'calc(100vh - 300px)', // Fixed height to prevent Add Period button from moving
+          height: 'calc(100vh - 200px)',
           minHeight: '600px'
         }}
       >
@@ -247,12 +252,48 @@ export function HorizontalFixedColumnLayout({
                       >
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <CardTitle className="text-lg font-semibold">
-                        {period.title}
-                      </CardTitle>
+                      {editingTitles.has(period.id) ? (
+                        <input
+                          autoFocus
+                          className="text-lg font-semibold border-b border-[#1d1d52] bg-transparent outline-none w-36"
+                          defaultValue={period.title}
+                          onBlur={(e) => {
+                            const val = e.target.value.trim();
+                            if (val) onUpdatePeriod(period.id, { title: val, name: val });
+                            setEditingTitles((prev) => { const next = new Set(prev); next.delete(period.id); return next; });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                            if (e.key === 'Escape') {
+                              setEditingTitles((prev) => { const next = new Set(prev); next.delete(period.id); return next; });
+                            }
+                          }}
+                        />
+                      ) : (
+                        <CardTitle
+                          className="text-lg font-semibold cursor-pointer hover:text-[#1d1d52]/70"
+                          onClick={() => setEditingTitles((prev) => new Set(prev).add(period.id))}
+                          title="Click to rename"
+                        >
+                          {period.title}
+                        </CardTitle>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2">
+                      {/* Refresh (cache bust) Button */}
+                      {onRefreshPeriod && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-gray-500 hover:text-[#1d1d52] hover:bg-gray-100"
+                          onClick={() => onRefreshPeriod(period.id)}
+                          title="Bypass cache & refresh from Greyfinch"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
+
                       {/* Remove Period Button */}
                       {periods.length > 1 && (
                         <Button
@@ -306,7 +347,7 @@ export function HorizontalFixedColumnLayout({
                 </CardHeader>
 
                                   {/* Period Content */}
-                  <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+                  <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ height: 'calc(100vh - 320px)', minHeight: '400px' }}>
                     {/* Date Range Editor - Show when editing */}
                     {editingPeriods.has(period.id) && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
@@ -400,6 +441,8 @@ export function HorizontalFixedColumnLayout({
                       locations={locations}
                       onUpdatePeriod={onUpdatePeriod}
                       onAddPeriod={onAddPeriod}
+                      onRetry={onRetryPeriod ? () => onRetryPeriod(period.id) : undefined}
+                      onRefresh={onRefreshPeriod ? () => onRefreshPeriod(period.id) : undefined}
                       isFirstPeriod={index === 0}
                       isCompact={true}
                       periodCosts={periodCostsList}

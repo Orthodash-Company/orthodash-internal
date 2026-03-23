@@ -35,45 +35,31 @@ const CHART_OPTIONS: ChartOption[] = [
   {
     id: 'referral-sources',
     name: 'Referral Sources',
-    description: 'Breakdown of lead sources (Digital, Professional, Direct)',
+    description: 'Pie chart: 6-bucket breakdown — DDS, Family, Friend, 7UP, Community & Events, Online. DDS drills down by individual doctor.',
     icon: <PieChart className="h-4 w-4" />,
     category: 'operational'
   },
   {
     id: 'conversion-rates',
     name: 'Conversion Rates',
-    description: 'Lead to appointment conversion rates by source',
+    description: 'Conversion % per referral bucket — how many new patients from each source generated net production.',
     icon: <BarChart3 className="h-4 w-4" />,
     category: 'operational'
   },
   {
-    id: 'weekly-trends',
-    name: 'Weekly Trends',
-    description: 'Appointment and revenue trends over time',
-    icon: <TrendingUp className="h-4 w-4" />,
-    category: 'trends'
-  },
-  {
     id: 'financial-summary',
     name: 'Financial Summary',
-    description: 'Revenue, production, and net production overview',
+    description: 'Bar chart: Gross Production, Net Production, Net Collection, and Acquisition Costs side by side.',
     icon: <DollarSign className="h-4 w-4" />,
     category: 'financial'
   },
   {
     id: 'patient-metrics',
-    name: 'Patient Metrics',
-    description: 'Total patients, appointments, and bookings',
+    name: 'Patient Funnel',
+    description: 'Bar chart: NPL → NPE Scheduled → NPE Kept → NPE No Show funnel volumes.',
     icon: <Users className="h-4 w-4" />,
     category: 'operational'
   },
-  {
-    id: 'no-show-analysis',
-    name: 'No-Show Analysis',
-    description: 'No-show rates and patterns',
-    icon: <Target className="h-4 w-4" />,
-    category: 'operational'
-  }
 ];
 
 const CATEGORY_LABELS = {
