@@ -35,33 +35,22 @@ function str(value: unknown): string {
 // lastCompletedAppointmentTemplate
 //
 // Confirmed Greyfinch referralType values (March 2026):
-//   Professional → DDS (sub-source = referralName = individual doctor/practice)
-//   Family Referral → Family (or Friend — TODO: confirm referralName patterns)
-//   Online → Online (sub-source = referralName e.g. "Ads", "Google")
-//   Other → 7UP / Community & Events (routed by referralName)
-//   Patient → Friend (a current patient referring someone)
+//   Professional, Family Referral, Online, Other, Patient
 
-// ─── 6-bucket referral type ───────────────────────────────────────────────────
-
-export type ReferralBucket = 'DDS' | 'Family' | 'Friend' | 'SevenUP' | 'CommunityAndEvents' | 'Online'
-
-export const REFERRAL_BUCKET_LABELS: Record<ReferralBucket, string> = {
-  DDS: 'DDS',
-  Family: 'Family',
-  Friend: 'Friend',
-  SevenUP: '7UP',
-  CommunityAndEvents: 'Community & Events',
-  Online: 'Online',
-}
-
-export const ALL_REFERRAL_BUCKETS: ReferralBucket[] = [
-  'DDS', 'Family', 'Friend', 'SevenUP', 'CommunityAndEvents', 'Online',
-]
-
-// Appointment template values that count as an NPE Kept (confirmed from Greyfinch UI, Mar 2026)
+// Appointment template values that count as an NPE Kept (per Lauren Kim, Mar 2026)
+// Confirmed present in Patient Referrals report "Last Completed Appointment Template" column:
 const NPE_KEPT_APPT_TYPES = new Set([
-  'NP- NP ADULT',
-  'NP-NP CHILD',
+  'NP-NP CHILD',       // confirmed
+  'NP- NP ADULT',      // confirmed
+  'NP-CHAIRSIDE',      // confirmed
+  // Unconfirmed — added per Lauren's list, pending verification against live data:
+  'NP-Adult',
+  'NP-Child',
+  'NP-TransferChild',
+  'NP-Transfer-Adult',
+  'NP-Chairside',
+  'NP-TMJ',
+  'NP-Staff',
 ])
 
 // treatmentStatus values that mean an exam has been scheduled (NPE)
@@ -71,46 +60,11 @@ const NPE_STATUSES = new Set([
   'Exam/Adult',
 ])
 
-function normalizeReferralBucket(referralType: string, referralName: string): ReferralBucket {
-  const rn = referralName.toLowerCase()
-
-  switch (referralType) {
-    case 'Professional':
-      return 'DDS'
-    case 'Online':
-      return 'Online'
-    case 'Patient':
-      // A current patient referring someone = Friend referral
-      return 'Friend'
-    case 'Family Referral':
-      // Confirmed referralName values (Mar 2026): "Campaign 7UP" → SevenUP, "Sibling or Parent" / "Extended Family" → Family.
-      // No "Friend" sub-value under Family Referral — Patient type handles Friend bucket.
-      if (rn.includes('7up') || rn.includes('campaign 7')) return 'SevenUP'
-      return 'Family'
-    case 'Other': {
-      if (rn.includes('7up') || rn === '7 up' || rn === '7up') return 'SevenUP'
-      if (
-        rn.includes('community') ||
-        rn.includes('event') ||
-        rn.includes('school') ||
-        rn.includes('concert') ||
-        rn.includes('fair') ||
-        rn.includes('outreach')
-      )
-        return 'CommunityAndEvents'
-      // Unknown "Other" — default to CommunityAndEvents until confirmed
-      return 'CommunityAndEvents'
-    }
-    default:
-      return 'Online'
-  }
-}
-
 export interface PatientReferralRow {
   location: string
   createdDate: string
   treatmentStatus: string
-  referralBucket: ReferralBucket
+  referralType: string
   referralName: string
   lastCompletedAppointmentTemplate: string
   grossProduction: number
@@ -124,35 +78,33 @@ export interface PatientReferralsSummary {
   grossProduction: number
   netProduction: number
   // NPL / NPE funnel
-  npl: number       // All new patient leads (= totalNewPatients, pulled by createdDate)
-  npe: number       // Leads with exam scheduled (EXA/EXC status)
-  npeKept: number   // Leads who kept their NP appointment
-  npeNoShow: number // npe - npeKept
-  npeScheduledRate: number // npe / npl * 100
-  npeKeptRate: number      // npeKept / npl * 100
-  npeNoShowRate: number    // npeNoShow / npe * 100
-  // Legacy counts (kept for backward compat)
+  npl: number
+  npe: number
+  npeKept: number
+  npeNoShow: number
+  npeScheduledRate: number
+  npeKeptRate: number
+  npeNoShowRate: number
+  // Legacy counts
   leads: number
   bookings: number
-  // 6-bucket referral breakdown
-  referralBreakdown: Record<ReferralBucket, number>
-  // DDS sub-source breakdown (referralName when bucket = DDS)
-  ddsSubSources: Record<string, number>
+  // Raw referralType breakdown (keys = Greyfinch referralType values)
+  referralBreakdown: Record<string, number>
+  // Sub-source breakdown (referralName when referralType = Professional)
+  professionalSubSources: Record<string, number>
   totalNoShowCancellations: number
-  conversionBreakdown: Record<ReferralBucket, number>
+  conversionBreakdown: Record<string, number>
 }
 
 export function parsePatientReferralRows(data: ReportData): PatientReferralRow[] {
   return data.values.map((row) => {
     const r = rowToObject(data.columns, row)
-    const referralType = str(r.referralType)
-    const referralName = str(r.referralName)
     return {
       location: str(r.location),
       createdDate: str(r.createdDate),
       treatmentStatus: str(r.treatmentStatus),
-      referralBucket: normalizeReferralBucket(referralType, referralName),
-      referralName,
+      referralType: str(r.referralType),
+      referralName: str(r.referralName),
       lastCompletedAppointmentTemplate: str(r.lastCompletedAppointmentTemplate),
       grossProduction: num(r.grossProduction),
       netProduction: num(r.netProduction),
@@ -177,18 +129,9 @@ export function parsePatientReferrals(
   }
 
   return Array.from(byLocation.entries()).map(([location, rows]) => {
-    const emptyBuckets = (): Record<ReferralBucket, number> => ({
-      DDS: 0,
-      Family: 0,
-      Friend: 0,
-      SevenUP: 0,
-      CommunityAndEvents: 0,
-      Online: 0,
-    })
-
-    const breakdown = emptyBuckets()
-    const conversionNumerators = emptyBuckets()
-    const ddsSubSources: Record<string, number> = {}
+    const breakdown: Record<string, number> = {}
+    const conversionNumerators: Record<string, number> = {}
+    const professionalSubSources: Record<string, number> = {}
 
     let totalNoShow = 0
     let leads = 0
@@ -199,13 +142,14 @@ export function parsePatientReferrals(
     let netProduction = 0
 
     for (const row of rows) {
-      breakdown[row.referralBucket]++
+      const rt = row.referralType || 'Unknown'
+      breakdown[rt] = (breakdown[rt] ?? 0) + 1
 
       grossProduction += row.grossProduction
       netProduction += row.netProduction
 
       if (row.netProduction > 0) {
-        conversionNumerators[row.referralBucket]++
+        conversionNumerators[rt] = (conversionNumerators[rt] ?? 0) + 1
       }
 
       totalNoShow += row.noShowCancellationAppointmentTotal
@@ -226,9 +170,9 @@ export function parsePatientReferrals(
         npeKept++
       }
 
-      // DDS sub-source tracking
-      if (row.referralBucket === 'DDS' && row.referralName) {
-        ddsSubSources[row.referralName] = (ddsSubSources[row.referralName] ?? 0) + 1
+      // Professional sub-source tracking (referralName when referralType = Professional)
+      if (rt === 'Professional' && row.referralName) {
+        professionalSubSources[row.referralName] = (professionalSubSources[row.referralName] ?? 0) + 1
       }
     }
 
@@ -238,14 +182,11 @@ export function parsePatientReferrals(
       : rows.length
     const npeNoShow = Math.max(0, npe - npeKept)
 
-    const conversionBreakdown = (Object.keys(breakdown) as ReferralBucket[]).reduce<Record<ReferralBucket, number>>(
-      (acc, bucket) => {
-        const total = breakdown[bucket]
-        acc[bucket] = total > 0 ? (conversionNumerators[bucket] / total) * 100 : 0
-        return acc
-      },
-      emptyBuckets()
-    )
+    const conversionBreakdown: Record<string, number> = {}
+    for (const rt of Object.keys(breakdown)) {
+      const total = breakdown[rt]
+      conversionBreakdown[rt] = total > 0 ? (conversionNumerators[rt] ?? 0) / total * 100 : 0
+    }
 
     return {
       location,
@@ -262,7 +203,7 @@ export function parsePatientReferrals(
       leads,
       bookings,
       referralBreakdown: breakdown,
-      ddsSubSources,
+      professionalSubSources,
       totalNoShowCancellations: totalNoShow,
       conversionBreakdown,
     }
@@ -305,10 +246,11 @@ export interface LocationPeriodData {
   npeScheduledRate: number
   npeKeptRate: number
   npeNoShowRate: number
-  // 6-bucket referrals
-  referralBreakdown: Record<ReferralBucket, number>
-  ddsSubSources: Record<string, number>
-  conversionBreakdown: Record<ReferralBucket, number>
+  // Raw referralType breakdown (keys = Greyfinch referralType values)
+  referralBreakdown: Record<string, number>
+  // Sub-sources when referralType = Professional
+  professionalSubSources: Record<string, number>
+  conversionBreakdown: Record<string, number>
   totalNoShowCancellations: number
 }
 
@@ -330,7 +272,7 @@ export function buildPeriodData(
     npeKeptRate: refs.npeKeptRate,
     npeNoShowRate: refs.npeNoShowRate,
     referralBreakdown: refs.referralBreakdown,
-    ddsSubSources: refs.ddsSubSources,
+    professionalSubSources: refs.professionalSubSources,
     conversionBreakdown: refs.conversionBreakdown,
     totalNoShowCancellations: refs.totalNoShowCancellations,
   }))

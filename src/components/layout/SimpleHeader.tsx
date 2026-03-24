@@ -37,7 +37,7 @@ export function SimpleHeader() {
                 <div className="bg-[#1C1F4F] p-1 sm:p-1.5 md:p-2 rounded-lg md:rounded-xl mr-1.5 sm:mr-2 md:mr-3 shadow-lg group-hover:shadow-xl transition-shadow">
                   <ChartLine className="text-white w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </div>
-                <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-[#1C1F4F] truncate">
+                <h1 className="text-sm sm:text-base md:text-lg font-bold text-[#1C1F4F] tracking-[0.12em] truncate">
                   ORTHODASH
                 </h1>
               </Link>

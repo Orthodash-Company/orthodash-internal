@@ -10,8 +10,8 @@ import { SessionManager } from '../sessions/SessionManager';
 import { PDFReportGenerator } from '../reports/PDFReportGenerator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Settings, FileText, Trash2, BarChart3 } from 'lucide-react';
+
 import { PeriodConfig, Location, CompactCost } from '@/shared/types';
 import { GILBERT_UUID, PHOENIX_UUID, PRACTICE_TZ } from '@/lib/services/greyfinch/queries';
 import { buildPeriodSummary, type PeriodQuery } from '@/lib/period-summary';
@@ -66,7 +66,7 @@ export default function Dashboard() {
   const [periods, setPeriods] = useState<PeriodConfig[]>(() => [createDefaultPeriod()]);
   const [periodQueries, setPeriodQueries] = useState<PeriodQuery[]>([]);
   const [acquisitionCosts, setAcquisitionCosts] = useState<CompactCost[]>([]);
-  const [aiSummary, setAiSummary] = useState<Record<string, unknown> | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<{ periods: { title: string; summary: string; keyInsights: string[]; recommendations: string[] }[]; comparison: string | null } | null>(null);
   const [periodAnalyticsData, setPeriodAnalyticsData] = useState<Record<string, PeriodAnalyticsResponse | null>>({});
   const [periodAnalyticsLoading, setPeriodAnalyticsLoading] = useState<Record<string, boolean>>({});
   const [periodAnalyticsError, setPeriodAnalyticsError] = useState<Record<string, string | null>>({});
@@ -95,7 +95,7 @@ export default function Dashboard() {
       setPeriods([]);
       setPeriodQueries([]);
       setAcquisitionCosts([]);
-      setAiSummary(null);
+      setAiAnalysis(null);
       localStorage.removeItem('orthodash-sessions');
     }
   };
@@ -223,92 +223,84 @@ export default function Dashboard() {
       <SimpleHeader />
 
       <main className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Tabs Container */}
-          <Card className="shadow-sm" ref={tabsRef}>
-            <CardHeader className="pb-4">
-              <Tabs value={activeTab || "export"} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-10 sm:h-12 bg-[#1C1F4F]/5 border border-[#1C1F4F]/10">
-                  <TabsTrigger
-                    value="export"
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
-                  >
-                    <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    Sessions & Reports
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="connections"
-                    className="data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white text-[#1C1F4F] border-[#1C1F4F]/20 data-[state=active]:border-[#1C1F4F] hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/10 text-xs sm:text-sm"
-                  >
-                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    Connections
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="export" className="mt-6">
-                  <SessionManager
-                    periods={periods}
-                    onRestoreSession={handleRestoreSession}
-                  />
-                </TabsContent>
-
-                <TabsContent value="connections" className="mt-6">
-                  <ConnectionsTab />
-                </TabsContent>
-              </Tabs>
-            </CardHeader>
-          </Card>
-
-          {/* Main Dashboard Content - Analysis Columns */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-[#1C1F4F]"><BarChart3 className="h-5 w-5" />Analysis Periods</CardTitle>
-                  <CardDescription className="text-[#1C1F4F]/70">
-                    Create and manage analysis periods for your practice data
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClearData}
-                  className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+        <div className="max-w-4xl mx-auto space-y-5">
+          {/* Settings / Sessions tabs */}
+          <div ref={tabsRef}>
+            <Tabs value={activeTab || "export"} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 h-10 bg-white border border-[#1C1F4F]/10 rounded-xl shadow-sm">
+                <TabsTrigger
+                  value="export"
+                  className="rounded-lg text-xs sm:text-sm font-medium text-[#1C1F4F]/50 data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear Data
-                </Button>
+                  <FileText className="h-3.5 w-3.5 mr-1.5" />
+                  Sessions
+                </TabsTrigger>
+                <TabsTrigger
+                  value="connections"
+                  className="rounded-lg text-xs sm:text-sm font-medium text-[#1C1F4F]/50 data-[state=active]:bg-[#1C1F4F] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
+                >
+                  <Settings className="h-3.5 w-3.5 mr-1.5" />
+                  Connections
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="export" className="mt-4">
+                <Card className="shadow-sm border-[#1C1F4F]/8">
+                  <CardContent className="pt-6">
+                    <SessionManager
+                      periods={periods}
+                      onRestoreSession={handleRestoreSession}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="connections" className="mt-4">
+                <Card className="shadow-sm border-[#1C1F4F]/8">
+                  <CardContent className="pt-6">
+                    <ConnectionsTab />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Analysis Periods */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-[#1C1F4F]/50" />
+                <span className="text-xs font-semibold tracking-[0.1em] uppercase text-[#1C1F4F]/40">Analysis Periods</span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <HorizontalFixedColumnLayout
-                periods={periods}
-                locations={LOCATIONS}
-                periodQueries={periodQueries}
-                onAddPeriod={handleAddPeriod}
-                onRemovePeriod={handleRemovePeriod}
-                onUpdatePeriod={handleUpdatePeriod}
-                onRetryPeriod={handleRetryPeriod}
-                onRefreshPeriod={handleRefreshPeriod}
-              />
-            </CardContent>
-          </Card>
+              <button
+                onClick={handleClearData}
+                className="text-[10px] font-medium text-[#1C1F4F]/30 hover:text-red-500 transition-colors tracking-wide uppercase"
+              >
+                Clear Data
+              </button>
+            </div>
+            <Card className="shadow-sm border-[#1C1F4F]/8 overflow-hidden">
+              <CardContent className="p-4">
+                <HorizontalFixedColumnLayout
+                  periods={periods}
+                  locations={LOCATIONS}
+                  periodQueries={periodQueries}
+                  onAddPeriod={handleAddPeriod}
+                  onRemovePeriod={handleRemovePeriod}
+                  onUpdatePeriod={handleUpdatePeriod}
+                  onRetryPeriod={handleRetryPeriod}
+                  onRefreshPeriod={handleRefreshPeriod}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Enhanced AI Analysis */}
           <EnhancedAIAnalysis
             periods={periods}
             periodQueries={periodQueries}
             selectedLocations={LOCATIONS.map(l => l.name)}
-            onAnalysisComplete={(data) => {
-              const normalizedAiSummary = {
-                summary: data.summary.overview,
-                insights: data.summary.keyInsights,
-                strategicRecommendations: data.recommendations?.strategic || [],
-                analysis: data.trends.analysis,
-              };
-              setAiSummary(normalizedAiSummary)
-              localStorage.setItem('orthodash-ai-analysis', JSON.stringify(data))
-            }}
+            onAnalysisComplete={(data) => setAiAnalysis(data)}
           />
 
           {/* PDF Report Generator */}
@@ -316,18 +308,15 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />PDF Report Generator</CardTitle>
               <CardDescription>
-                Generate comprehensive PDF reports with all practice data, analysis, and AI insights
+                Generate a PDF report with all period data{aiAnalysis ? ' and AI insights' : ''}. Generate AI analysis first to include it.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <PDFReportGenerator
-                greyfinchData={null}
                 periods={periods}
+                periodQueries={periodQueries}
                 acquisitionCosts={acquisitionCosts}
-                aiSummary={aiSummary}
-                selectedPeriod={periods.length > 0 ? periods[0] : undefined}
-                selectedCharts={[]}
-                periodData={periods.length > 0 ? (periodQueries[0]?.data ?? undefined) : undefined}
+                aiAnalysis={aiAnalysis}
               />
             </CardContent>
           </Card>

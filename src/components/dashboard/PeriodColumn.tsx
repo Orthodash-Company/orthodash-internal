@@ -19,7 +19,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts';
-import { REFERRAL_BUCKET_LABELS, type ReferralBucket } from "@/lib/services/greyfinch/parsers";
 import { ChartSelectorModal } from '../ui/chart-selector-modal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,13 +42,15 @@ interface PeriodColumnPropsExtended extends PeriodColumnProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const REFERRAL_COLORS: Record<ReferralBucket, string> = {
-  DDS: '#1C2B6B',
-  Family: '#2E7D99',
-  Friend: '#3BAD8E',
-  SevenUP: '#E6A817',
-  CommunityAndEvents: '#D95B3A',
-  Online: '#7B4FD4',
+// Color palette — assigned to referralType keys in sorted order
+const REFERRAL_PALETTE = [
+  '#1C2B6B', '#2E7D99', '#3BAD8E', '#E6A817', '#D95B3A', '#7B4FD4', '#C2496D', '#4A7FB5',
+]
+
+function getReferralColor(type: string, allTypes: string[]): string {
+  const sorted = [...allTypes].sort()
+  const idx = sorted.indexOf(type)
+  return REFERRAL_PALETTE[idx % REFERRAL_PALETTE.length]
 }
 
 const fmt$ = (n: number) =>
@@ -81,7 +82,7 @@ function Tip({ label, tooltip, className = "" }: { label: string; tooltip: strin
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#1C1F4F]/40 mb-2">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#1C1F4F]/35 mb-3">
       {children}
     </p>
   );
@@ -99,14 +100,14 @@ function MetricPill({
   tooltip?: string;
 }) {
   const inner = (
-    <div className="rounded-lg border border-[#1C1F4F]/10 bg-white px-3 py-2.5 text-center transition-colors flex flex-col justify-center hover:bg-[#1C1F4F]/[0.02]">
-      <div className="text-xl font-bold tabular-nums text-[#1C1F4F]">
+    <div className="rounded-xl border border-[#1C1F4F]/8 bg-white px-2.5 py-3 text-center flex flex-col items-center justify-center gap-0.5 hover:border-[#1C1F4F]/20 hover:shadow-sm transition-all duration-150">
+      <div className="text-2xl font-bold tabular-nums text-[#1C1F4F] leading-none">
         {value}
       </div>
-      <div className="text-xs font-medium tabular-nums text-[#1C1F4F]/50">
-        {pct !== undefined ? fmtPct(pct) : <span className="invisible">0%</span>}
+      <div className="text-[10px] font-semibold tabular-nums text-[#1C1F4F]/35 leading-none">
+        {pct !== undefined ? fmtPct(pct) : <span className="invisible">0.0%</span>}
       </div>
-      <div className="mt-0.5 text-[10px] text-[#1C1F4F]/50">{label}</div>
+      <div className="text-[10px] font-medium text-[#1C1F4F]/40 leading-tight mt-0.5">{label}</div>
     </div>
   );
 
@@ -122,47 +123,46 @@ function MetricPill({
 }
 
 function ReferralRow({
-  bucket,
+  type,
   count,
   pct,
+  color,
   subSources,
 }: {
-  bucket: ReferralBucket;
+  type: string;
   count: number;
   pct: number;
+  color: string;
   subSources?: Record<string, number>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const color = REFERRAL_COLORS[bucket];
-  const label = REFERRAL_BUCKET_LABELS[bucket];
-  const hasSubs = bucket === 'DDS' && subSources && Object.keys(subSources).length > 0;
+  const hasSubs = type === 'Professional' && subSources && Object.keys(subSources).length > 0;
 
   return (
     <div>
       <div
-        className={`flex items-center gap-2 py-1.5 ${hasSubs ? "cursor-pointer hover:bg-[#1C1F4F]/[0.02] rounded" : ""}`}
+        className={`flex items-center gap-2.5 py-2 px-1 rounded-lg transition-colors ${hasSubs ? "cursor-pointer hover:bg-[#1C1F4F]/[0.03]" : ""}`}
         onClick={hasSubs ? () => setExpanded((v) => !v) : undefined}
       >
         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-        <span className="flex-1 text-sm text-[#1C1F4F]">{label}</span>
-        <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{count}</span>
-        <span className="text-xs text-[#1C1F4F]/50 tabular-nums w-12 text-right">{fmtPct(pct)}</span>
+        <span className="flex-1 text-[13px] text-[#1C1F4F]/80">{type}</span>
+        <span className="text-[13px] font-semibold tabular-nums text-[#1C1F4F]">{count}</span>
+        <span className="text-[11px] text-[#1C1F4F]/40 tabular-nums w-11 text-right">{fmtPct(pct)}</span>
         {hasSubs && (
-          <span className="text-[#1C1F4F]/30 ml-1">
+          <span className="text-[#1C1F4F]/25">
             {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </span>
         )}
       </div>
 
       {expanded && hasSubs && (
-        <div className="ml-4 mb-1 space-y-0.5">
+        <div className="ml-5 mb-1 space-y-0.5 border-l border-[#1C1F4F]/8 pl-3">
           {Object.entries(subSources!)
             .sort((a, b) => b[1] - a[1])
             .map(([name, n]) => (
               <div key={name} className="flex items-center gap-2 py-0.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#1C1F4F]/20 flex-shrink-0" />
-                <span className="flex-1 text-xs text-[#1C1F4F]/70 truncate">{name}</span>
-                <span className="text-xs font-medium tabular-nums text-[#1C1F4F]">{n}</span>
+                <span className="flex-1 text-xs text-[#1C1F4F]/55 truncate">{name}</span>
+                <span className="text-xs font-medium tabular-nums text-[#1C1F4F]/70">{n}</span>
               </div>
             ))}
         </div>
@@ -258,26 +258,23 @@ export function PeriodColumn({
   const npeNoShowRate = data?.npeNoShowRate ?? 0;
 
   // Referrals
-  const referralBreakdown = data?.referralBreakdown ?? {
-    DDS: 0, Family: 0, Friend: 0, SevenUP: 0, CommunityAndEvents: 0, Online: 0,
-  };
-  const ddsSubSources = data?.ddsSubSources ?? {};
+  const referralBreakdown = data?.referralBreakdown ?? {};
+  const professionalSubSources = data?.professionalSubSources ?? {};
   const totalReferrals = Object.values(referralBreakdown).reduce((s, v) => s + v, 0);
+  const allReferralTypes = Object.keys(referralBreakdown);
 
-  const referralEntries = (Object.keys(referralBreakdown) as ReferralBucket[])
-    .map((b) => ({ bucket: b, count: referralBreakdown[b] }))
+  const referralEntries = allReferralTypes
+    .map((t) => ({ type: t, count: referralBreakdown[t] }))
     .filter((e) => e.count > 0)
     .sort((a, b) => b.count - a.count);
 
   const referralChartData = referralEntries.map((e) => ({
-    name: REFERRAL_BUCKET_LABELS[e.bucket],
+    name: e.type,
     value: e.count,
-    color: REFERRAL_COLORS[e.bucket],
+    color: getReferralColor(e.type, allReferralTypes),
   }));
 
-  const conversionBreakdown = data?.conversionBreakdown ?? {
-    DDS: 0, Family: 0, Friend: 0, SevenUP: 0, CommunityAndEvents: 0, Online: 0,
-  };
+  const conversionBreakdown = data?.conversionBreakdown ?? {};
 
   // ─── Chart renderer ───────────────────────────────────────────────────────
   const renderChart = (chartId: string) => {
@@ -306,9 +303,9 @@ export function PeriodColumn({
       }
 
       case 'conversion-rates': {
-        const convData = (Object.keys(conversionBreakdown) as ReferralBucket[])
-          .filter((b) => referralBreakdown[b] > 0)
-          .map((b) => ({ source: REFERRAL_BUCKET_LABELS[b], rate: conversionBreakdown[b], fill: REFERRAL_COLORS[b] }));
+        const convData = Object.keys(conversionBreakdown)
+          .filter((t) => (referralBreakdown[t] ?? 0) > 0)
+          .map((t) => ({ source: t, rate: conversionBreakdown[t], fill: getReferralColor(t, allReferralTypes) }));
         const hasData = convData.some((d) => d.rate > 0);
         return (
           <div key={chartId} className="bg-white p-3 rounded-lg border border-[#1C1F4F]/10">
@@ -347,7 +344,7 @@ export function PeriodColumn({
                   <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => fmt$(v)} />
                   <YAxis type="category" dataKey="metric" tick={{ fontSize: 10 }} width={90} />
                   <Tooltip formatter={(v) => [fmt$(Number(v)), '']} />
-                  <Bar dataKey="value" fill={REFERRAL_COLORS.DDS} radius={[0, 3, 3, 0]} />
+                  <Bar dataKey="value" fill={REFERRAL_PALETTE[0]} radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -373,7 +370,7 @@ export function PeriodColumn({
                   <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="metric" tick={{ fontSize: 10 }} width={90} />
                   <Tooltip />
-                  <Bar dataKey="value" fill={REFERRAL_COLORS.Friend} radius={[0, 3, 3, 0]} />
+                  <Bar dataKey="value" fill={REFERRAL_PALETTE[2]} radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -458,32 +455,27 @@ export function PeriodColumn({
         </div>
 
         {/* Financial - compact */}
-        <div className="bg-white rounded-lg border border-[#1C1F4F]/10 p-3">
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-[#1C1F4F]/60">Gross Production</span>
-              <span className="font-semibold tabular-nums">{fmtExact$(grossProduction)}</span>
+        <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
+          <div className="divide-y divide-[#1C1F4F]/5">
+            <div className="flex justify-between items-center px-3 py-2.5">
+              <span className="text-xs text-[#1C1F4F]/50">Gross Production</span>
+              <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(grossProduction)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-[#1C1F4F]/60">Net Production</span>
-              <span className="font-semibold tabular-nums">{fmtExact$(netProductionFromGF)}</span>
+            <div className="flex justify-between items-center px-3 py-2.5">
+              <span className="text-xs text-[#1C1F4F]/50">Net Production</span>
+              <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(netProductionFromGF)}</span>
             </div>
             {totalCosts > 0 && (
-              <div className="flex justify-between">
-                <span className="text-[#1C1F4F]/60">Acq. Costs</span>
-                <span className="font-medium tabular-nums text-[#1C1F4F]">-{fmtExact$(totalCosts)}</span>
+              <div className="flex justify-between items-center px-3 py-2.5">
+                <span className="text-xs text-[#1C1F4F]/50">Acq. Costs</span>
+                <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
               </div>
             )}
             {totalCosts > 0 && (
-              <>
-                <Separator />
-                <div className="flex justify-between font-semibold">
-                  <span>Net After Costs</span>
-                  <span className="text-[#1C1F4F]">
-                    {fmtExact$(netAfterCosts)}
-                  </span>
-                </div>
-              </>
+              <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
+                <span className="text-xs font-semibold text-[#1C1F4F]">Net After Costs</span>
+                <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
+              </div>
             )}
           </div>
         </div>
@@ -586,15 +578,15 @@ export function PeriodColumn({
             />
           </div>
 
-          {/* Funnel arrow connector */}
+          {/* Funnel conversion rates */}
           {npl > 0 && (
-            <div className="flex items-center gap-0.5 mt-3 px-1">
+            <div className="flex items-center gap-1 mt-2">
               {[
-                { label: "→ NPE", pct: npeScheduledRate, color: "text-[#1C1F4F]/50" },
-                { label: "→ Kept", pct: npeKeptRate, color: "text-[#1C1F4F]/50" },
+                { label: "→ Scheduled", pct: npeScheduledRate },
+                { label: "→ Kept", pct: npeKeptRate },
               ].map((step) => (
-                <div key={step.label} className={`flex-1 text-center text-[10px] font-medium ${step.color}`}>
-                  {step.label} {fmtPct(step.pct)}
+                <div key={step.label} className="flex-1 text-center text-[10px] text-[#1C1F4F]/35 font-medium tracking-wide">
+                  {step.label} <span className="text-[#1C1F4F]/55">{fmtPct(step.pct)}</span>
                 </div>
               ))}
             </div>
@@ -613,17 +605,18 @@ export function PeriodColumn({
             <div className="space-y-0.5">
               {referralEntries.map((e) => (
                 <ReferralRow
-                  key={e.bucket}
-                  bucket={e.bucket}
+                  key={e.type}
+                  type={e.type}
                   count={e.count}
                   pct={totalReferrals > 0 ? (e.count / totalReferrals) * 100 : 0}
-                  subSources={e.bucket === 'DDS' ? ddsSubSources : undefined}
+                  color={getReferralColor(e.type, allReferralTypes)}
+                  subSources={e.type === 'Professional' ? professionalSubSources : undefined}
                 />
               ))}
-              <div className="flex items-center gap-2 pt-1.5 border-t border-[#1C1F4F]/5">
-                <span className="flex-1 text-xs font-semibold text-[#1C1F4F]/50">Total</span>
+              <div className="flex items-center gap-2.5 px-1 pt-2 mt-1 border-t border-[#1C1F4F]/6">
+                <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[#1C1F4F]/35">Total</span>
                 <span className="text-sm font-bold text-[#1C1F4F]">{totalReferrals}</span>
-                <span className="w-12" />
+                <span className="w-11" />
               </div>
             </div>
           )}
@@ -660,45 +653,29 @@ export function PeriodColumn({
         {/* ── Section 3: Financial Summary ────────────────────────────── */}
         <div>
           <SectionLabel>Financial</SectionLabel>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center">
-              <Tip
-                label="Gross Production"
-                tooltip="Gross production summed from PATIENT_REFERRALS."
-                className="text-[#1C1F4F]/60"
-              />
-              <span className="font-medium tabular-nums">{fmtExact$(grossProduction)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <Tip
-                label="Net Production"
-                tooltip="Net production summed from PATIENT_REFERRALS."
-                className="text-[#1C1F4F]/60"
-              />
-              <span className="font-medium tabular-nums">{fmtExact$(netProductionFromGF)}</span>
-            </div>
-            {totalCosts > 0 && (
-              <>
-                <div className="flex justify-between items-center">
-                  <Tip
-                    label="Acquisition Costs"
-                    tooltip="Manually entered costs attached to this period."
-                    className="text-[#1C1F4F]/60"
-                  />
-                  <span className="font-medium tabular-nums text-[#1C1F4F]">-{fmtExact$(totalCosts)}</span>
+          <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
+            <div className="divide-y divide-[#1C1F4F]/5">
+              <div className="flex justify-between items-center px-3 py-2.5">
+                <Tip label="Gross Production" tooltip="Gross production summed from PATIENT_REFERRALS." className="text-xs text-[#1C1F4F]/50" />
+                <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(grossProduction)}</span>
+              </div>
+              <div className="flex justify-between items-center px-3 py-2.5">
+                <Tip label="Net Production" tooltip="Net production summed from PATIENT_REFERRALS." className="text-xs text-[#1C1F4F]/50" />
+                <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(netProductionFromGF)}</span>
+              </div>
+              {totalCosts > 0 && (
+                <div className="flex justify-between items-center px-3 py-2.5">
+                  <Tip label="Acquisition Costs" tooltip="Manually entered costs attached to this period." className="text-xs text-[#1C1F4F]/50" />
+                  <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
                 </div>
-                <Separator className="bg-[#1C1F4F]/8" />
-                <div className="flex justify-between items-center font-semibold">
-                  <Tip
-                    label="Net After Costs"
-                    tooltip="Net production minus manually entered acquisition costs."
-                  />
-                  <span className="tabular-nums text-[#1C1F4F] font-semibold">
-                    {fmtExact$(netAfterCosts)}
-                  </span>
+              )}
+              {totalCosts > 0 && (
+                <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
+                  <Tip label="Net After Costs" tooltip="Net production minus manually entered acquisition costs." className="text-xs font-semibold text-[#1C1F4F]" />
+                  <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

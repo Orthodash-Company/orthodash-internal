@@ -1,16 +1,7 @@
 // Aggregates a PeriodAnalyticsResponse (per-location rows) into a single
 // summary object consumed by PeriodColumn, EnhancedAIAnalysis, and PDFReportGenerator.
 
-import type { PeriodAnalyticsResponse, ReferralBucket } from '@/lib/services/greyfinch/parsers'
-
-const emptyReferralBuckets = (): Record<ReferralBucket, number> => ({
-  DDS: 0,
-  Family: 0,
-  Friend: 0,
-  SevenUP: 0,
-  CommunityAndEvents: 0,
-  Online: 0,
-})
+import type { PeriodAnalyticsResponse } from '@/lib/services/greyfinch/parsers'
 
 export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | null | undefined) {
   const locationRows = Array.isArray(periodAnalytics?.locations) ? periodAnalytics.locations : null
@@ -27,10 +18,10 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
   // NPL / NPE funnel
   let npl = 0, npe = 0, npeKept = 0, npeNoShow = 0
 
-  // 6-bucket referral totals
-  const referralBreakdown = emptyReferralBuckets()
-  const conversionNumerators = emptyReferralBuckets()
-  const ddsSubSources: Record<string, number> = {}
+  // Raw referralType breakdown (dynamic keys from Greyfinch)
+  const referralBreakdown: Record<string, number> = {}
+  const conversionNumerators: Record<string, number> = {}
+  const professionalSubSources: Record<string, number> = {}
 
   const locationData = {
     gilbert: { production: 0, netProduction: 0, leads: 0, bookings: 0 },
@@ -45,23 +36,20 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
     bookings += loc.bookings
     noShowCancellations += loc.totalNoShowCancellations
 
-    // NPL / NPE funnel
     npl += loc.npl
     npe += loc.npe
     npeKept += loc.npeKept
     npeNoShow += loc.npeNoShow
 
-    // 6-bucket referral aggregation
-    for (const bucket of Object.keys(loc.referralBreakdown) as ReferralBucket[]) {
-      referralBreakdown[bucket] = (referralBreakdown[bucket] ?? 0) + loc.referralBreakdown[bucket]
-      conversionNumerators[bucket] =
-        (conversionNumerators[bucket] ?? 0) +
-        (loc.conversionBreakdown[bucket] / 100) * loc.referralBreakdown[bucket]
+    for (const rt of Object.keys(loc.referralBreakdown ?? {})) {
+      referralBreakdown[rt] = (referralBreakdown[rt] ?? 0) + loc.referralBreakdown[rt]
+      conversionNumerators[rt] =
+        (conversionNumerators[rt] ?? 0) +
+        (loc.conversionBreakdown[rt] / 100) * loc.referralBreakdown[rt]
     }
 
-    // DDS sub-sources merged across locations
-    for (const [name, count] of Object.entries(loc.ddsSubSources)) {
-      ddsSubSources[name] = (ddsSubSources[name] ?? 0) + count
+    for (const [name, count] of Object.entries(loc.professionalSubSources ?? {})) {
+      professionalSubSources[name] = (professionalSubSources[name] ?? 0) + count
     }
 
     const bucket = String(loc.location).toLowerCase().includes('gilbert')
@@ -74,11 +62,10 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
     bucket.netProduction += loc.netProduction
   }
 
-  // Weighted conversion rates per bucket
-  const conversionBreakdown = emptyReferralBuckets()
-  for (const bucket of Object.keys(referralBreakdown) as ReferralBucket[]) {
-    const total = referralBreakdown[bucket]
-    conversionBreakdown[bucket] = total > 0 ? (conversionNumerators[bucket] / total) * 100 : 0
+  const conversionBreakdown: Record<string, number> = {}
+  for (const rt of Object.keys(referralBreakdown)) {
+    const total = referralBreakdown[rt]
+    conversionBreakdown[rt] = total > 0 ? (conversionNumerators[rt] ?? 0) / total * 100 : 0
   }
 
   return {
@@ -88,7 +75,6 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
     bookings,
     production: grossProduction,
     netProduction,
-    // NPL / NPE funnel
     npl,
     npe,
     npeKept,
@@ -96,24 +82,9 @@ export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | nu
     npeScheduledRate: npl > 0 ? (npe / npl) * 100 : 0,
     npeKeptRate: npl > 0 ? (npeKept / npl) * 100 : 0,
     npeNoShowRate: npe > 0 ? (npeNoShow / npe) * 100 : 0,
-    // 6-bucket referrals
     referralBreakdown,
-    ddsSubSources,
+    professionalSubSources,
     conversionBreakdown,
-    // Legacy 3-bucket — kept for EnhancedAIAnalysis / PDFReportGenerator
-    referralSources: {
-      professional: referralBreakdown.DDS,
-      digital: referralBreakdown.Online,
-      direct: referralBreakdown.Family + referralBreakdown.Friend,
-    },
-    conversionRates: {
-      digital: conversionBreakdown.Online,
-      professional: conversionBreakdown.DDS,
-      direct: referralBreakdown.Family + referralBreakdown.Friend > 0
-        ? (conversionNumerators.Family + conversionNumerators.Friend) /
-          (referralBreakdown.Family + referralBreakdown.Friend) * 100
-        : 0,
-    },
     trends: { weekly: periodAnalytics?.trends?.weekly ?? [] },
     locationData,
   }
