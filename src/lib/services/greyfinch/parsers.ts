@@ -25,79 +25,7 @@ function str(value: unknown): string {
   return value == null ? '' : String(value)
 }
 
-// ─── PRACTICE_MONITOR ─────────────────────────────────────────────────────────
-// Confirmed columns (34 total):
-// location, grossProduction, grossReceipts, recPercent, netProductionAdjustments,
-// prodAdjPercent, netReceiptsAdjustments, recAdjPercent, netProduction, netCollection,
-// otherCharges, otherDiscounts, accountsReceivable, ratio, netArRatio, negativeAr,
-// patientAccounts, patients30Plus, pats30PlusPercent, patients60Plus, pats60PlusPercent,
-// insuranceAccounts, ins30Plus, ins30PlusPercent, ins60Plus, ins60PlusPercent,
-// newPatExams, caseStarts, additionalPhStarts, startApptCompleted, phStartsPercent,
-// avgCaseFee, newPatientsCreated, activeTxPatients
 
-export interface PracticeMonitorRow {
-  location: string
-  grossProduction: number
-  netProduction: number
-  netCollection: number
-  accountsReceivable: number
-  newPatientsCreated: number
-  activeTxPatients: number
-  caseStarts: number
-  startApptCompleted: number
-  avgCaseFee: number
-  newPatExams: number
-}
-
-export function parsePracticeMonitor(data: ReportData): PracticeMonitorRow[] {
-
-  return data.values.map((row) => {
-    const r = rowToObject(data.columns, row)
-    return {
-      location: str(r.location),
-      grossProduction: num(r.grossProduction),
-      netProduction: num(r.netProduction),
-      netCollection: num(r.netCollection),
-      accountsReceivable: num(r.accountsReceivable),
-      newPatientsCreated: num(r.newPatientsCreated),
-      activeTxPatients: num(r.activeTxPatients),
-      caseStarts: num(r.caseStarts),
-      startApptCompleted: num(r.startApptCompleted),
-      avgCaseFee: num(r.avgCaseFee),
-      newPatExams: num(r.newPatExams),
-    }
-  })
-}
-
-// ─── PRACTICE_EFFICIENCY ─────────────────────────────────────────────────────
-// Confirmed columns (22 total):
-// locationId, location, startDate, endDate, patientHumanId, patientId, patientName,
-// completedAppointment, apptTypeLength, isEmergency, assistant, apptDate, apptStart,
-// patientCheckIn, patientCheckOut, totalLength, waitingTime, seatingTime,
-// waitingOnDoctor, withDoctor, checkingOutTime, appointmentBookingId
-
-export interface PracticeEfficiencyRow {
-  locationId: string
-  location: string
-  completedAppointment: string
-  appointmentBookingId: string
-  isEmergency: boolean
-  apptDate: string
-}
-
-export function parsePracticeEfficiency(data: ReportData): PracticeEfficiencyRow[] {
-  return data.values.map((row) => {
-    const r = rowToObject(data.columns, row)
-    return {
-      locationId: str(r.locationId),
-      location: str(r.location),
-      completedAppointment: str(r.completedAppointment),
-      appointmentBookingId: str(r.appointmentBookingId),
-      isEmergency: Boolean(r.isEmergency),
-      apptDate: str(r.apptDate),
-    }
-  })
-}
 
 // ─── PATIENT_REFERRALS ────────────────────────────────────────────────────────
 // Confirmed columns (13 total — row per new patient):
@@ -105,14 +33,41 @@ export function parsePracticeEfficiency(data: ReportData): PracticeEfficiencyRow
 // treatmentStatus, referralType, referralName, grossProduction,
 // discountsWriteOff, netProduction, noShowCancellationAppointmentTotal,
 // lastCompletedAppointmentTemplate
+//
+// Confirmed Greyfinch referralType values (March 2026):
+//   Professional, Family Referral, Online, Other, Patient
 
-export type ReferralType = 'Professional' | 'Family Referral' | 'Online' | 'Other'
+// Appointment template values that count as an NPE Kept (per Lauren Kim, Mar 2026)
+// Confirmed present in Patient Referrals report "Last Completed Appointment Template" column:
+const NPE_KEPT_APPT_TYPES = new Set([
+  'NP-NP CHILD',       // confirmed
+  'NP- NP ADULT',      // confirmed
+  'NP-CHAIRSIDE',      // confirmed
+  // Unconfirmed — added per Lauren's list, pending verification against live data:
+  'NP-Adult',
+  'NP-Child',
+  'NP-TransferChild',
+  'NP-Transfer-Adult',
+  'NP-Chairside',
+  'NP-TMJ',
+  'NP-Staff',
+])
+
+// treatmentStatus values that mean an exam has been scheduled (NPE)
+// Confirmed from Greyfinch UI: human-readable strings, not short codes.
+const NPE_STATUSES = new Set([
+  'Exam/Child',
+  'Exam/Adult',
+])
 
 export interface PatientReferralRow {
   location: string
   createdDate: string
   treatmentStatus: string
-  referralType: ReferralType
+  referralType: string
+  referralName: string
+  lastCompletedAppointmentTemplate: string
+  grossProduction: number
   netProduction: number
   noShowCancellationAppointmentTotal: number
 }
@@ -120,23 +75,25 @@ export interface PatientReferralRow {
 export interface PatientReferralsSummary {
   location: string
   totalNewPatients: number
+  grossProduction: number
+  netProduction: number
+  // NPL / NPE funnel
+  npl: number
+  npe: number
+  npeKept: number
+  npeNoShow: number
+  npeScheduledRate: number
+  npeKeptRate: number
+  npeNoShowRate: number
+  // Legacy counts
   leads: number
   bookings: number
-  referralBreakdown: Record<ReferralType, number>
+  // Raw referralType breakdown (keys = Greyfinch referralType values)
+  referralBreakdown: Record<string, number>
+  // Sub-source breakdown (referralName when referralType = Professional)
+  professionalSubSources: Record<string, number>
   totalNoShowCancellations: number
-  conversionBreakdown: Record<ReferralType, number>
-}
-
-function normalizeReferralType(value: string): ReferralType {
-  if (value === 'Professional' || value === 'Family Referral' || value === 'Online') {
-    return value
-  }
-  return 'Other'
-}
-
-// A referral row is treated as "converted" once it shows realized net production.
-function isConvertedReferral(netProduction: number): boolean {
-  return netProduction > 0
+  conversionBreakdown: Record<string, number>
 }
 
 export function parsePatientReferralRows(data: ReportData): PatientReferralRow[] {
@@ -146,14 +103,21 @@ export function parsePatientReferralRows(data: ReportData): PatientReferralRow[]
       location: str(r.location),
       createdDate: str(r.createdDate),
       treatmentStatus: str(r.treatmentStatus),
-      referralType: normalizeReferralType(str(r.referralType)),
+      referralType: str(r.referralType),
+      referralName: str(r.referralName),
+      lastCompletedAppointmentTemplate: str(r.lastCompletedAppointmentTemplate),
+      grossProduction: num(r.grossProduction),
       netProduction: num(r.netProduction),
       noShowCancellationAppointmentTotal: num(r.noShowCancellationAppointmentTotal),
     }
   })
 }
 
-export function parsePatientReferrals(data: ReportData): PatientReferralsSummary[] {
+export function parsePatientReferrals(
+  data: ReportData,
+  periodStart?: string,
+  periodEnd?: string,
+): PatientReferralsSummary[] {
   const referralRows = parsePatientReferralRows(data)
 
   // Group rows by location
@@ -165,52 +129,81 @@ export function parsePatientReferrals(data: ReportData): PatientReferralsSummary
   }
 
   return Array.from(byLocation.entries()).map(([location, rows]) => {
-    const breakdown: Record<ReferralType, number> = {
-      Professional: 0,
-      'Family Referral': 0,
-      Online: 0,
-      Other: 0,
-    }
-    const conversionNumerators: Record<ReferralType, number> = {
-      Professional: 0,
-      'Family Referral': 0,
-      Online: 0,
-      Other: 0,
-    }
+    const breakdown: Record<string, number> = {}
+    const conversionNumerators: Record<string, number> = {}
+    const professionalSubSources: Record<string, number> = {}
+
     let totalNoShow = 0
     let leads = 0
     let bookings = 0
+    let npe = 0
+    let npeKept = 0
+    let grossProduction = 0
+    let netProduction = 0
 
     for (const row of rows) {
-      breakdown[row.referralType]++
-      if (isConvertedReferral(row.netProduction)) {
-        conversionNumerators[row.referralType]++
+      const rt = row.referralType || 'Unknown'
+      breakdown[rt] = (breakdown[rt] ?? 0) + 1
+
+      grossProduction += row.grossProduction
+      netProduction += row.netProduction
+
+      if (row.netProduction > 0) {
+        conversionNumerators[rt] = (conversionNumerators[rt] ?? 0) + 1
       }
+
       totalNoShow += row.noShowCancellationAppointmentTotal
+
+      // Legacy lead/booking counts
       if (row.treatmentStatus === 'New Patient Lead') leads++
-      if (row.treatmentStatus === 'Exam/Child' || row.treatmentStatus === 'Exam/Adult') bookings++
+
+      const inPeriod = !periodStart || !periodEnd
+        || (row.createdDate >= periodStart && row.createdDate <= periodEnd)
+
+      if (inPeriod && NPE_STATUSES.has(row.treatmentStatus)) {
+        bookings++
+        npe++
+      }
+
+      // NPE Kept detection
+      if (inPeriod && NPE_KEPT_APPT_TYPES.has(row.lastCompletedAppointmentTemplate)) {
+        npeKept++
+      }
+
+      // Professional sub-source tracking (referralName when referralType = Professional)
+      if (rt === 'Professional' && row.referralName) {
+        professionalSubSources[row.referralName] = (professionalSubSources[row.referralName] ?? 0) + 1
+      }
     }
 
-    const conversionBreakdown = (Object.keys(breakdown) as ReferralType[]).reduce<Record<ReferralType, number>>(
-      (acc, referralType) => {
-        const total = breakdown[referralType]
-        acc[referralType] = total > 0 ? (conversionNumerators[referralType] / total) * 100 : 0
-        return acc
-      },
-      {
-        Professional: 0,
-        'Family Referral': 0,
-        Online: 0,
-        Other: 0,
-      }
-    )
+    // NPL = patients whose record was created within the period ("Created On" date)
+    const npl = periodStart && periodEnd
+      ? rows.filter((r) => r.createdDate >= periodStart && r.createdDate <= periodEnd).length
+      : rows.length
+    const npeNoShow = Math.max(0, npe - npeKept)
+
+    const conversionBreakdown: Record<string, number> = {}
+    for (const rt of Object.keys(breakdown)) {
+      const total = breakdown[rt]
+      conversionBreakdown[rt] = total > 0 ? (conversionNumerators[rt] ?? 0) / total * 100 : 0
+    }
 
     return {
       location,
       totalNewPatients: rows.length,
+      grossProduction,
+      netProduction,
+      npl,
+      npe,
+      npeKept,
+      npeNoShow,
+      npeScheduledRate: npl > 0 ? (npe / npl) * 100 : 0,
+      npeKeptRate: npl > 0 ? (npeKept / npl) * 100 : 0,
+      npeNoShowRate: npe > 0 ? (npeNoShow / npe) * 100 : 0,
       leads,
       bookings,
       referralBreakdown: breakdown,
+      professionalSubSources,
       totalNoShowCancellations: totalNoShow,
       conversionBreakdown,
     }
@@ -237,64 +230,50 @@ export interface PeriodAnalyticsResponse {
 
 export interface LocationPeriodData {
   location: string
-  // Production & collections
+  // Production (summed from PATIENT_REFERRALS)
   grossProduction: number
   netProduction: number
-  netCollection: number
-  accountsReceivable: number
   // Patient counts
-  activeTxPatients: number
   newPatientsCreated: number
-  caseStarts: number
-  startApptCompleted: number
-  appointments: number
-  avgCaseFee: number
-  newPatExams: number
+  // Legacy
   leads: number
   bookings: number
-  // Referrals
-  referralBreakdown: Record<ReferralType, number>
-  conversionBreakdown: Record<ReferralType, number>
+  // NPL / NPE funnel
+  npl: number
+  npe: number
+  npeKept: number
+  npeNoShow: number
+  npeScheduledRate: number
+  npeKeptRate: number
+  npeNoShowRate: number
+  // Raw referralType breakdown (keys = Greyfinch referralType values)
+  referralBreakdown: Record<string, number>
+  // Sub-sources when referralType = Professional
+  professionalSubSources: Record<string, number>
+  conversionBreakdown: Record<string, number>
   totalNoShowCancellations: number
 }
 
-export function mergePeriodData(
-  monitorRows: PracticeMonitorRow[],
+export function buildPeriodData(
   referralRows: PatientReferralsSummary[],
-  appointmentsByLocation: Map<string, number> = new Map()
 ): LocationPeriodData[] {
-  const referralMap = new Map(referralRows.map((r) => [r.location, r]))
-
-  return monitorRows.map((m) => {
-    const refs = referralMap.get(m.location)
-    return {
-      location: m.location,
-      grossProduction: m.grossProduction,
-      netProduction: m.netProduction,
-      netCollection: m.netCollection,
-      accountsReceivable: m.accountsReceivable,
-      activeTxPatients: m.activeTxPatients,
-      newPatientsCreated: refs?.totalNewPatients ?? m.newPatientsCreated,
-      caseStarts: m.caseStarts,
-      startApptCompleted: m.startApptCompleted,
-      appointments: appointmentsByLocation.get(m.location) ?? 0,
-      avgCaseFee: m.avgCaseFee,
-      newPatExams: m.newPatExams,
-      leads: refs?.leads ?? 0,
-      bookings: refs?.bookings ?? 0,
-      referralBreakdown: refs?.referralBreakdown ?? {
-        Professional: 0,
-        'Family Referral': 0,
-        Online: 0,
-        Other: 0,
-      },
-      conversionBreakdown: refs?.conversionBreakdown ?? {
-        Professional: 0,
-        'Family Referral': 0,
-        Online: 0,
-        Other: 0,
-      },
-      totalNoShowCancellations: refs?.totalNoShowCancellations ?? 0,
-    }
-  })
+  return referralRows.map((refs) => ({
+    location: refs.location,
+    grossProduction: refs.grossProduction,
+    netProduction: refs.netProduction,
+    newPatientsCreated: refs.totalNewPatients,
+    leads: refs.leads,
+    bookings: refs.bookings,
+    npl: refs.npl,
+    npe: refs.npe,
+    npeKept: refs.npeKept,
+    npeNoShow: refs.npeNoShow,
+    npeScheduledRate: refs.npeScheduledRate,
+    npeKeptRate: refs.npeKeptRate,
+    npeNoShowRate: refs.npeNoShowRate,
+    referralBreakdown: refs.referralBreakdown,
+    professionalSubSources: refs.professionalSubSources,
+    conversionBreakdown: refs.conversionBreakdown,
+    totalNoShowCancellations: refs.totalNoShowCancellations,
+  }))
 }

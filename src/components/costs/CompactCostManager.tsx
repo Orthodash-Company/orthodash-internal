@@ -132,7 +132,7 @@ export function CompactCostManager({
               <Calculator className="h-4 w-4" />
               Costs
             </span>
-            <span className="font-semibold">${totalCosts.toLocaleString()}</span>
+            <span className="font-semibold">${totalCosts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </Button>
         )}
       </DialogTrigger>
@@ -254,7 +254,7 @@ export function CompactCostManager({
                       <p className="text-xs text-gray-500">{cost.date}</p>
                     </div>
                     <div className="flex items-center gap-2 ml-3">
-                      <span className="text-sm font-semibold">${cost.amount.toLocaleString()}</span>
+                      <span className="text-sm font-semibold">${cost.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -284,7 +284,7 @@ export function CompactCostManager({
               <Separator />
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                 <span className="font-medium text-blue-900">Total Costs:</span>
-                <span className="text-xl font-bold text-blue-900">${totalCosts.toLocaleString()}</span>
+                <span className="text-xl font-bold text-blue-900">${totalCosts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </>
           )}

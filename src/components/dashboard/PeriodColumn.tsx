@@ -1,425 +1,239 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CompactDateInput } from "@/components/ui/compact-date-input";
-import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  Calendar, 
-  MapPin,
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  Clock, 
-  Target,
+import {
+  BarChart3,
+  Calendar,
+  ChevronDown,
+  ChevronRight,
   Edit2,
   Plus,
+  RefreshCw,
   Settings,
 } from "lucide-react";
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import type { PeriodQuery } from "@/lib/period-summary";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell,
+} from 'recharts';
 import { ChartSelectorModal } from '../ui/chart-selector-modal';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PeriodColumnProps {
   period: PeriodConfig;
   query: PeriodQuery;
   locations: Location[];
   onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
+  onRetry?: () => void;
+  onRefresh?: () => void;
   isCompact?: boolean;
   periodCosts?: CompactCost[];
-  selectedCharts?: string[];
 }
 
 interface PeriodColumnPropsExtended extends PeriodColumnProps {
   onAddPeriod?: (period: Omit<PeriodConfig, 'id'>) => void;
+  onRefresh?: () => void;
   isFirstPeriod?: boolean;
 }
 
-const formatPieLabel = (
-  hasData: boolean,
-  { name, percent }: { name?: string; percent?: number }
-) => (hasData ? `${name ?? 'Unknown'} ${((percent ?? 0) * 100).toFixed(0)}%` : (name ?? 'Unknown'));
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-function MetricTooltip({
-  label,
-  tooltip,
-  className = "",
-}: {
-  label: string;
-  tooltip: string;
-  className?: string;
-}) {
+// Color palette — assigned to referralType keys in sorted order
+const REFERRAL_PALETTE = [
+  '#1C2B6B', '#2E7D99', '#3BAD8E', '#E6A817', '#D95B3A', '#7B4FD4', '#C2496D', '#4A7FB5',
+]
+
+function getReferralColor(type: string, allTypes: string[]): string {
+  const sorted = [...allTypes].sort()
+  const idx = sorted.indexOf(type)
+  return REFERRAL_PALETTE[idx % REFERRAL_PALETTE.length]
+}
+
+const fmt$ = (n: number) =>
+  n >= 1_000_000
+    ? `$${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000
+    ? `$${(n / 1_000).toFixed(0)}k`
+    : `$${Math.round(n).toLocaleString()}`
+
+const fmtExact$ = (n: number) =>
+  `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const fmtPct = (n: number) => `${n.toFixed(1)}%`
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function Tip({ label, tooltip, className = "" }: { label: string; tooltip: string; className?: string }) {
   return (
     <UITooltip>
       <TooltipTrigger asChild>
-        <button
-          type="button"
-          className={`text-left underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35 ${className}`}
-        >
+        <button type="button" className={`text-left underline decoration-dotted underline-offset-4 decoration-[#1d1d52]/35 ${className}`}>
           {label}
         </button>
       </TooltipTrigger>
-      <TooltipContent className="max-w-56 text-center">
-        {tooltip}
-      </TooltipContent>
+      <TooltipContent className="max-w-56 text-center">{tooltip}</TooltipContent>
     </UITooltip>
   );
 }
 
-export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPeriod, isFirstPeriod = false, isCompact = false, periodCosts = [], selectedCharts = [] }: PeriodColumnPropsExtended) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#1C1F4F]/35 mb-3">
+      {children}
+    </p>
+  );
+}
+
+function MetricPill({
+  label,
+  value,
+  pct,
+  tooltip,
+}: {
+  label: string;
+  value: number | string;
+  pct?: number;
+  tooltip?: string;
+}) {
+  const inner = (
+    <div className="rounded-xl border border-[#1C1F4F]/8 bg-white px-2.5 py-3 text-center flex flex-col items-center justify-center gap-0.5 hover:border-[#1C1F4F]/20 hover:shadow-sm transition-all duration-150">
+      <div className="text-2xl font-bold tabular-nums text-[#1C1F4F] leading-none">
+        {value}
+      </div>
+      <div className="text-[10px] font-semibold tabular-nums text-[#1C1F4F]/35 leading-none">
+        {pct !== undefined ? fmtPct(pct) : <span className="invisible">0.0%</span>}
+      </div>
+      <div className="text-[10px] font-medium text-[#1C1F4F]/40 leading-tight mt-0.5">{label}</div>
+    </div>
+  );
+
+  if (!tooltip) return inner;
+  return (
+    <UITooltip>
+      <TooltipTrigger asChild>
+        <div className="cursor-default">{inner}</div>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-56 text-center">{tooltip}</TooltipContent>
+    </UITooltip>
+  );
+}
+
+function ReferralRow({
+  type,
+  count,
+  pct,
+  color,
+  subSources,
+}: {
+  type: string;
+  count: number;
+  pct: number;
+  color: string;
+  subSources?: Record<string, number>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasSubs = type === 'Professional' && subSources && Object.keys(subSources).length > 0;
+
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-2.5 py-2 px-1 rounded-lg transition-colors ${hasSubs ? "cursor-pointer hover:bg-[#1C1F4F]/[0.03]" : ""}`}
+        onClick={hasSubs ? () => setExpanded((v) => !v) : undefined}
+      >
+        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+        <span className="flex-1 text-[13px] text-[#1C1F4F]/80">{type}</span>
+        <span className="text-[13px] font-semibold tabular-nums text-[#1C1F4F]">{count}</span>
+        <span className="text-[11px] text-[#1C1F4F]/40 tabular-nums w-11 text-right">{fmtPct(pct)}</span>
+        {hasSubs && (
+          <span className="text-[#1C1F4F]/25">
+            {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </span>
+        )}
+      </div>
+
+      {expanded && hasSubs && (
+        <div className="ml-5 mb-1 space-y-0.5 border-l border-[#1C1F4F]/8 pl-3">
+          {Object.entries(subSources!)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, n]) => (
+              <div key={name} className="flex items-center gap-2 py-0.5">
+                <span className="flex-1 text-xs text-[#1C1F4F]/55 truncate">{name}</span>
+                <span className="text-xs font-medium tabular-nums text-[#1C1F4F]/70">{n}</span>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export function PeriodColumn({
+  period,
+  query,
+  onUpdatePeriod,
+  onRetry,
+  onRefresh,
+  onAddPeriod,
+  isFirstPeriod = false,
+  isCompact = false,
+  periodCosts = [],
+}: PeriodColumnPropsExtended) {
   const data = query?.data;
   const isLoading = query?.isLoading;
   const error = query?.error;
-  const [localSelectedCharts, setLocalSelectedCharts] = useState<string[]>(selectedCharts);
+  const STORAGE_KEY = `orthodash-charts-${period.id}`;
+  const [selectedCharts, setSelectedCharts] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isChartSelectorOpen, setIsChartSelectorOpen] = useState(false);
-  
-  // Calculate total costs for this period
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedCharts));
+    } catch {
+      // localStorage unavailable — non-fatal
+    }
+  }, [STORAGE_KEY, selectedCharts]);
+
   const totalCosts = periodCosts.reduce((sum, cost) => sum + cost.amount, 0);
-  
-  // Always render charts, even with no data - show loading indicator only during initial load
   const showLoadingIndicator = isLoading && !data;
 
-  // Consolidated charts section renderer for both compact and full views
-  const renderChartsSection = (isCompact: boolean) => {
-    const sectionSpacing = isCompact ? 'space-y-4' : 'space-y-6';
-    const headerSize = isCompact ? 'text-sm font-medium' : 'text-lg font-semibold';
-    const buttonSize = isCompact ? 'sm' : 'sm';
-    const buttonClass = isCompact ? 'h-7 px-2 text-xs gap-1' : 'gap-2';
-    const iconSize = isCompact ? 'h-3 w-3' : 'h-4 w-4';
-    const emptyIconSize = isCompact ? 'h-12 w-12' : 'h-16 w-16';
-    const emptyPadding = isCompact ? 'py-8' : 'py-12';
-    const emptyMargin = isCompact ? 'mb-3' : 'mb-4';
-    const emptyTextSize = isCompact ? 'text-sm font-medium' : 'text-lg font-semibold';
-    const emptyDescClass = isCompact ? 'hidden' : 'text-gray-500 mb-6';
-    return (
-      <div className={sectionSpacing}>
-        <ChartSelectorModal
-          selectedCharts={localSelectedCharts}
-          onChartsChange={setLocalSelectedCharts}
-          open={isChartSelectorOpen}
-          onOpenChange={setIsChartSelectorOpen}
-        />
-
-        {localSelectedCharts.length > 0 ? (
-          <>
-            {/* Chart Selector Header */}
-            <div className="flex items-center justify-between">
-              <h3 className={headerSize}>
-                {isCompact ? 'Charts' : 'Analytics Charts'}
-              </h3>
-              <Button
-                variant="outline"
-                size={buttonSize}
-                className={`${buttonClass} touch-manipulation`}
-                onClick={() => setIsChartSelectorOpen(true)}
-              >
-                <Settings className={iconSize} />
-                {isCompact ? `(${localSelectedCharts.length})` : `Manage Charts (${localSelectedCharts.length})`}
-              </Button>
-            </div>
-            
-            {/* Render selected charts using single renderer */}
-            <div className={isCompact ? 'space-y-3' : 'space-y-4 sm:space-y-6'}>
-              {localSelectedCharts.map(chartId => renderChart(chartId))}
-            </div>
-          </>
-        ) : (
-          /* No charts selected - show chart selector */
-          <div className={`text-center ${emptyPadding}`}>
-            <BarChart3 className={`${emptyIconSize} mx-auto ${emptyMargin} text-gray-400`} />
-            <h3 className={`${emptyTextSize} text-gray-700 mb-2`}>No Charts Selected</h3>
-            {!isCompact && <p className={emptyDescClass}>Select charts to display your analytics data</p>}
-            <Button
-              size={buttonSize}
-              className="gap-2 mb-4 touch-manipulation"
-              onClick={() => setIsChartSelectorOpen(true)}
-            >
-              <BarChart3 className={iconSize} />
-              Select Charts
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Single chart renderer that works with actual data structure
-  const renderChart = (chartId: string) => {
-    // Mobile-optimized chart heights - use responsive design
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    const chartHeight = isCompact ? 120 : (isMobile ? 180 : 220);
-    
-    switch (chartId) {
-      case 'referral-sources':
-        const referralData = [
-          { name: 'Digital', value: safeData.referralSources?.digital || 0, color: '#8884d8' },
-          { name: 'Professional', value: safeData.referralSources?.professional || 0, color: '#82ca9d' },
-          { name: 'Direct', value: safeData.referralSources?.direct || 0, color: '#ffc658' }
-        ];
-        
-        // If all values are zero, show placeholder data
-        const hasData = referralData.some(item => item.value > 0);
-        const displayData = hasData ? referralData : [
-          { name: 'No Data', value: 1, color: '#e5e7eb' }
-        ];
-        
-        return (
-          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
-            <h4 className="text-sm sm:text-base font-medium mb-3">Referral Sources</h4>
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <Pie
-                  data={displayData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={(props) => formatPieLabel(hasData, props)}
-                  outerRadius={isCompact ? 50 : (isMobile ? 70 : 80)}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {displayData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            {!hasData && (
-              <div className="text-center text-gray-500 text-xs mt-2">
-                No referral source data available
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'conversion-rates':
-        const conversionData = [
-          { source: 'Digital', rate: safeData.conversionRates?.digital || 0 },
-          { source: 'Professional', rate: safeData.conversionRates?.professional || 0 },
-          { source: 'Direct', rate: safeData.conversionRates?.direct || 0 }
-        ];
-        
-        const hasConversionData = conversionData.some(item => item.rate > 0);
-        const displayConversionData = hasConversionData ? conversionData : [
-          { source: 'No Data', rate: 1 }
-        ];
-        
-        return (
-          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
-            <h4 className="text-sm sm:text-base font-medium mb-3">Conversion Rates</h4>
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={displayConversionData} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="source" />
-                <Tooltip />
-                <Bar dataKey="rate" fill={hasConversionData ? "#8884d8" : "#e5e7eb"} />
-              </BarChart>
-            </ResponsiveContainer>
-            {!hasConversionData && (
-              <div className="text-center text-gray-500 text-xs mt-2">
-                No conversion rate data available
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'weekly-trends':
-        const trendsData = (safeData.trends?.weekly || []).map((week: any) => ({
-          week: week.week || 'Week',
-          gilbert: week.gilbert || 0,
-          phoenix: week.phoenix || 0,
-          total: week.total || 0
-        }));
-        
-        // If no trends data, show placeholder
-        if (trendsData.length === 0) {
-          return (
-            <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
-              <h4 className="text-sm sm:text-base font-medium mb-3">Weekly Trends</h4>
-              <div className="flex items-center justify-center h-48 text-gray-500">
-                <div className="text-center">
-                  <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No trend data available</p>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        
-        return (
-          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
-            <h4 className="text-sm sm:text-base font-medium mb-3">Weekly Trends</h4>
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <LineChart data={trendsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="gilbert" stroke="#8884d8" name="Gilbert" />
-                <Line type="monotone" dataKey="phoenix" stroke="#82ca9d" name="Phoenix" />
-                <Line type="monotone" dataKey="total" stroke="#ffc658" name="Total" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        );
-      
-      case 'financial-summary':
-        const financialData = [
-          { metric: 'Revenue', value: safeData.revenue || 0 },
-          { metric: 'Production', value: safeData.production || 0 },
-          { metric: 'Net Production', value: safeData.netProduction || 0 },
-          { metric: 'Acquisition Costs', value: safeData.acquisitionCosts || 0 }
-        ];
-        
-        const hasFinancialData = financialData.some(item => item.value !== 0);
-        const displayFinancialData = hasFinancialData ? financialData : [
-          { metric: 'No Data', value: 1 }
-        ];
-        
-        return (
-          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
-            <h4 className="text-sm sm:text-base font-medium mb-3">Financial Summary</h4>
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={displayFinancialData} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="metric" />
-                <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
-                <Bar dataKey="value" fill={hasFinancialData ? "#8884d8" : "#e5e7eb"} />
-              </BarChart>
-            </ResponsiveContainer>
-            {!hasFinancialData && (
-              <div className="text-center text-gray-500 text-xs mt-2">
-                No financial data available
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'patient-metrics':
-        const patientData = [
-          { metric: 'Patients', value: safeData.patients || 0 },
-          { metric: 'Appointments', value: safeData.appointments || 0 },
-          { metric: 'Leads', value: safeData.leads || 0 },
-          { metric: 'Bookings', value: safeData.bookings || 0 }
-        ];
-        
-        const hasPatientData = patientData.some(item => item.value > 0);
-        const displayPatientData = hasPatientData ? patientData : [
-          { metric: 'No Data', value: 1 }
-        ];
-        
-        return (
-          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
-            <h4 className="text-sm sm:text-base font-medium mb-3">Patient Metrics</h4>
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={displayPatientData} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="metric" />
-                <Tooltip />
-                <Bar dataKey="value" fill={hasPatientData ? "#82ca9d" : "#e5e7eb"} />
-              </BarChart>
-            </ResponsiveContainer>
-            {!hasPatientData && (
-              <div className="text-center text-gray-500 text-xs mt-2">
-                No patient data available
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'no-show-analysis':
-        const noShowRate = safeData.noShowRate || 0;
-        const totalAppointments = safeData.appointments || 0;
-        
-        return (
-          <div key={chartId} className="bg-white p-3 sm:p-4 rounded-lg border">
-            <h4 className="text-sm sm:text-base font-medium mb-3">No-Show Analysis</h4>
-            <div className="flex items-center justify-center h-48 text-gray-500">
-              <div className="text-center">
-                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-medium">No-Show Rate</p>
-                <p className="text-2xl font-bold text-red-500">{noShowRate.toFixed(1)}%</p>
-                <p className="text-xs text-gray-400 mt-2">
-                  {totalAppointments} total appointments
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      
-      default:
-        return null;
-    }
-  };
-
-  // Ensure we have valid data from API - only use live data, no fallbacks
-  const safeData = data ?? {
-    avgNetProduction: 0,
-    avgAcquisitionCost: 0,
-    noShowRate: 0,
-    referralSources: { digital: 0, professional: 0, direct: 0 },
-    conversionRates: { digital: 0, professional: 0, direct: 0 },
-    trends: { weekly: [] },
-    patients: 0,
-    appointments: 0,
-    leads: 0,
-    locations: 0,
-    bookings: 0,
-    revenue: 0,
-    production: 0,
-    netProduction: 0,
-    acquisitionCosts: 0
-  };
-
-  // Calculate actual net production using real revenue and user-added acquisition costs
-  const actualRevenue = safeData.revenue || 0;
-  const actualProduction = safeData.production || 0;
-  const actualNetProduction = actualRevenue - totalCosts;
-
-  // Check if multiple locations are selected
-  const selectedLocationIds = period.locationIds || (period.locationId && period.locationId !== 'all' ? [period.locationId] : []);
-
-  // Check for empty state (no dates selected)
+  // Empty state
   if (!period.startDate || !period.endDate) {
     return (
       <Card className="w-full min-w-[350px] overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">{period.title}</CardTitle>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                console.log('Period edit clicked for:', period.id);
-              }}
-            >
+            <Button size="sm" variant="ghost" onClick={() => {
+              const newTitle = prompt('Enter new period name:', period.title);
+              if (newTitle?.trim()) onUpdatePeriod(period.id, { title: newTitle.trim() });
+            }}>
               <Edit2 className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Empty State Message - Enhanced for Period A */}
+        <CardContent>
           <div className="text-center py-8 text-gray-500">
             <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm mb-4">Use the open editor above to set dates and locations for this period.</p>
-            
-            {/* Add Period CTA for Period A only when it's the first period */}
+            <p className="text-sm mb-4">Set dates and locations to load data for this period.</p>
             {isFirstPeriod && onAddPeriod && (
               <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-xs text-gray-400 mb-3">Need to compare multiple periods?</p>
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500">Use the "Add Column" button at the top to add comparison periods</p>
-                  <div className="text-center">
-                    <div className="inline-flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
-                      <Plus className="h-3 w-3" />
-                      <span>Look for the + button above</span>
-                    </div>
-                  </div>
+                <div className="inline-flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                  <Plus className="h-3 w-3" />
+                  <span>Use the + button above to add comparison periods</span>
                 </div>
               </div>
             )}
@@ -429,189 +243,445 @@ export function PeriodColumn({ period, query, locations, onUpdatePeriod, onAddPe
     );
   }
 
+  // Computed financials
+  const grossProduction = data?.production ?? 0;
+  const netProductionFromGF = data?.netProduction ?? 0;
+  const netAfterCosts = netProductionFromGF - totalCosts;
+
+  // NPL / NPE funnel
+  const npl = data?.npl ?? 0;
+  const npe = data?.npe ?? 0;
+  const npeKept = data?.npeKept ?? 0;
+  const npeNoShow = data?.npeNoShow ?? 0;
+  const npeScheduledRate = data?.npeScheduledRate ?? 0;
+  const npeKeptRate = data?.npeKeptRate ?? 0;
+  const npeNoShowRate = data?.npeNoShowRate ?? 0;
+
+  // Referrals
+  const referralBreakdown = data?.referralBreakdown ?? {};
+  const professionalSubSources = data?.professionalSubSources ?? {};
+  const totalReferrals = Object.values(referralBreakdown).reduce((s, v) => s + v, 0);
+  const allReferralTypes = Object.keys(referralBreakdown);
+
+  const referralEntries = allReferralTypes
+    .map((t) => ({ type: t, count: referralBreakdown[t] }))
+    .filter((e) => e.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const referralChartData = referralEntries.map((e) => ({
+    name: e.type,
+    value: e.count,
+    color: getReferralColor(e.type, allReferralTypes),
+  }));
+
+  const conversionBreakdown = data?.conversionBreakdown ?? {};
+
+  // ─── Chart renderer ───────────────────────────────────────────────────────
+  const renderChart = (chartId: string) => {
+    const chartHeight = isCompact ? 140 : 200;
+    // Vertical bar charts need ~50px per row to avoid label squishing
+    const barChartHeight = (n: number) => Math.max(chartHeight, n * 52 + 20);
+
+    switch (chartId) {
+      case 'referral-sources': {
+        const hasData = referralChartData.some((d) => d.value > 0);
+        const displayData = hasData ? referralChartData : [{ name: 'No Data', value: 1, color: '#e5e7eb' }];
+        return (
+          <div key={chartId} className="bg-white p-3 rounded-lg border border-[#1C1F4F]/10">
+            <h4 className="text-xs font-semibold text-[#1C1F4F]/50 uppercase tracking-wide mb-3">Referral Sources</h4>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <PieChart>
+                <Pie data={displayData} cx="50%" cy="50%" outerRadius={isCompact ? 55 : 75} innerRadius={isCompact ? 25 : 35} dataKey="value" paddingAngle={2}>
+                  {displayData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Tooltip formatter={(v, n) => [`${v} (${totalReferrals > 0 ? ((Number(v) / totalReferrals) * 100).toFixed(1) : 0}%)`, n]} />
+              </PieChart>
+            </ResponsiveContainer>
+            {!hasData && <p className="text-center text-xs text-[#1C1F4F]/40 mt-1">No referral data</p>}
+          </div>
+        );
+      }
+
+      case 'conversion-rates': {
+        const convData = Object.keys(conversionBreakdown)
+          .filter((t) => (referralBreakdown[t] ?? 0) > 0)
+          .map((t) => ({ source: t, rate: conversionBreakdown[t], fill: getReferralColor(t, allReferralTypes) }));
+        const hasData = convData.some((d) => d.rate > 0);
+        return (
+          <div key={chartId} className="bg-white p-3 rounded-lg border border-[#1C1F4F]/10">
+            <h4 className="text-xs font-semibold text-[#1C1F4F]/50 uppercase tracking-wide mb-3">Conversion Rates by Source</h4>
+            {hasData ? (
+              <ResponsiveContainer width="100%" height={barChartHeight(convData.length)}>
+                <BarChart data={convData} layout="vertical" margin={{ top: 2, right: 8, left: 4, bottom: 2 }}>
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                  <YAxis type="category" dataKey="source" tick={{ fontSize: 10 }} width={90} />
+                  <Tooltip formatter={(v) => [`${Number(v).toFixed(1)}%`, 'Conversion']} />
+                  <Bar dataKey="rate" radius={[0, 3, 3, 0]}>
+                    {convData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-xs text-[#1C1F4F]/40 py-8">No conversion data</p>
+            )}
+          </div>
+        );
+      }
+
+      case 'financial-summary': {
+        const finData = [
+          { metric: 'Gross Production', value: grossProduction },
+          { metric: 'Net Production', value: netProductionFromGF },
+          ...(totalCosts > 0 ? [{ metric: 'Acq. Costs', value: totalCosts }] : []),
+        ];
+        const hasData = finData.some((d) => d.value > 0);
+        return (
+          <div key={chartId} className="bg-white p-3 rounded-lg border border-[#1C1F4F]/10">
+            <h4 className="text-xs font-semibold text-[#1C1F4F]/50 uppercase tracking-wide mb-3">Financial Summary</h4>
+            {hasData ? (
+              <ResponsiveContainer width="100%" height={barChartHeight(finData.length)}>
+                <BarChart data={finData} layout="vertical" margin={{ top: 2, right: 8, left: 4, bottom: 2 }}>
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => fmt$(v)} />
+                  <YAxis type="category" dataKey="metric" tick={{ fontSize: 10 }} width={90} />
+                  <Tooltip formatter={(v) => [fmt$(Number(v)), '']} />
+                  <Bar dataKey="value" fill={REFERRAL_PALETTE[0]} radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-xs text-[#1C1F4F]/40 py-8">No financial data</p>
+            )}
+          </div>
+        );
+      }
+
+      case 'patient-metrics': {
+        const patData = [
+          { metric: 'NPL', value: npl },
+          { metric: 'NPE Scheduled', value: npe },
+          { metric: 'NPE Kept', value: npeKept },
+        ];
+        const hasData = patData.some((d) => d.value > 0);
+        return (
+          <div key={chartId} className="bg-white p-3 rounded-lg border border-[#1C1F4F]/10">
+            <h4 className="text-xs font-semibold text-[#1C1F4F]/50 uppercase tracking-wide mb-3">Patient Funnel</h4>
+            {hasData ? (
+              <ResponsiveContainer width="100%" height={barChartHeight(patData.length)}>
+                <BarChart data={patData} layout="vertical" margin={{ top: 2, right: 8, left: 4, bottom: 2 }}>
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis type="category" dataKey="metric" tick={{ fontSize: 10 }} width={90} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill={REFERRAL_PALETTE[2]} radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-xs text-[#1C1F4F]/40 py-8">No patient data</p>
+            )}
+          </div>
+        );
+      }
+
+      default:
+        return null;
+    }
+  };
+
+  const renderChartsSection = () => (
+    <div className="space-y-3">
+      <ChartSelectorModal
+        selectedCharts={selectedCharts}
+        onChartsChange={setSelectedCharts}
+        open={isChartSelectorOpen}
+        onOpenChange={setIsChartSelectorOpen}
+      />
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[#1C1F4F]/40">Charts</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 px-2 text-[10px] gap-1 border-[#1C1F4F]/15 text-[#1C1F4F]/60 hover:text-[#1C1F4F]"
+          onClick={() => setIsChartSelectorOpen(true)}
+        >
+          <Settings className="h-3 w-3" />
+          {selectedCharts.length > 0 ? `${selectedCharts.length} selected` : 'Add Charts'}
+        </Button>
+      </div>
+
+      {selectedCharts.length > 0 ? (
+        <div className="space-y-3">
+          {selectedCharts.map((id) => renderChart(id))}
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsChartSelectorOpen(true)}
+          className="w-full py-6 rounded-lg border border-dashed border-[#1C1F4F]/15 flex flex-col items-center gap-2 text-[#1C1F4F]/30 hover:border-[#1C1F4F]/30 hover:text-[#1C1F4F]/50 transition-colors"
+        >
+          <BarChart3 className="h-8 w-8" />
+          <span className="text-xs">Click to add charts</span>
+        </button>
+      )}
+    </div>
+  );
+
+  // ─── Compact layout ──────────────────────────────────────────────────────
+
   if (isCompact) {
     return (
       <div className="space-y-4 relative pb-4">
-        {/* Loading overlay for compact view */}
         {showLoadingIndicator && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">Loading...</p>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#1C1F4F] mx-auto mb-2" />
+              <p className="text-sm text-gray-500">Loading…</p>
             </div>
           </div>
         )}
 
-        {/* Error indicator for compact view */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-            <div className="flex items-center gap-2">
-              <div className="text-red-500 text-sm">⚠️</div>
-              <p className="text-xs text-red-700">Data error</p>
-            </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2 flex items-center justify-between gap-2">
+            <p className="text-xs text-red-700">Data error</p>
+            {onRetry && (
+              <button onClick={onRetry} className="text-xs text-red-600 underline flex items-center gap-1">
+                <RefreshCw className="h-3 w-3" /> Retry
+              </button>
+            )}
           </div>
         )}
 
-        {/* Key Metrics - Compact View with Production Data */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded-lg border">
-            <div className="flex items-center justify-between">
-              <div>
-                <MetricTooltip
-                  label="Net Production"
-                  tooltip="netCollection (PRACTICE_MONITOR) minus manually entered acquisition costs for this period."
-                  className="text-xs text-gray-600"
-                />
-                <p className="text-lg font-semibold">${actualNetProduction.toLocaleString()}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-[#1d1d52]" />
+        {/* Funnel - compact */}
+        <div className="grid grid-cols-3 gap-2">
+          <MetricPill label="NPL" value={npl} tooltip="New Patient Leads created in this period" />
+          <MetricPill label="NPE" value={npe} pct={npeScheduledRate} tooltip="Exams scheduled (EXA/EXC status)" />
+          <MetricPill label="NPE Kept" value={npeKept} pct={npeKeptRate} tooltip="Kept their NP consultation appointment" />
+        </div>
+
+        {/* Financial - compact */}
+        <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
+          <div className="divide-y divide-[#1C1F4F]/5">
+            <div className="flex justify-between items-center px-3 py-2.5">
+              <span className="text-xs text-[#1C1F4F]/50">Gross Production</span>
+              <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(grossProduction)}</span>
             </div>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border">
-            <div className="flex items-center justify-between">
-              <div>
-                <MetricTooltip
-                  label="No-Show Rate"
-                  tooltip="noShowCancellationAppointmentTotal (PATIENT_REFERRALS) ÷ (completed appointments + no-shows) for the period."
-                  className="text-xs text-gray-600"
-                />
-                <p className="text-lg font-semibold">{safeData.noShowRate.toFixed(1)}%</p>
-              </div>
-              <Clock className="h-8 w-8 text-red-500" />
+            <div className="flex justify-between items-center px-3 py-2.5">
+              <span className="text-xs text-[#1C1F4F]/50">Net Production</span>
+              <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(netProductionFromGF)}</span>
             </div>
+            {totalCosts > 0 && (
+              <div className="flex justify-between items-center px-3 py-2.5">
+                <span className="text-xs text-[#1C1F4F]/50">Acq. Costs</span>
+                <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
+              </div>
+            )}
+            {totalCosts > 0 && (
+              <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
+                <span className="text-xs font-semibold text-[#1C1F4F]">Net After Costs</span>
+                <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Production and Revenue Summary */}
-        <div className="bg-white p-4 rounded-lg border">
-          <h4 className="text-sm font-medium mb-3">Financial Summary</h4>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <MetricTooltip
-                label="Total Production:"
-                tooltip="grossProduction from PRACTICE_MONITOR — production before adjustments."
-                className="text-gray-600"
-              />
-              <span className="font-medium">${actualProduction.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <MetricTooltip
-                label="Total Revenue:"
-                tooltip="netCollection from PRACTICE_MONITOR — net receipts/collections recognized for the period."
-                className="text-gray-600"
-              />
-              <span className="font-medium">${actualRevenue.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <MetricTooltip
-                label="Acquisition Costs:"
-                tooltip="Manually entered acquisition costs attached to this analysis period — stored in the database, not from Greyfinch."
-                className="text-gray-600"
-              />
-              <span className="font-medium text-red-600">-${totalCosts.toLocaleString()}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between text-sm font-semibold">
-              <MetricTooltip
-                label="Net Production:"
-                tooltip="netCollection (PRACTICE_MONITOR) minus manually entered acquisition costs."
-              />
-              <span className={`${actualNetProduction >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ${actualNetProduction.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </div>
-
-
-        {/* Charts - Compact */}
-        {renderChartsSection(true)}
+        {/* Charts - compact */}
+        {renderChartsSection()}
       </div>
     );
   }
 
+  // ─── Full layout ─────────────────────────────────────────────────────────
+
   return (
-    <Card className="h-full">
-      <CardHeader className="space-y-4">
+    <Card className="h-full border-[#1C1F4F]/10">
+      <CardHeader className="pb-4 border-b border-[#1C1F4F]/5">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">{period.title}</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => {
-              const newTitle = prompt('Enter new period name:', period.title);
-              if (newTitle && newTitle.trim()) {
-                onUpdatePeriod(period.id, { title: newTitle.trim() });
-              }
-            }}
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
+          <CardTitle className="text-base font-semibold text-[#1C1F4F]">{period.title}</CardTitle>
+          <div className="flex items-center gap-1">
+            {onRefresh && (
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-[#1C1F4F]/40 hover:text-[#1C1F4F]"
+                    onClick={onRefresh}
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Bypass cache &amp; refresh from Greyfinch</TooltipContent>
+              </UITooltip>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-[#1C1F4F]/40 hover:text-[#1C1F4F]"
+              onClick={() => {
+                const newTitle = prompt('Enter new period name:', period.title);
+                if (newTitle?.trim()) onUpdatePeriod(period.id, { title: newTitle.trim() });
+              }}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6 relative pb-6">
-        {/* Loading overlay - only show during initial load when no data exists */}
+      <CardContent className="space-y-6 pt-5 pb-6 relative">
+        {/* Loading overlay */}
         {showLoadingIndicator && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-b-lg">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading data...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1C1F4F] mx-auto mb-3" />
+              <p className="text-sm text-[#1C1F4F]/60">Fetching Greyfinch reports…</p>
+              <p className="text-xs text-[#1C1F4F]/40 mt-1">This can take 30–90 seconds</p>
             </div>
           </div>
         )}
 
-        {/* Error indicator - show as badge if there's an error */}
+        {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <div className="text-red-500">⚠️</div>
-              <div>
-                <p className="text-sm text-red-700">Data loading error</p>
-                <p className="text-xs text-red-600">{error}</p>
-              </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-red-700">Failed to load data</p>
+              <p className="text-xs text-red-600 mt-0.5">{error}</p>
             </div>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="flex items-center gap-1.5 text-xs font-medium text-red-600 border border-red-200 rounded px-2 py-1 hover:bg-red-100 transition-colors flex-shrink-0"
+              >
+                <RefreshCw className="h-3 w-3" /> Retry
+              </button>
+            )}
           </div>
         )}
 
-        {/* Key Metrics Grid - Always show, even with zero values */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Avg Net Production</p>
-                <p className="text-xl font-bold">${safeData.avgNetProduction.toLocaleString()}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-[#1d1d52]" />
-            </div>
+        {/* ── Section 1: NPL / NPE Funnel ─────────────────────────────── */}
+        <div>
+          <SectionLabel>Patient Funnel</SectionLabel>
+          <div className="grid grid-cols-3 gap-2">
+            <MetricPill
+              label="NPL"
+              value={npl}
+              tooltip="New Patient Leads created in this period (pulled by Created On date)."
+            />
+            <MetricPill
+              label="NPE Scheduled"
+              value={npe}
+              pct={npeScheduledRate}
+              tooltip="Leads whose status changed to Exam/Adult or Exam/Child — exam consultation booked."
+            />
+            <MetricPill
+              label="NPE Kept"
+              value={npeKept}
+              pct={npeKeptRate}
+              tooltip="Leads who kept their NP appointment (NP- NP ADULT or NP-NP CHILD)."
+            />
           </div>
-          
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Acquisition Cost</p>
-                <p className="text-xl font-bold">${safeData.avgAcquisitionCost}</p>
-              </div>
-              <Target className="h-8 w-8 text-green-500" />
+
+          {/* Funnel conversion rates */}
+          {npl > 0 && (
+            <div className="flex items-center gap-1 mt-2">
+              {[
+                { label: "→ Scheduled", pct: npeScheduledRate },
+                { label: "→ Kept", pct: npeKeptRate },
+              ].map((step) => (
+                <div key={step.label} className="flex-1 text-center text-[10px] text-[#1C1F4F]/35 font-medium tracking-wide">
+                  {step.label} <span className="text-[#1C1F4F]/55">{fmtPct(step.pct)}</span>
+                </div>
+              ))}
             </div>
-          </div>
-          
-          <div className="bg-gray-50 p-4 rounded-lg col-span-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">No-Show Rate</p>
-                <p className="text-xl font-bold">{safeData.noShowRate}%</p>
+          )}
+        </div>
+
+        <Separator className="bg-[#1C1F4F]/5" />
+
+        {/* ── Section 2: Referral Sources ─────────────────────────────── */}
+        <div>
+          <SectionLabel>Referral Sources</SectionLabel>
+
+          {totalReferrals === 0 ? (
+            <p className="text-sm text-[#1C1F4F]/40 py-2">No referral data for this period.</p>
+          ) : (
+            <div className="space-y-0.5">
+              {referralEntries.map((e) => (
+                <ReferralRow
+                  key={e.type}
+                  type={e.type}
+                  count={e.count}
+                  pct={totalReferrals > 0 ? (e.count / totalReferrals) * 100 : 0}
+                  color={getReferralColor(e.type, allReferralTypes)}
+                  subSources={e.type === 'Professional' ? professionalSubSources : undefined}
+                />
+              ))}
+              <div className="flex items-center gap-2.5 px-1 pt-2 mt-1 border-t border-[#1C1F4F]/6">
+                <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[#1C1F4F]/35">Total</span>
+                <span className="text-sm font-bold text-[#1C1F4F]">{totalReferrals}</span>
+                <span className="w-11" />
               </div>
-              <Clock className="h-8 w-8 text-red-500" />
+            </div>
+          )}
+
+          {/* Referral pie chart */}
+          {referralChartData.length > 0 && (
+            <div className="mt-4">
+              <ResponsiveContainer width="100%" height={140}>
+                <PieChart>
+                  <Pie
+                    data={referralChartData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={60}
+                    innerRadius={30}
+                    dataKey="value"
+                    paddingAngle={2}
+                  >
+                    {referralChartData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value, name) => [`${value} (${totalReferrals > 0 ? ((Number(value) / totalReferrals) * 100).toFixed(1) : 0}%)`, name]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <Separator className="bg-[#1C1F4F]/5" />
+
+        {/* ── Section 3: Financial Summary ────────────────────────────── */}
+        <div>
+          <SectionLabel>Financial</SectionLabel>
+          <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
+            <div className="divide-y divide-[#1C1F4F]/5">
+              <div className="flex justify-between items-center px-3 py-2.5">
+                <Tip label="Gross Production" tooltip="Gross production summed from PATIENT_REFERRALS." className="text-xs text-[#1C1F4F]/50" />
+                <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(grossProduction)}</span>
+              </div>
+              <div className="flex justify-between items-center px-3 py-2.5">
+                <Tip label="Net Production" tooltip="Net production summed from PATIENT_REFERRALS." className="text-xs text-[#1C1F4F]/50" />
+                <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(netProductionFromGF)}</span>
+              </div>
+              {totalCosts > 0 && (
+                <div className="flex justify-between items-center px-3 py-2.5">
+                  <Tip label="Acquisition Costs" tooltip="Manually entered costs attached to this period." className="text-xs text-[#1C1F4F]/50" />
+                  <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
+                </div>
+              )}
+              {totalCosts > 0 && (
+                <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
+                  <Tip label="Net After Costs" tooltip="Net production minus manually entered acquisition costs." className="text-xs font-semibold text-[#1C1F4F]" />
+                  <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-
-        {/* Charts - Full View */}
-        {renderChartsSection(false)}
+        {/* ── Section 4: Charts ─────────────────────────────────────── */}
+        <Separator className="bg-[#1C1F4F]/5" />
+        {renderChartsSection()}
       </CardContent>
     </Card>
   );

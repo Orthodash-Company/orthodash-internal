@@ -1,42 +1,22 @@
 'use client'
 
-import { type Location, type DataCounts } from '@/shared/types';
-import { PracticeSnapshot } from './PracticeSnapshot';
+import { CheckCircle } from 'lucide-react'
 
-interface LocationsManagerProps {
-  greyfinchData?: unknown;
-  dashboardLocations?: Location[];
-  isRefreshingGreyfinchData?: boolean;
-  onRefreshGreyfinchData?: () => Promise<boolean>;
-  initialCounts?: DataCounts;
-  onCountsUpdate?: (counts: DataCounts) => void;
-  onDataLoadingChange?: (isLoading: boolean) => void;
-  restoredSnapshotDates?: { startDate: string; endDate: string } | null;
-  onSnapshotDatesChange?: (startDate: string, endDate: string) => void;
-}
-
-export function LocationsManager({
-  greyfinchData,
-  dashboardLocations,
-  isRefreshingGreyfinchData,
-  onRefreshGreyfinchData,
-  initialCounts,
-  onCountsUpdate,
-  onDataLoadingChange,
-  restoredSnapshotDates,
-  onSnapshotDatesChange,
-}: LocationsManagerProps) {
+export function LocationsManager() {
   return (
-    <PracticeSnapshot
-      greyfinchData={greyfinchData}
-      locations={dashboardLocations}
-      isRefreshingGreyfinchData={isRefreshingGreyfinchData}
-      onRefreshGreyfinchData={onRefreshGreyfinchData}
-      initialCounts={initialCounts}
-      onCountsUpdate={onCountsUpdate}
-      onDataLoadingChange={onDataLoadingChange}
-      restoredDates={restoredSnapshotDates}
-      onDatesChange={onSnapshotDatesChange}
-    />
-  );
+    <div className="space-y-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-[#1C1F4F]">Greyfinch Connection</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            API connection to Greyfinch practice management
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs font-medium ml-4">
+          <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+          <span className="text-green-600">Connected</span>
+        </div>
+      </div>
+    </div>
+  )
 }

@@ -3,107 +3,88 @@
 
 import type { PeriodAnalyticsResponse } from '@/lib/services/greyfinch/parsers'
 
-type LocationBucket = {
-  patients: number
-  appointments: number
-  leads: number
-  bookings: number
-  revenue: number
-  production: number
-  netProduction: number
-  acquisitionCosts: number
-}
-
-const emptyBucket = (): LocationBucket => ({
-  patients: 0,
-  appointments: 0,
-  leads: 0,
-  bookings: 0,
-  revenue: 0,
-  production: 0,
-  netProduction: 0,
-  acquisitionCosts: 0,
-})
-
 export function buildPeriodSummary(periodAnalytics: PeriodAnalyticsResponse | null | undefined) {
   const locationRows = Array.isArray(periodAnalytics?.locations) ? periodAnalytics.locations : null
 
   if (!locationRows || locationRows.length === 0) return null
 
-  let activeTxPatients = 0,
-    newPatientsCreated = 0,
-    netProduction = 0
-  let grossProduction = 0,
-    netCollection = 0
-  let professional = 0,
-    familyReferral = 0,
-    online = 0,
-    noShowCancellations = 0
-  let appointments = 0,
+  let newPatientsCreated = 0,
+    netProduction = 0,
+    grossProduction = 0,
+    noShowCancellations = 0,
     leads = 0,
     bookings = 0
-  let weightedDigitalConversion = 0,
-    weightedProfessionalConversion = 0,
-    weightedDirectConversion = 0
+
+  // NPL / NPE funnel
+  let npl = 0, npe = 0, npeKept = 0, npeNoShow = 0
+
+  // Raw referralType breakdown (dynamic keys from Greyfinch)
+  const referralBreakdown: Record<string, number> = {}
+  const conversionNumerators: Record<string, number> = {}
+  const professionalSubSources: Record<string, number> = {}
 
   const locationData = {
-    gilbert: emptyBucket(),
-    phoenix: emptyBucket(),
+    gilbert: { production: 0, netProduction: 0, leads: 0, bookings: 0 },
+    phoenix: { production: 0, netProduction: 0, leads: 0, bookings: 0 },
   }
 
   for (const loc of locationRows) {
-    activeTxPatients += loc.activeTxPatients
     newPatientsCreated += loc.newPatientsCreated
     netProduction += loc.netProduction
     grossProduction += loc.grossProduction
-    netCollection += loc.netCollection
-    appointments += loc.appointments
     leads += loc.leads
     bookings += loc.bookings
-    professional += loc.referralBreakdown?.Professional ?? 0
-    familyReferral += loc.referralBreakdown?.['Family Referral'] ?? 0
-    online += loc.referralBreakdown?.Online ?? 0
     noShowCancellations += loc.totalNoShowCancellations
-    weightedProfessionalConversion +=
-      (loc.conversionBreakdown?.Professional ?? 0) * (loc.referralBreakdown?.Professional ?? 0)
-    weightedDirectConversion +=
-      (loc.conversionBreakdown?.['Family Referral'] ?? 0) *
-      (loc.referralBreakdown?.['Family Referral'] ?? 0)
-    weightedDigitalConversion +=
-      (loc.conversionBreakdown?.Online ?? 0) * (loc.referralBreakdown?.Online ?? 0)
+
+    npl += loc.npl
+    npe += loc.npe
+    npeKept += loc.npeKept
+    npeNoShow += loc.npeNoShow
+
+    for (const rt of Object.keys(loc.referralBreakdown ?? {})) {
+      referralBreakdown[rt] = (referralBreakdown[rt] ?? 0) + loc.referralBreakdown[rt]
+      conversionNumerators[rt] =
+        (conversionNumerators[rt] ?? 0) +
+        (loc.conversionBreakdown[rt] / 100) * loc.referralBreakdown[rt]
+    }
+
+    for (const [name, count] of Object.entries(loc.professionalSubSources ?? {})) {
+      professionalSubSources[name] = (professionalSubSources[name] ?? 0) + count
+    }
 
     const bucket = String(loc.location).toLowerCase().includes('gilbert')
       ? locationData.gilbert
       : locationData.phoenix
 
-    bucket.patients += loc.activeTxPatients
-    bucket.appointments += loc.appointments
     bucket.leads += loc.leads
     bucket.bookings += loc.bookings
-    bucket.revenue += loc.netCollection
     bucket.production += loc.grossProduction
     bucket.netProduction += loc.netProduction
   }
 
+  const conversionBreakdown: Record<string, number> = {}
+  for (const rt of Object.keys(referralBreakdown)) {
+    const total = referralBreakdown[rt]
+    conversionBreakdown[rt] = total > 0 ? (conversionNumerators[rt] ?? 0) / total * 100 : 0
+  }
+
   return {
-    patients: activeTxPatients,
-    appointments,
+    newPatientsCreated,
     leads,
     locations: locationRows.length,
     bookings,
-    revenue: netCollection,
     production: grossProduction,
     netProduction,
-    acquisitionCosts: 0,
-    avgNetProduction: activeTxPatients > 0 ? netProduction / activeTxPatients : 0,
-    avgAcquisitionCost: 0,
-    noShowRate: (appointments + noShowCancellations) > 0 ? (noShowCancellations / (appointments + noShowCancellations)) * 100 : 0,
-    referralSources: { professional, digital: online, direct: familyReferral },
-    conversionRates: {
-      digital: online > 0 ? weightedDigitalConversion / online : 0,
-      professional: professional > 0 ? weightedProfessionalConversion / professional : 0,
-      direct: familyReferral > 0 ? weightedDirectConversion / familyReferral : 0,
-    },
+    npl,
+    npe,
+    npeKept,
+    npeNoShow,
+    npeScheduledRate: npl > 0 ? (npe / npl) * 100 : 0,
+    npeKeptRate: npl > 0 ? (npeKept / npl) * 100 : 0,
+    npeNoShowRate: npe > 0 ? (npeNoShow / npe) * 100 : 0,
+    referralBreakdown,
+    professionalSubSources,
+    conversionBreakdown,
     trends: { weekly: periodAnalytics?.trends?.weekly ?? [] },
     locationData,
   }

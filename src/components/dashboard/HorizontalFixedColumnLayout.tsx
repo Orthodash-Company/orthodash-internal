@@ -7,7 +7,7 @@ import { CompactDateInput } from "@/components/ui/compact-date-input";
 import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "../costs/CompactCostManager";
-import { Plus, X, Edit3, Calendar, MapPin, Save, Minus } from "lucide-react";
+import { Plus, X, Edit3, Calendar, MapPin, Save, Minus, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { PeriodConfig, Location, CompactCost } from "@/shared/types";
 import type { PeriodQuery } from "@/lib/period-summary";
@@ -26,6 +26,8 @@ interface HorizontalFixedColumnLayoutProps {
   onAddPeriod: (period: Omit<PeriodConfig, 'id'>) => PeriodConfig | void;
   onRemovePeriod: (periodId: string) => void;
   onUpdatePeriod: (periodId: string, updates: Partial<PeriodConfig>) => void;
+  onRetryPeriod?: (periodId: string) => void;
+  onRefreshPeriod?: (periodId: string) => void;
 }
 
 export function HorizontalFixedColumnLayout({
@@ -35,22 +37,25 @@ export function HorizontalFixedColumnLayout({
   onAddPeriod,
   onRemovePeriod,
   onUpdatePeriod,
+  onRetryPeriod,
+  onRefreshPeriod,
 }: HorizontalFixedColumnLayoutProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
+  const [editingTitles, setEditingTitles] = useState<Set<string>>(new Set());
   const [periodDrafts, setPeriodDrafts] = useState<Record<string, PeriodDraft>>({});
   const [periodCosts, setPeriodCosts] = useState<Record<string, CompactCost[]>>({});
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [newPeriodId, setNewPeriodId] = useState<string | null>(null);
 
-  // Auto-scroll to the right when new periods are added
+  // Scroll to the new period after the DOM has updated
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        left: scrollContainerRef.current.scrollWidth,
-        behavior: 'smooth'
-      });
-    }
-  }, [periods.length]);
+    if (!newPeriodId) return;
+    const frame = requestAnimationFrame(() => {
+      const el = document.getElementById(`period-${newPeriodId}`);
+      el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [newPeriodId]);
 
   const createDraftFromPeriod = (period: PeriodConfig): PeriodDraft => ({
     startDate: period.startDate ? new Date(period.startDate) : undefined,
@@ -119,11 +124,9 @@ export function HorizontalFixedColumnLayout({
     const createdPeriod = onAddPeriod(newPeriod);
     if (createdPeriod) {
       setPeriodEditing(createdPeriod, true);
+      setNewPeriodId(createdPeriod.id);
+      setTimeout(() => setNewPeriodId(null), 600);
     }
-    
-    // Show success animation
-    setShowSuccessAnimation(true);
-    setTimeout(() => setShowSuccessAnimation(false), 3000); // Hide after 3 seconds
   };
 
   // Handle costs update for a period
@@ -142,15 +145,6 @@ export function HorizontalFixedColumnLayout({
 
   return (
     <div className="relative">
-      {/* Success Animation */}
-      {showSuccessAnimation && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right-2 duration-300">
-          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            <span className="font-medium">New column added successfully! 🎉</span>
-          </div>
-        </div>
-      )}
 
       {/* Period Navigation - Mobile Only */}
       <div className="lg:hidden mb-4">
@@ -201,13 +195,13 @@ export function HorizontalFixedColumnLayout({
       </div>
 
       {/* Horizontal Scrolling Container with Fixed Height */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory"
-        style={{ 
-          scrollbarWidth: 'none', 
+        className="flex gap-6 overflow-x-auto overflow-y-hidden pb-4 snap-x snap-mandatory"
+        style={{
+          scrollbarWidth: 'none',
           msOverflowStyle: 'none',
-          height: 'calc(100vh - 300px)', // Fixed height to prevent Add Period button from moving
+          height: 'calc(100vh - 200px)',
           minHeight: '600px'
         }}
       >
@@ -222,91 +216,117 @@ export function HorizontalFixedColumnLayout({
           );
           
           return (
-            <div 
-              key={period.id} 
+            <div
+              key={period.id}
               id={`period-${period.id}`}
-              className="flex-shrink-0 snap-center overflow-hidden"
-              style={{ 
+              className={`group/card flex-shrink-0 snap-center overflow-hidden ${newPeriodId === period.id ? 'animate-in slide-in-from-right-4 duration-300' : ''}`}
+              style={{
                 width: 'calc(100vw - 2rem)',
                 maxWidth: '420px',
                 height: '100%'
               }}
             >
-              <Card className="h-full border-2 transition-all duration-200 hover:shadow-lg">
+              <Card className="h-full border border-[#1C1F4F]/10 shadow-sm transition-shadow duration-200 hover:shadow-md">
                 {/* Period Header */}
-                <CardHeader className="pb-4 space-y-0 sticky top-0 bg-white z-10">
+                <CardHeader className="pb-3 space-y-0 sticky top-0 bg-white z-10 border-b border-[#1C1F4F]/5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    {/* Title — click to rename */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      {editingTitles.has(period.id) ? (
+                        <input
+                          autoFocus
+                          className="text-base font-semibold text-[#1C1F4F] border-b border-[#1C1F4F] bg-transparent outline-none w-40"
+                          defaultValue={period.title}
+                          onBlur={(e) => {
+                            const val = e.target.value.trim();
+                            if (val) onUpdatePeriod(period.id, { title: val, name: val });
+                            setEditingTitles((prev) => { const next = new Set(prev); next.delete(period.id); return next; });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                            if (e.key === 'Escape') {
+                              setEditingTitles((prev) => { const next = new Set(prev); next.delete(period.id); return next; });
+                            }
+                          }}
+                        />
+                      ) : (
+                        <CardTitle
+                          className="text-base font-semibold text-[#1C1F4F] cursor-pointer hover:text-[#1C1F4F]/60 transition-colors truncate"
+                          onClick={() => setEditingTitles((prev) => new Set(prev).add(period.id))}
+                          title="Click to rename"
+                        >
+                          {period.title}
+                        </CardTitle>
+                      )}
+                    </div>
+
+                    {/* Action buttons — fade in on card hover */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-8 w-8 p-0 ${editingPeriods.has(period.id) ? 'text-orange-600 bg-orange-50' : 'text-gray-500 hover:text-[#1d1d52] hover:bg-gray-100'}`}
-                        onClick={() => {
-                          setPeriodEditing(period, !editingPeriods.has(period.id));
-                        }}
+                        className={`h-7 w-7 p-0 transition-colors ${editingPeriods.has(period.id) ? 'text-[#1C1F4F] bg-[#1C1F4F]/8' : 'text-[#1C1F4F]/30 hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/5'}`}
+                        onClick={() => setPeriodEditing(period, !editingPeriods.has(period.id))}
+                        title="Edit date range"
                       >
-                        <Edit3 className="h-4 w-4" />
+                        <Edit3 className="h-3.5 w-3.5" />
                       </Button>
-                      <CardTitle className="text-lg font-semibold">
-                        {period.title}
-                      </CardTitle>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {/* Remove Period Button */}
+                      {onRefreshPeriod && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-[#1C1F4F]/30 hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/5 transition-colors"
+                          onClick={() => onRefreshPeriod(period.id)}
+                          title="Bypass cache & refresh from Greyfinch"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {periods.length > 1 && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="h-7 w-7 p-0 text-[#1C1F4F]/30 hover:text-red-500 hover:bg-red-50/50 transition-colors"
                           onClick={() => {
-                            if (confirm(`Are you sure you want to remove ${period.title}? This action cannot be undone.`)) {
-                              onRemovePeriod(period.id);
-                            }
+                            if (confirm(`Remove ${period.title}?`)) onRemovePeriod(period.id);
                           }}
+                          title="Remove period"
                         >
-                          <Minus className="h-4 w-4" />
+                          <Minus className="h-3.5 w-3.5" />
                         </Button>
                       )}
-
                     </div>
                   </div>
 
-                  {/* Period Info */}
-                  <div className="space-y-2 pt-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="h-4 w-4" />
-                      <button
-                        onClick={() => {
-                          setPeriodEditing(period, !editingPeriods.has(period.id));
-                        }}
-                        className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
-                        title="Click to edit date range"
-                      >
-                        {period.startDate && period.endDate ? 
-                          `${format(new Date(period.startDate), 'MMM d')} - ${format(new Date(period.endDate), 'MMM d, yyyy')}` : 
-                          'Select date range'
-                        }
-                      </button>
+                  {/* "previous periods" hint — shown briefly on new cards */}
+                  {newPeriodId === period.id && index > 0 && (
+                    <div className="flex items-center gap-1 mt-1 text-[10px] text-[#1C1F4F]/40 animate-in fade-in duration-300">
+                      <span>←</span>
+                      <span>{index} previous period{index !== 1 ? 's' : ''} to the left</span>
                     </div>
-                    
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="h-4 w-4" />
-                      <button
-                        onClick={() => {
-                          setPeriodEditing(period, !editingPeriods.has(period.id));
-                        }}
-                        className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
-                        title="Click to select locations"
-                      >
-                        {getLocationSummary(period)}
-                      </button>
-                    </div>
-                  </div>
+                  )}
+
+                  {/* Date & location — click to edit */}
+                  <button
+                    className="flex items-center gap-3 mt-2 text-left w-full group/meta"
+                    onClick={() => setPeriodEditing(period, !editingPeriods.has(period.id))}
+                    title="Click to edit"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors">
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      {period.startDate && period.endDate
+                        ? `${format(new Date(period.startDate), 'MMM d')} – ${format(new Date(period.endDate), 'MMM d, yyyy')}`
+                        : 'Select date range'}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors">
+                      <MapPin className="h-3 w-3 flex-shrink-0" />
+                      {getLocationSummary(period)}
+                    </span>
+                  </button>
                 </CardHeader>
 
                                   {/* Period Content */}
-                  <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+                  <CardContent className="pt-0 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
                     {/* Date Range Editor - Show when editing */}
                     {editingPeriods.has(period.id) && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
@@ -386,6 +406,7 @@ export function HorizontalFixedColumnLayout({
                     )}
                     
                     {/* Compact Cost Management - Top of Column */}
+                    <div className="pt-2">
                     <CompactCostManager
                       periodId={period.id}
                       periodName={period.title}
@@ -393,6 +414,7 @@ export function HorizontalFixedColumnLayout({
                       costs={periodCostsList}
                       onCostsUpdate={handleCostsUpdate}
                     />
+                    </div>
                     
                     <PeriodColumn
                       period={period}
@@ -400,6 +422,8 @@ export function HorizontalFixedColumnLayout({
                       locations={locations}
                       onUpdatePeriod={onUpdatePeriod}
                       onAddPeriod={onAddPeriod}
+                      onRetry={onRetryPeriod ? () => onRetryPeriod(period.id) : undefined}
+                      onRefresh={onRefreshPeriod ? () => onRefreshPeriod(period.id) : undefined}
                       isFirstPeriod={index === 0}
                       isCompact={true}
                       periodCosts={periodCostsList}

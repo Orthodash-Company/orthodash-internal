@@ -1,566 +1,255 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Loader2, Sparkles, ChevronRight } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Download, Share2, TrendingUp, TrendingDown, DollarSign, Users, Calendar, Target, FileText, BarChart3, Lightbulb, MapPin, CheckCircle, Sparkles } from 'lucide-react'
 import { PeriodConfig } from '@/shared/types'
+import type { PeriodSummary } from '@/lib/period-summary'
 
-interface AIAnalysisData {
-  success: boolean
-  analysisType: string
-  period: string
-  summary: {
-    overview: string
-    keyInsights: string[]
-    performanceMetrics: {
-      totalProduction: number
-      totalRevenue: number
-      totalNetProduction: number
-      profitMargin: number
-      roi: number
-      noShowRate: number
-    }
-  }
-  locationComparison: {
-    gilbert: {
-      performance: {
-        patients: number
-        appointments: number
-        leads: number
-        production: number
-        revenue: number
-        netProduction: number
-        acquisitionCosts: number
-      }
-      insights: string[]
-    }
-    phoenix: {
-      performance: {
-        patients: number
-        appointments: number
-        leads: number
-        production: number
-        revenue: number
-        netProduction: number
-        acquisitionCosts: number
-      }
-      insights: string[]
-    }
-  }
-  trends: {
-    weekly: Array<{ week: string; gilbert: number; phoenix: number; total: number }>
-    monthly: Array<{ month: string; gilbert: number; phoenix: number; total: number }>
-    analysis: string
-  }
-  recommendations?: {
-    immediate: string[]
-    strategic: string[]
-    financial: string[]
-  }
-  dataQuality: {
-    completeness: string
-    recommendations: string[]
-  }
-  generatedAt: string
+interface PeriodQueryShape {
+  data?: PeriodSummary | null
+  isLoading?: boolean
+  error?: unknown
 }
 
 interface EnhancedAIAnalysisProps {
   periods?: PeriodConfig[]
-  periodQueries?: Array<{ data?: any; isLoading?: boolean; error?: unknown }>
+  periodQueries?: PeriodQueryShape[]
   selectedLocations?: string[]
-  onAnalysisComplete?: (data: AIAnalysisData) => void
+  onAnalysisComplete?: (data: AnalysisResult) => void
 }
 
-export function EnhancedAIAnalysis({ 
+type PerPeriodResult = {
+  title: string
+  summary: string
+  keyInsights: string[]
+  recommendations: string[]
+}
+
+type AnalysisResult = {
+  periods: PerPeriodResult[]
+  comparison: string | null
+}
+
+function formatDate(d: Date | string | undefined) {
+  if (!d) return null
+  const date = d instanceof Date ? d : new Date(d)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+export function EnhancedAIAnalysis({
   periods = [],
   periodQueries = [],
-  selectedLocations = [],
-  onAnalysisComplete 
+  onAnalysisComplete,
 }: EnhancedAIAnalysisProps) {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
-  const [analysisData, setAnalysisData] = useState<AIAnalysisData | null>(null)
+  const [result, setResult] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const isFetchingPeriodData = periodQueries.some((query) => query?.isLoading)
 
-  const generateAnalysis = useCallback(async () => {
-    const reportBackedPeriods = periods
-      .map((period, index) => ({
-        title: period.title || period.name,
-        startDate: period.startDate ? new Date(period.startDate).toISOString() : null,
-        endDate: period.endDate ? new Date(period.endDate).toISOString() : null,
-        locationIds: period.locationIds || [],
-        data: periodQueries[index]?.data || null,
-      }))
-      .filter((period) => period.data);
+  const hasData = periodQueries.some((q) => q?.data)
+  const isAnyLoading = periodQueries.some((q) => q?.isLoading)
 
-    if (reportBackedPeriods.length === 0) {
-      setError('Set up at least one analysis period with loaded report data before generating AI analysis.')
+  const generate = useCallback(async () => {
+    const payload = periods
+      .map((period, i) => {
+        const q = periodQueries[i]
+        const d = q?.data
+        if (!d) return null
+        return {
+          title: period.title || period.name,
+          startDate: formatDate(period.startDate),
+          endDate: formatDate(period.endDate),
+          data: {
+            newPatientsCreated: d.newPatientsCreated,
+            leads: d.leads,
+            production: d.production,
+            netProduction: d.netProduction,
+            npl: d.npl,
+            npe: d.npe,
+            npeKept: d.npeKept,
+            npeNoShow: d.npeNoShow,
+            npeScheduledRate: d.npeScheduledRate,
+            npeKeptRate: d.npeKeptRate,
+            npeNoShowRate: d.npeNoShowRate,
+            referralBreakdown: d.referralBreakdown ?? {},
+            conversionBreakdown: d.conversionBreakdown ?? {},
+            professionalSubSources: d.professionalSubSources ?? {},
+            locationData: d.locationData ?? {
+              gilbert: { production: 0, netProduction: 0, leads: 0, bookings: 0 },
+              phoenix: { production: 0, netProduction: 0, leads: 0, bookings: 0 },
+            },
+            trends: d.trends ?? { weekly: [] },
+          },
+        }
+      })
+      .filter(Boolean)
+
+    if (payload.length === 0) {
+      setError('No periods with loaded data. Wait for data to finish loading.')
       return
     }
 
     setIsLoading(true)
     setError(null)
-    
+
     try {
-      console.log('🤖 Generating comprehensive AI analysis...')
-      
-      const response = await fetch('/api/ai-analysis', {
+      const res = await fetch('/api/ai-analysis', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          periods: reportBackedPeriods,
-          location: selectedLocations.length > 0 ? selectedLocations.join(',') : 'all',
-          analysisType: 'comprehensive',
-          includeRecommendations: true
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periods: payload }),
       })
-
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate analysis')
-      }
-
-      setAnalysisData(data)
-      onAnalysisComplete?.(data)
-      
-      toast({
-        title: 'AI Analysis completed successfully',
-      })
-      console.log('✅ AI Analysis completed:', data)
-      
-    } catch (error) {
-      console.error('❌ AI Analysis failed:', error)
-      setError(error instanceof Error ? error.message : 'Failed to generate analysis')
-      toast({
-        title: 'Failed to generate AI analysis',
-        variant: 'destructive',
-      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'Analysis failed')
+      const analysisResult: AnalysisResult = { periods: json.periods ?? [], comparison: json.comparison ?? null }
+      setResult(analysisResult)
+      onAnalysisComplete?.(analysisResult)
+      toast({ title: 'Analysis complete' })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      setError(msg)
+      toast({ title: 'Analysis failed', variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
-  }, [periodQueries, periods, selectedLocations, onAnalysisComplete])
-
-  const downloadReport = useCallback(() => {
-    if (!analysisData) return
-
-    const reportContent = `
-# Orthodash Practice Analysis Report
-Generated: ${new Date(analysisData.generatedAt).toLocaleDateString()}
-Period: ${analysisData.period}
-
-## Executive Summary
-${analysisData.summary.overview}
-
-## Key Performance Metrics
-- Total Production: $${analysisData.summary.performanceMetrics.totalProduction.toLocaleString()}
-- Total Revenue: $${analysisData.summary.performanceMetrics.totalRevenue.toLocaleString()}
-- Net Production: $${analysisData.summary.performanceMetrics.totalNetProduction.toLocaleString()}
-- Profit Margin: ${analysisData.summary.performanceMetrics.profitMargin.toFixed(1)}%
-- ROI: ${analysisData.summary.performanceMetrics.roi.toFixed(1)}%
-- No-Show Rate: ${analysisData.summary.performanceMetrics.noShowRate.toFixed(1)}%
-
-## Key Insights
-${analysisData.summary.keyInsights.map(insight => `- ${insight}`).join('\n')}
-
-## Location Performance Comparison
-
-### Gilbert Location
-- Patients: ${analysisData.locationComparison.gilbert.performance.patients}
-- Appointments: ${analysisData.locationComparison.gilbert.performance.appointments}
-- Production: $${analysisData.locationComparison.gilbert.performance.production.toLocaleString()}
-- Revenue: $${analysisData.locationComparison.gilbert.performance.revenue.toLocaleString()}
-- Net Production: $${analysisData.locationComparison.gilbert.performance.netProduction.toLocaleString()}
-
-### Phoenix-Ahwatukee Location
-- Patients: ${analysisData.locationComparison.phoenix.performance.patients}
-- Appointments: ${analysisData.locationComparison.phoenix.performance.appointments}
-- Production: $${analysisData.locationComparison.phoenix.performance.production.toLocaleString()}
-- Revenue: $${analysisData.locationComparison.phoenix.performance.revenue.toLocaleString()}
-- Net Production: $${analysisData.locationComparison.phoenix.performance.netProduction.toLocaleString()}
-
-## Recommendations
-${analysisData.recommendations ? `
-### Immediate Actions
-${analysisData.recommendations.immediate.map(rec => `- ${rec}`).join('\n')}
-
-### Strategic Recommendations
-${analysisData.recommendations.strategic.map(rec => `- ${rec}`).join('\n')}
-
-### Financial Optimization
-${analysisData.recommendations.financial.map(rec => `- ${rec}`).join('\n')}
-` : ''}
-
-## Data Quality Assessment
-${analysisData.dataQuality.completeness}
-
-### Data Quality Recommendations
-${analysisData.dataQuality.recommendations.map(rec => `- ${rec}`).join('\n')}
-`
-
-    const blob = new Blob([reportContent], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `orthodash-analysis-report-${new Date().toISOString().split('T')[0]}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    
-    toast({
-      title: 'Report downloaded successfully',
-    })
-  }, [analysisData])
-
-  const shareReport = useCallback(() => {
-    if (!analysisData) return
-    
-    const shareText = `Orthodash Practice Analysis Report - ${analysisData.period}\n\n` +
-      `Key Insights:\n${analysisData.summary.keyInsights.slice(0, 3).map(insight => `• ${insight}`).join('\n')}\n\n` +
-      `Total Production: $${analysisData.summary.performanceMetrics.totalProduction.toLocaleString()}\n` +
-      `Profit Margin: ${analysisData.summary.performanceMetrics.profitMargin.toFixed(1)}%\n\n` +
-      `Generated: ${new Date(analysisData.generatedAt).toLocaleDateString()}`
-
-    if (navigator.share) {
-      navigator.share({
-        title: 'Orthodash Practice Analysis',
-        text: shareText,
-        url: window.location.href
-      })
-    } else {
-      navigator.clipboard.writeText(shareText)
-      toast({
-        title: 'Report summary copied to clipboard',
-      })
-    }
-  }, [analysisData])
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(1)}%`
-  }
+  }, [periods, periodQueries, toast])
 
   return (
-    <div className="space-y-6">
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            AI-Powered Practice Analysis
-          </CardTitle>
-          <CardDescription>
-            Comprehensive analysis of Gilbert and Phoenix-Ahwatukee locations with actionable insights
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <Button
-              onClick={generateAnalysis}
-              disabled={isLoading || isFetchingPeriodData}
-              className="bg-[#1d1d52] hover:bg-[#1d1d52]/90 flex items-center gap-2"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Target className="h-4 w-4" />
-              )}
-              {isLoading ? 'Analyzing...' : isFetchingPeriodData ? 'Loading Data...' : 'Generate Analysis'}
-            </Button>
-            
-            {analysisData && (
-              <>
-                <Button 
-                  variant="outline" 
-                  onClick={downloadReport}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Report
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={shareReport}
-                  className="flex items-center gap-2"
-                >
-                  <Share2 className="h-4 w-4" />
-                  Share
-                </Button>
-              </>
-            )}
-          </div>
-          
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
+    <div className="space-y-3">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-[#1C1F4F]/50" />
+          <span className="text-xs font-semibold tracking-[0.1em] uppercase text-[#1C1F4F]/40">AI Analysis</span>
+        </div>
+        <Button
+          size="sm"
+          onClick={generate}
+          disabled={isLoading || isAnyLoading || !hasData}
+          className="h-7 px-3 text-xs bg-[#1C1F4F] hover:bg-[#1C1F4F]/90 text-white rounded-lg"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+              Analyzing…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3 w-3 mr-1.5" />
+              {result ? 'Regenerate' : 'Generate Analysis'}
+            </>
           )}
-        </CardContent>
-      </Card>
+        </Button>
+      </div>
 
-      {analysisData && (
-        <div className="space-y-6">
-          {/* Executive Summary */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5" />Executive Summary</CardTitle>
-              <CardDescription>Period: {analysisData.period}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-relaxed">{analysisData.summary.overview}</p>
-            </CardContent>
-          </Card>
+      {/* Error */}
+      {error && (
+        <div className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {error}
+        </div>
+      )}
 
-          {/* Key Performance Metrics */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" />Key Performance Metrics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">Total Production</span>
-                  </div>
-                  <p className="text-2xl font-bold">{formatCurrency(analysisData.summary.performanceMetrics.totalProduction)}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">Total Revenue</span>
-                  </div>
-                  <p className="text-2xl font-bold">{formatCurrency(analysisData.summary.performanceMetrics.totalRevenue)}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">Profit Margin</span>
-                  </div>
-                  <p className="text-2xl font-bold">{formatPercentage(analysisData.summary.performanceMetrics.profitMargin)}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm font-medium">ROI</span>
-                  </div>
-                  <p className="text-2xl font-bold">{formatPercentage(analysisData.summary.performanceMetrics.roi)}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-orange-600" />
-                    <span className="text-sm font-medium">No-Show Rate</span>
-                  </div>
-                  <p className="text-2xl font-bold">{formatPercentage(analysisData.summary.performanceMetrics.noShowRate)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* No data yet placeholder */}
+      {!result && !isLoading && !error && (
+        <Card className="shadow-sm border border-[#1C1F4F]/10">
+          <CardContent className="py-8 text-center">
+            <Sparkles className="h-6 w-6 text-[#1C1F4F]/20 mx-auto mb-2" />
+            <p className="text-sm text-[#1C1F4F]/40">
+              {!hasData
+                ? 'Load period data first, then generate an AI analysis.'
+                : 'Click "Generate Analysis" to get AI-powered insights for each period.'}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Key Insights */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Lightbulb className="h-5 w-5" />Key Insights</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analysisData.summary.keyInsights.map((insight, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-                    <p className="text-sm">{insight}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Location Comparison */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5" />Location Performance Comparison</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Gilbert */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">Gilbert</Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Patients</span>
-                      </div>
-                      <p className="text-lg font-semibold">{analysisData.locationComparison.gilbert.performance.patients}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Appointments</span>
-                      </div>
-                      <p className="text-lg font-semibold">{analysisData.locationComparison.gilbert.performance.appointments}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Production</span>
-                      </div>
-                      <p className="text-lg font-semibold">{formatCurrency(analysisData.locationComparison.gilbert.performance.production)}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Revenue</span>
-                      </div>
-                      <p className="text-lg font-semibold">{formatCurrency(analysisData.locationComparison.gilbert.performance.revenue)}</p>
-                    </div>
-                  </div>
-                  {analysisData.locationComparison.gilbert.insights.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Insights:</p>
-                      {analysisData.locationComparison.gilbert.insights.map((insight, index) => (
-                        <p key={index} className="text-xs text-muted-foreground">• {insight}</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Phoenix */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">Phoenix-Ahwatukee</Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Patients</span>
-                      </div>
-                      <p className="text-lg font-semibold">{analysisData.locationComparison.phoenix.performance.patients}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Appointments</span>
-                      </div>
-                      <p className="text-lg font-semibold">{analysisData.locationComparison.phoenix.performance.appointments}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Production</span>
-                      </div>
-                      <p className="text-lg font-semibold">{formatCurrency(analysisData.locationComparison.phoenix.performance.production)}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground">Revenue</span>
-                      </div>
-                      <p className="text-lg font-semibold">{formatCurrency(analysisData.locationComparison.phoenix.performance.revenue)}</p>
-                    </div>
-                  </div>
-                  {analysisData.locationComparison.phoenix.insights.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Insights:</p>
-                      {analysisData.locationComparison.phoenix.insights.map((insight, index) => (
-                        <p key={index} className="text-xs text-muted-foreground">• {insight}</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recommendations */}
-          {analysisData.recommendations && (
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5" />Strategic Recommendations</CardTitle>
+      {/* Loading skeleton */}
+      {isLoading && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {periods.map((p) => (
+            <Card key={p.id} className="shadow-sm border border-[#1C1F4F]/10 animate-pulse">
+              <CardHeader className="pb-3">
+                <div className="h-3 w-24 bg-[#1C1F4F]/10 rounded" />
+                <div className="h-4 w-32 bg-[#1C1F4F]/10 rounded mt-1" />
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Immediate Actions */}
-                <div>
-                  <h4 className="font-medium text-sm mb-3">Immediate Actions</h4>
-                  <div className="space-y-2">
-                    {analysisData.recommendations.immediate.map((rec, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2 flex-shrink-0" />
-                        <p className="text-sm">{rec}</p>
-                      </div>
-                    ))}
+              <CardContent className="space-y-3 pb-5">
+                <div className="h-3 w-full bg-[#1C1F4F]/10 rounded" />
+                <div className="h-3 w-4/5 bg-[#1C1F4F]/10 rounded" />
+                <div className="h-3 w-3/5 bg-[#1C1F4F]/10 rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Per-period results */}
+      {result && !isLoading && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {result.periods.map((periodResult, i) => (
+              <Card key={i} className="shadow-sm border border-[#1C1F4F]/10 flex flex-col">
+                <CardHeader className="pb-2">
+                  <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#1C1F4F]/40 mb-0.5">
+                    AI Analysis
                   </div>
-                </div>
+                  <div className="text-sm font-semibold text-[#1C1F4F]">{periodResult.title}</div>
+                </CardHeader>
 
-                <Separator />
+                <CardContent className="space-y-4 pb-5 flex-1">
+                  {/* Summary */}
+                  <p className="text-xs text-[#1C1F4F]/70 leading-relaxed">{periodResult.summary}</p>
 
-                {/* Strategic Recommendations */}
-                <div>
-                  <h4 className="font-medium text-sm mb-3">Strategic Recommendations</h4>
-                  <div className="space-y-2">
-                    {analysisData.recommendations.strategic.map((rec, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-                        <p className="text-sm">{rec}</p>
+                  {/* Key Insights */}
+                  {periodResult.keyInsights.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#1C1F4F]/40 mb-2">
+                        Key Insights
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <ul className="space-y-1.5">
+                        {periodResult.keyInsights.map((insight, j) => (
+                          <li key={j} className="flex items-start gap-2">
+                            <ChevronRight className="h-3 w-3 text-[#1C1F4F]/30 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs text-[#1C1F4F]/70">{insight}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-                <Separator />
-
-                {/* Financial Optimization */}
-                <div>
-                  <h4 className="font-medium text-sm mb-3">Financial Optimization</h4>
-                  <div className="space-y-2">
-                    {analysisData.recommendations.financial.map((rec, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 flex-shrink-0" />
-                        <p className="text-sm">{rec}</p>
+                  {/* Recommendations */}
+                  {periodResult.recommendations.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#1C1F4F]/40 mb-2">
+                        Recommendations
                       </div>
-                    ))}
-                  </div>
+                      <ul className="space-y-1.5">
+                        {periodResult.recommendations.map((rec, j) => (
+                          <li key={j} className="flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#1C1F4F]/30 mt-1.5 flex-shrink-0" />
+                            <span className="text-xs text-[#1C1F4F]/70">{rec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Cross-period comparison */}
+          {result.comparison && (
+            <Card className="shadow-sm border border-[#1C1F4F]/10">
+              <CardContent className="py-4 px-5">
+                <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#1C1F4F]/40 mb-1.5">
+                  Period Comparison
                 </div>
+                <p className="text-xs text-[#1C1F4F]/70 leading-relaxed">{result.comparison}</p>
               </CardContent>
             </Card>
           )}
-
-          {/* Data Quality */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5" />Data Quality Assessment</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <p className="text-sm">{analysisData.dataQuality.completeness}</p>
-                <div>
-                  <p className="text-sm font-medium mb-2">Recommendations:</p>
-                  <div className="space-y-1">
-                    {analysisData.dataQuality.recommendations.map((rec, index) => (
-                      <p key={index} className="text-xs text-muted-foreground">• {rec}</p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
     </div>
