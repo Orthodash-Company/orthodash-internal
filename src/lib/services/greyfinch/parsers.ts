@@ -40,17 +40,14 @@ function str(value: unknown): string {
 // Appointment template values that count as an NPE Kept (per Lauren Kim, Mar 2026)
 // Confirmed present in Patient Referrals report "Last Completed Appointment Template" column:
 const NPE_KEPT_APPT_TYPES = new Set([
-  'NP-NP CHILD',       // confirmed
-  'NP- NP ADULT',      // confirmed
-  'NP-CHAIRSIDE',      // confirmed
-  // Unconfirmed — added per Lauren's list, pending verification against live data:
-  'NP-Adult',
-  'NP-Child',
-  'NP-TransferChild',
-  'NP-Transfer-Adult',
-  'NP-Chairside',
-  'NP-TMJ',
-  'NP-Staff',
+  'NP- NP ADULT',
+  'NP- RECORDS',
+  'NP-CHAIRSIDE',
+  'NP-NP CHILD',
+  'NP-NP STAFF',
+  'NP-NP TMJ',
+  'NP-NPTRANAD',
+  'NP-NPTRANCHILD'
 ])
 
 // treatmentStatus values that mean an exam has been scheduled (NPE)
