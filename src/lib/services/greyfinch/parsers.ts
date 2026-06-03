@@ -2,6 +2,7 @@
 // All column names verified against live S3 report data.
 
 import type { ReportData } from './reports'
+import type { PatientFunnelSummary } from './patient-funnel'
 
 // ─── Shared helper ────────────────────────────────────────────────────────────
 
@@ -253,24 +254,37 @@ export interface LocationPeriodData {
 
 export function buildPeriodData(
   referralRows: PatientReferralsSummary[],
+  patientFunnelRows: PatientFunnelSummary[] = [],
 ): LocationPeriodData[] {
-  return referralRows.map((refs) => ({
+  const patientFunnelByLocation = new Map(
+    patientFunnelRows.map((row) => [row.location, row])
+  )
+
+  return referralRows.map((refs) => {
+    const patientFunnel = patientFunnelByLocation.get(refs.location)
+    const npl = patientFunnel?.npl ?? refs.npl
+    const npe = patientFunnel?.npe ?? refs.npe
+    const npeKept = patientFunnel?.npeKept ?? refs.npeKept
+    const npeNoShow = patientFunnel?.npeNoShow ?? Math.max(0, npe - npeKept)
+
+    return ({
     location: refs.location,
     grossProduction: refs.grossProduction,
     netProduction: refs.netProduction,
-    newPatientsCreated: refs.totalNewPatients,
+    newPatientsCreated: npl,
     leads: refs.leads,
-    bookings: refs.bookings,
-    npl: refs.npl,
-    npe: refs.npe,
-    npeKept: refs.npeKept,
-    npeNoShow: refs.npeNoShow,
-    npeScheduledRate: refs.npeScheduledRate,
-    npeKeptRate: refs.npeKeptRate,
-    npeNoShowRate: refs.npeNoShowRate,
+    bookings: npe,
+    npl,
+    npe,
+    npeKept,
+    npeNoShow,
+    npeScheduledRate: npl > 0 ? (npe / npl) * 100 : 0,
+    npeKeptRate: npl > 0 ? (npeKept / npl) * 100 : 0,
+    npeNoShowRate: npe > 0 ? (npeNoShow / npe) * 100 : 0,
     referralBreakdown: refs.referralBreakdown,
     professionalSubSources: refs.professionalSubSources,
     conversionBreakdown: refs.conversionBreakdown,
     totalNoShowCancellations: refs.totalNoShowCancellations,
-  }))
+    })
+  })
 }

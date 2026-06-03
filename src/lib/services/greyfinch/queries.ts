@@ -35,6 +35,58 @@ export const GQL_TEST_CONNECTION = `
   }
 `
 
+export const GQL_PATIENTS_FOR_PERIOD_WITH_SCHEDULING_STATUS = `
+  query GetPatientsForPeriodWithSchedulingStatus(
+    $createdAtGte: timestamp!
+    $createdAtLt: timestamp!
+    $locationIds: [uuid!]!
+  ) {
+    patients(
+      where: {
+        createdAt: {
+          _gte: $createdAtGte
+          _lt: $createdAtLt
+        }
+        primaryLocation: {
+          id: {
+            _in: $locationIds
+          }
+        }
+      }
+      orderBy: { person: { firstName: ASC } }
+    ) {
+      id
+      createdAt
+      person {
+        id
+        firstName
+        lastName
+        birthDate
+      }
+      primaryLocation {
+        id
+        name
+      }
+      appointments(orderBy: { createdAt: ASC }) {
+        id
+        createdAt
+        type {
+          id
+          name
+        }
+        bookings(orderBy: { startTime: ASC }) {
+          id
+          startTime
+          localStartDate
+          localStartTime
+          checkInTime
+          seatTime
+        }
+      }
+    }
+  }
+`
+
 // ─── Report mutations ─────────────────────────────────────────────────────────
 
 export const GQL_EXECUTE_REPORT = `

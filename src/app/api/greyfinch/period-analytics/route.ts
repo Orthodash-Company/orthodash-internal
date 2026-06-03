@@ -1,6 +1,7 @@
 // GET /api/greyfinch/period-analytics?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
-// Runs PATIENT_REFERRALS report, returns per-location data.
-// Gross/net production, NPL/NPE funnel, and referral breakdown all sourced from PATIENT_REFERRALS.
+// Runs PATIENT_REFERRALS plus a patients query, returns per-location data.
+// Gross/net production and referral breakdown are sourced from PATIENT_REFERRALS.
+// NPL/NPE funnel is sourced from the patients GraphQL query.
 // Locations are always filtered in memory to DASHBOARD_LOCATION_IDS.
 //
 // Cache strategy:
@@ -12,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuthUser } from '@/lib/require-auth-user'
 import { tryCatch } from '@/lib/try-catch'
 import { fetchReport } from '@/lib/services/greyfinch/reports'
+import { fetchPatientFunnel } from '@/lib/services/greyfinch/patient-funnel'
 import { DASHBOARD_LOCATION_IDS, PRACTICE_TZ } from '@/lib/services/greyfinch/queries'
 import { PeriodAnalyticsParamsSchema } from '@/lib/services/greyfinch/types'
 import {
@@ -156,22 +158,26 @@ export async function GET(request: NextRequest) {
   const params = { locationIds: [...DASHBOARD_LOCATION_IDS], startDate, endDate }
   console.log(`[period-analytics] Fetching from Greyfinch: ${startDate}–${endDate}`)
 
-  const [referralsData, referralsError] = await tryCatch(
-    fetchReport('PATIENT_REFERRALS', params)
+  const [greyfinchData, greyfinchError] = await tryCatch(
+    Promise.all([
+      fetchReport('PATIENT_REFERRALS', params),
+      fetchPatientFunnel(startDate, endDate, DASHBOARD_LOCATION_IDS),
+    ])
   )
 
-  if (referralsError) {
-    console.error('[period-analytics] Greyfinch error:', referralsError)
+  if (greyfinchError) {
+    console.error('[period-analytics] Greyfinch error:', greyfinchError)
     return NextResponse.json(
-      { success: false, error: referralsError.message },
+      { success: false, error: greyfinchError.message },
       { status: 502 }
     )
   }
 
+  const [referralsData, patientFunnelRows] = greyfinchData
   const referralRows = parsePatientReferrals(referralsData, startDate, endDate)
 
   const responseData: PeriodAnalyticsResponse = {
-    locations: buildPeriodData(referralRows),
+    locations: buildPeriodData(referralRows, patientFunnelRows),
     trends: { weekly: [] },
   }
 
@@ -182,4 +188,3 @@ export async function GET(request: NextRequest) {
   console.log(`[period-analytics] Done. ${responseData.locations.length} locations.`)
   return NextResponse.json({ success: true, data: responseData, cached: false })
 }
-
