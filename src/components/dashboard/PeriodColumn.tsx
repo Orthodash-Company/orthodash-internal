@@ -6,17 +6,14 @@ import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/componen
 import {
   BarChart3,
   Calendar,
-  ChevronDown,
-  ChevronRight,
   Edit2,
   Plus,
   RefreshCw,
   Settings,
 } from "lucide-react";
-import { PeriodConfig, Location, CompactCost } from "@/shared/types";
-import type { PeriodQuery } from "@/lib/period-summary";
+import { PeriodConfig, Location, CompactCost, type PeriodQuery } from "@/shared/types";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts';
 import { ChartSelectorModal } from '../ui/chart-selector-modal';
@@ -88,24 +85,62 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function formatPatientCreatedAt(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function MissingReferralNote({
+  patients,
+  message,
+}: {
+  patients: NonNullable<PeriodQuery['data']>['unmappedReferralPatients']
+  message: string
+}) {
+  if (patients.length === 0) return null
+  const visiblePatients = patients.slice(0, 6)
+  const remaining = patients.length - visiblePatients.length
+
+  return (
+    <UITooltip>
+      <TooltipTrigger asChild>
+        <button type="button" className="w-full rounded-md bg-amber-50 px-2 py-1 text-left text-[11px] text-amber-700 underline decoration-dotted underline-offset-4 decoration-amber-500/50">
+          {message}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-80 text-left">
+        <div className="space-y-2">
+          <p className="font-medium">Patients missing from PATIENT_REFERRALS</p>
+          <div className="space-y-1">
+            {visiblePatients.map((patient) => (
+              <div key={patient.id} className="border-t border-white/15 pt-1 first:border-t-0 first:pt-0">
+                <p className="font-medium">{patient.name}</p>
+                <p className="text-[11px] opacity-90">ID: {patient.id}</p>
+                <p className="text-[11px] opacity-90">{patient.location} · Created {formatPatientCreatedAt(patient.createdAt)}</p>
+              </div>
+            ))}
+          </div>
+          {remaining > 0 && <p className="text-[11px] opacity-90">+{remaining} more not shown</p>}
+        </div>
+      </TooltipContent>
+    </UITooltip>
+  )
+}
+
 function MetricPill({
   label,
   value,
-  pct,
   tooltip,
 }: {
   label: string;
   value: number | string;
-  pct?: number;
   tooltip?: string;
 }) {
   const inner = (
     <div className="rounded-xl border border-[#1C1F4F]/8 bg-white px-2.5 py-3 text-center flex flex-col items-center justify-center gap-0.5 hover:border-[#1C1F4F]/20 hover:shadow-sm transition-all duration-150">
       <div className="text-2xl font-bold tabular-nums text-[#1C1F4F] leading-none">
         {value}
-      </div>
-      <div className="text-[10px] font-semibold tabular-nums text-[#1C1F4F]/35 leading-none">
-        {pct !== undefined ? fmtPct(pct) : <span className="invisible">0.0%</span>}
       </div>
       <div className="text-[10px] font-medium text-[#1C1F4F]/40 leading-tight mt-0.5">{label}</div>
     </div>
@@ -119,55 +154,6 @@ function MetricPill({
       </TooltipTrigger>
       <TooltipContent className="max-w-56 text-center">{tooltip}</TooltipContent>
     </UITooltip>
-  );
-}
-
-function ReferralRow({
-  type,
-  count,
-  pct,
-  color,
-  subSources,
-}: {
-  type: string;
-  count: number;
-  pct: number;
-  color: string;
-  subSources?: Record<string, number>;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const hasSubs = type === 'Professional' && subSources && Object.keys(subSources).length > 0;
-
-  return (
-    <div>
-      <div
-        className={`flex items-center gap-2.5 py-2 px-1 rounded-lg transition-colors ${hasSubs ? "cursor-pointer hover:bg-[#1C1F4F]/[0.03]" : ""}`}
-        onClick={hasSubs ? () => setExpanded((v) => !v) : undefined}
-      >
-        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-        <span className="flex-1 text-[13px] text-[#1C1F4F]/80">{type}</span>
-        <span className="text-[13px] font-semibold tabular-nums text-[#1C1F4F]">{count}</span>
-        <span className="text-[11px] text-[#1C1F4F]/40 tabular-nums w-11 text-right">{fmtPct(pct)}</span>
-        {hasSubs && (
-          <span className="text-[#1C1F4F]/25">
-            {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          </span>
-        )}
-      </div>
-
-      {expanded && hasSubs && (
-        <div className="ml-5 mb-1 space-y-0.5 border-l border-[#1C1F4F]/8 pl-3">
-          {Object.entries(subSources!)
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, n]) => (
-              <div key={name} className="flex items-center gap-2 py-0.5">
-                <span className="flex-1 text-xs text-[#1C1F4F]/55 truncate">{name}</span>
-                <span className="text-xs font-medium tabular-nums text-[#1C1F4F]/70">{n}</span>
-              </div>
-            ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -207,8 +193,7 @@ export function PeriodColumn({
     }
   }, [STORAGE_KEY, selectedCharts]);
 
-  const totalCosts = periodCosts.reduce((sum, cost) => sum + cost.amount, 0);
-  const showLoadingIndicator = isLoading && !data;
+  const showLoadingIndicator = isLoading;
 
   // Empty state
   if (!period.startDate || !period.endDate) {
@@ -244,37 +229,27 @@ export function PeriodColumn({
   }
 
   // Computed financials
-  const grossProduction = data?.production ?? 0;
-  const netProductionFromGF = data?.netProduction ?? 0;
-  const netAfterCosts = netProductionFromGF - totalCosts;
+  const netProductionFromGF = data?.totals.netProduction ?? 0;
+  const totalCosts = data?.totals.acquisitionCosts ?? periodCosts.reduce((sum, cost) => sum + cost.amount, 0);
+  const netAfterCosts = data?.totals.netAfterCosts ?? netProductionFromGF - totalCosts;
 
   // NPL / NPE funnel
-  const npl = data?.npl ?? 0;
-  const npe = data?.npe ?? 0;
-  const npeKept = data?.npeKept ?? 0;
-  const npeNoShow = data?.npeNoShow ?? 0;
-  const npeScheduledRate = data?.npeScheduledRate ?? 0;
-  const npeKeptRate = data?.npeKeptRate ?? 0;
-  const npeNoShowRate = data?.npeNoShowRate ?? 0;
+  const npl = data?.totals.npl ?? 0;
+  const npe = data?.totals.npe ?? 0;
+  const npeKept = data?.totals.npeKept ?? 0;
 
   // Referrals
-  const referralBreakdown = data?.referralBreakdown ?? {};
-  const professionalSubSources = data?.professionalSubSources ?? {};
-  const totalReferrals = Object.values(referralBreakdown).reduce((s, v) => s + v, 0);
-  const allReferralTypes = Object.keys(referralBreakdown);
-
-  const referralEntries = allReferralTypes
-    .map((t) => ({ type: t, count: referralBreakdown[t] }))
-    .filter((e) => e.count > 0)
-    .sort((a, b) => b.count - a.count);
+  const referralEntries = data?.referralSources ?? [];
+  const totalReferrals = referralEntries.reduce((s, entry) => s + entry.npl, 0);
+  const allReferralTypes = referralEntries.map((entry) => entry.referralType);
+  const unmappedPatients = data?.unmappedReferralPatients ?? [];
+  const unmappedCount = unmappedPatients.length;
 
   const referralChartData = referralEntries.map((e) => ({
-    name: e.type,
-    value: e.count,
-    color: getReferralColor(e.type, allReferralTypes),
+    name: e.referralType,
+    value: e.npl,
+    color: getReferralColor(e.referralType, allReferralTypes),
   }));
-
-  const conversionBreakdown = data?.conversionBreakdown ?? {};
 
   // ─── Chart renderer ───────────────────────────────────────────────────────
   const renderChart = (chartId: string) => {
@@ -289,6 +264,14 @@ export function PeriodColumn({
         return (
           <div key={chartId} className="bg-white p-3 rounded-lg border border-[#1C1F4F]/10">
             <h4 className="text-xs font-semibold text-[#1C1F4F]/50 uppercase tracking-wide mb-3">Referral Sources</h4>
+            {unmappedCount > 0 && (
+              <div className="mb-2">
+                <MissingReferralNote
+                  patients={unmappedPatients}
+                  message={`${unmappedCount} NPL${unmappedCount !== 1 ? 's' : ''} missing referral source.`}
+                />
+              </div>
+            )}
             <ResponsiveContainer width="100%" height={chartHeight}>
               <PieChart>
                 <Pie data={displayData} cx="50%" cy="50%" outerRadius={isCompact ? 55 : 75} innerRadius={isCompact ? 25 : 35} dataKey="value" paddingAngle={2}>
@@ -303,19 +286,36 @@ export function PeriodColumn({
       }
 
       case 'conversion-rates': {
-        const convData = Object.keys(conversionBreakdown)
-          .filter((t) => (referralBreakdown[t] ?? 0) > 0)
-          .map((t) => ({ source: t, rate: conversionBreakdown[t], fill: getReferralColor(t, allReferralTypes) }));
+        const convData = referralEntries
+          .filter((entry) => entry.npl > 0)
+          .map((entry) => ({
+            source: entry.referralType,
+            rate: entry.conversionRate,
+            kept: entry.npeKept,
+            total: entry.npl,
+            fill: getReferralColor(entry.referralType, allReferralTypes),
+          }));
         const hasData = convData.some((d) => d.rate > 0);
         return (
           <div key={chartId} className="bg-white p-3 rounded-lg border border-[#1C1F4F]/10">
             <h4 className="text-xs font-semibold text-[#1C1F4F]/50 uppercase tracking-wide mb-3">Conversion Rates by Source</h4>
+            {unmappedCount > 0 && (
+              <div className="mb-2">
+                <MissingReferralNote
+                  patients={unmappedPatients}
+                  message={`${unmappedCount} NPL${unmappedCount !== 1 ? 's' : ''} excluded because referral source is missing.`}
+                />
+              </div>
+            )}
             {hasData ? (
               <ResponsiveContainer width="100%" height={barChartHeight(convData.length)}>
                 <BarChart data={convData} layout="vertical" margin={{ top: 2, right: 8, left: 4, bottom: 2 }}>
                   <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
                   <YAxis type="category" dataKey="source" tick={{ fontSize: 10 }} width={90} />
-                  <Tooltip formatter={(v) => [`${Number(v).toFixed(1)}%`, 'Conversion']} />
+                  <Tooltip formatter={(v, _name, item) => {
+                    const payload = item.payload as { kept?: number; total?: number }
+                    return [`${payload.kept ?? 0}/${payload.total ?? 0} (${Number(v).toFixed(1)}%)`, 'NPE Kept']
+                  }} />
                   <Bar dataKey="rate" radius={[0, 3, 3, 0]}>
                     {convData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                   </Bar>
@@ -330,9 +330,8 @@ export function PeriodColumn({
 
       case 'financial-summary': {
         const finData = [
-          { metric: 'Gross Production', value: grossProduction },
           { metric: 'Net Production', value: netProductionFromGF },
-          ...(totalCosts > 0 ? [{ metric: 'Acq. Costs', value: totalCosts }] : []),
+          { metric: 'Acq. Costs', value: totalCosts },
         ];
         const hasData = finData.some((d) => d.value > 0);
         return (
@@ -450,33 +449,25 @@ export function PeriodColumn({
         {/* Funnel - compact */}
         <div className="grid grid-cols-3 gap-2">
           <MetricPill label="NPL" value={npl} tooltip="New Patient Leads created in this period" />
-          <MetricPill label="NPE" value={npe} pct={npeScheduledRate} tooltip="Exams scheduled (EXA/EXC status)" />
-          <MetricPill label="NPE Kept" value={npeKept} pct={npeKeptRate} tooltip="Kept their NP consultation appointment" />
+          <MetricPill label="NPE" value={npe} tooltip="NPLs that scheduled an appointment" />
+          <MetricPill label="NPE Kept" value={npeKept} tooltip="NPLs that kept their appointment" />
         </div>
 
         {/* Financial - compact */}
         <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
           <div className="divide-y divide-[#1C1F4F]/5">
             <div className="flex justify-between items-center px-3 py-2.5">
-              <span className="text-xs text-[#1C1F4F]/50">Gross Production</span>
-              <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(grossProduction)}</span>
-            </div>
-            <div className="flex justify-between items-center px-3 py-2.5">
               <span className="text-xs text-[#1C1F4F]/50">Net Production</span>
               <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(netProductionFromGF)}</span>
             </div>
-            {totalCosts > 0 && (
-              <div className="flex justify-between items-center px-3 py-2.5">
-                <span className="text-xs text-[#1C1F4F]/50">Acq. Costs</span>
-                <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
-              </div>
-            )}
-            {totalCosts > 0 && (
-              <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
-                <span className="text-xs font-semibold text-[#1C1F4F]">Net After Costs</span>
-                <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
-              </div>
-            )}
+            <div className="flex justify-between items-center px-3 py-2.5">
+              <span className="text-xs text-[#1C1F4F]/50">Acq. Costs</span>
+              <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
+            </div>
+            <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
+              <span className="text-xs font-semibold text-[#1C1F4F]">Net After Costs</span>
+              <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
+            </div>
           </div>
         </div>
 
@@ -567,30 +558,14 @@ export function PeriodColumn({
             <MetricPill
               label="NPE Scheduled"
               value={npe}
-              pct={npeScheduledRate}
-              tooltip="Leads whose status changed to Exam/Adult or Exam/Child — exam consultation booked."
+              tooltip="NPLs that scheduled an appointment."
             />
             <MetricPill
               label="NPE Kept"
               value={npeKept}
-              pct={npeKeptRate}
-              tooltip="Leads who kept their NP appointment (NP- NP ADULT or NP-NP CHILD)."
+              tooltip="NPLs that kept their appointment."
             />
           </div>
-
-          {/* Funnel conversion rates */}
-          {npl > 0 && (
-            <div className="flex items-center gap-1 mt-2">
-              {[
-                { label: "→ Scheduled", pct: npeScheduledRate },
-                { label: "→ Kept", pct: npeKeptRate },
-              ].map((step) => (
-                <div key={step.label} className="flex-1 text-center text-[10px] text-[#1C1F4F]/35 font-medium tracking-wide">
-                  {step.label} <span className="text-[#1C1F4F]/55">{fmtPct(step.pct)}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         <Separator className="bg-[#1C1F4F]/5" />
@@ -603,16 +578,23 @@ export function PeriodColumn({
             <p className="text-sm text-[#1C1F4F]/40 py-2">No referral data for this period.</p>
           ) : (
             <div className="space-y-0.5">
-              {referralEntries.map((e) => (
-                <ReferralRow
-                  key={e.type}
-                  type={e.type}
-                  count={e.count}
-                  pct={totalReferrals > 0 ? (e.count / totalReferrals) * 100 : 0}
-                  color={getReferralColor(e.type, allReferralTypes)}
-                  subSources={e.type === 'Professional' ? professionalSubSources : undefined}
+              {referralEntries.map((e) => {
+                const pct = totalReferrals > 0 ? (e.npl / totalReferrals) * 100 : 0
+                return (
+                  <div key={e.referralType} className="flex items-center gap-2.5 py-2 px-1 rounded-lg">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getReferralColor(e.referralType, allReferralTypes) }} />
+                    <span className="flex-1 text-[13px] text-[#1C1F4F]/80">{e.referralType}</span>
+                    <span className="text-[13px] font-semibold tabular-nums text-[#1C1F4F]">{e.npl}</span>
+                    <span className="text-[11px] text-[#1C1F4F]/40 tabular-nums w-11 text-right">{fmtPct(pct)}</span>
+                  </div>
+                )
+              })}
+              {unmappedCount > 0 && (
+                <MissingReferralNote
+                  patients={unmappedPatients}
+                  message={`${unmappedCount} NPL${unmappedCount !== 1 ? 's' : ''} missing referral source.`}
                 />
-              ))}
+              )}
               <div className="flex items-center gap-2.5 px-1 pt-2 mt-1 border-t border-[#1C1F4F]/6">
                 <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[#1C1F4F]/35">Total</span>
                 <span className="text-sm font-bold text-[#1C1F4F]">{totalReferrals}</span>
@@ -656,25 +638,17 @@ export function PeriodColumn({
           <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
             <div className="divide-y divide-[#1C1F4F]/5">
               <div className="flex justify-between items-center px-3 py-2.5">
-                <Tip label="Gross Production" tooltip="Gross production summed from PATIENT_REFERRALS." className="text-xs text-[#1C1F4F]/50" />
-                <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(grossProduction)}</span>
-              </div>
-              <div className="flex justify-between items-center px-3 py-2.5">
-                <Tip label="Net Production" tooltip="Net production summed from PATIENT_REFERRALS." className="text-xs text-[#1C1F4F]/50" />
+                <Tip label="Net Production" tooltip="Net production sourced from PRACTICE_MONITOR." className="text-xs text-[#1C1F4F]/50" />
                 <span className="text-sm font-semibold tabular-nums text-[#1C1F4F]">{fmtExact$(netProductionFromGF)}</span>
               </div>
-              {totalCosts > 0 && (
-                <div className="flex justify-between items-center px-3 py-2.5">
-                  <Tip label="Acquisition Costs" tooltip="Manually entered costs attached to this period." className="text-xs text-[#1C1F4F]/50" />
-                  <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
-                </div>
-              )}
-              {totalCosts > 0 && (
-                <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
-                  <Tip label="Net After Costs" tooltip="Net production minus manually entered acquisition costs." className="text-xs font-semibold text-[#1C1F4F]" />
-                  <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center px-3 py-2.5">
+                <Tip label="Acquisition Costs" tooltip="Manually entered costs attached to this period." className="text-xs text-[#1C1F4F]/50" />
+                <span className="text-sm font-medium tabular-nums text-[#1C1F4F]/60">−{fmtExact$(totalCosts)}</span>
+              </div>
+              <div className="flex justify-between items-center px-3 py-2.5 bg-[#1C1F4F]/[0.025]">
+                <Tip label="Net After Costs" tooltip="Net production minus manually entered acquisition costs." className="text-xs font-semibold text-[#1C1F4F]" />
+                <span className="text-sm font-bold tabular-nums text-[#1C1F4F]">{fmtExact$(netAfterCosts)}</span>
+              </div>
             </div>
           </div>
         </div>

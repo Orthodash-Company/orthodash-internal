@@ -5,11 +5,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Loader2, Sparkles, ChevronRight } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { PeriodConfig } from '@/shared/types'
-import type { PeriodSummary } from '@/lib/period-summary'
+import { PeriodConfig, type AnalysisPeriodResult } from '@/shared/types'
 
 interface PeriodQueryShape {
-  data?: PeriodSummary | null
+  data?: AnalysisPeriodResult | null
   isLoading?: boolean
   error?: unknown
 }
@@ -63,25 +62,9 @@ export function EnhancedAIAnalysis({
           startDate: formatDate(period.startDate),
           endDate: formatDate(period.endDate),
           data: {
-            newPatientsCreated: d.newPatientsCreated,
-            leads: d.leads,
-            production: d.production,
-            netProduction: d.netProduction,
-            npl: d.npl,
-            npe: d.npe,
-            npeKept: d.npeKept,
-            npeNoShow: d.npeNoShow,
-            npeScheduledRate: d.npeScheduledRate,
-            npeKeptRate: d.npeKeptRate,
-            npeNoShowRate: d.npeNoShowRate,
-            referralBreakdown: d.referralBreakdown ?? {},
-            conversionBreakdown: d.conversionBreakdown ?? {},
-            professionalSubSources: d.professionalSubSources ?? {},
-            locationData: d.locationData ?? {
-              gilbert: { production: 0, netProduction: 0, leads: 0, bookings: 0 },
-              phoenix: { production: 0, netProduction: 0, leads: 0, bookings: 0 },
-            },
-            trends: d.trends ?? { weekly: [] },
+            totals: d.totals,
+            referralSources: d.referralSources,
+            unmappedReferralPatientCount: d.unmappedReferralPatients.length,
           },
         }
       })

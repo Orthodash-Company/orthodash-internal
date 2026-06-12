@@ -1,30 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
-import { Save, FolderOpen, Trash2, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useSessionManager, type PeriodFilterConfig } from '@/hooks/use-session-manager'
-import type { PeriodConfig } from '@/shared/types'
+import { FolderOpen, Trash2, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
+import type { SavedSession } from '@/hooks/use-session-manager'
 
 const PAGE_SIZE = 5
 
 interface SessionManagerProps {
-  periods: PeriodConfig[]
-  onRestoreSession: (periodFilters: PeriodFilterConfig[], snapshotDates?: { startDate: string; endDate: string }) => void
-  snapshotStartDate?: string
-  snapshotEndDate?: string
-}
-
-const formatDateForFilter = (value: Date | string | undefined): string => {
-  if (!value) return ''
-  const date = value instanceof Date ? value : new Date(value)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  sessions: SavedSession[]
+  sessionsLoading: boolean
+  onRestoreSession: (session: SavedSession) => boolean
+  onDeleteSession: (sessionId: number) => Promise<void>
+  activeSessionId?: number | null
 }
 
 function Pagination({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
@@ -46,10 +36,7 @@ function Pagination({ page, total, onChange }: { page: number; total: number; on
   )
 }
 
-export function SessionManager({ periods, onRestoreSession, snapshotStartDate, snapshotEndDate }: SessionManagerProps) {
-  const { sessions, isLoading: sessionsLoading, saveSession, deleteSession } = useSessionManager()
-  const [saveName, setSaveName] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
+export function SessionManager({ sessions, sessionsLoading, onRestoreSession, onDeleteSession, activeSessionId }: SessionManagerProps) {
   const [sessionPage, setSessionPage] = useState(1)
   const { toast } = useToast()
 
@@ -59,55 +46,23 @@ export function SessionManager({ periods, onRestoreSession, snapshotStartDate, s
   )
 
   const sessionPages = Math.max(1, Math.ceil(sortedSessions.length / PAGE_SIZE))
+  const safeSessionPage = Math.min(sessionPage, sessionPages)
 
   const visibleSessions = useMemo(() => {
-    const start = (sessionPage - 1) * PAGE_SIZE
+    const start = (safeSessionPage - 1) * PAGE_SIZE
     return sortedSessions.slice(start, start + PAGE_SIZE)
-  }, [sortedSessions, sessionPage])
+  }, [sortedSessions, safeSessionPage])
 
-  useEffect(() => { setSessionPage(p => Math.min(p, Math.max(1, sessionPages))) }, [sessionPages])
-
-  const handleSave = async () => {
-    if (!saveName.trim()) {
-      toast({ title: 'Name required', description: 'Enter a name for this session.', variant: 'destructive' })
-      return
+  const handleRestore = (session: SavedSession) => {
+    const restored = onRestoreSession(session)
+    if (restored) {
+      toast({ title: 'Session restored', description: `"${session.name}" has been restored. Data will re-fetch.` })
     }
-    if (periods.length === 0) {
-      toast({ title: 'No periods', description: 'Add at least one analysis period to save.', variant: 'destructive' })
-      return
-    }
-    setIsSaving(true)
-    try {
-      const periodFilters: PeriodFilterConfig[] = periods.map(p => ({
-        id: p.id,
-        name: p.name,
-        startDate: formatDateForFilter(p.startDate),
-        endDate: formatDateForFilter(p.endDate),
-        locationIds: p.locationIds ?? [],
-      }))
-      await saveSession(saveName.trim(), periodFilters, snapshotStartDate, snapshotEndDate)
-      setSaveName('')
-      setSessionPage(1)
-      toast({ title: 'Session saved', description: `"${saveName.trim()}" has been saved.` })
-    } catch {
-      toast({ title: 'Save failed', description: 'Could not save the session.', variant: 'destructive' })
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleRestore = (session: { name: string; periods: PeriodFilterConfig[]; snapshotStartDate?: string; snapshotEndDate?: string }) => {
-    const filters: PeriodFilterConfig[] = Array.isArray(session.periods) ? session.periods : []
-    const snapshotDates = (session.snapshotStartDate && session.snapshotEndDate)
-      ? { startDate: session.snapshotStartDate, endDate: session.snapshotEndDate }
-      : undefined
-    onRestoreSession(filters, snapshotDates)
-    toast({ title: 'Session restored', description: `"${session.name}" has been restored. Data will re-fetch.` })
   }
 
   const handleDeleteSession = async (sessionId: number) => {
     try {
-      await deleteSession(sessionId)
+      await onDeleteSession(sessionId)
     } catch {
       toast({ title: 'Delete failed', description: 'Could not delete the session.', variant: 'destructive' })
     }
@@ -117,27 +72,8 @@ export function SessionManager({ periods, onRestoreSession, snapshotStartDate, s
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-[#1C1F4F]">Saved Sessions</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Save the current period filters to revisit later. Data re-fetches fresh on restore.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Restore prior period definitions. Use Save or Save As above Analysis Periods to store changes.</p>
       </div>
-
-      <Card className="p-4 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Save className="h-4 w-4 text-muted-foreground shrink-0" />
-          <Input
-            value={saveName}
-            onChange={e => setSaveName(e.target.value)}
-            placeholder="Session name (e.g. Q1 2025 Review)"
-            className="flex-1"
-            onKeyDown={e => e.key === 'Enter' && handleSave()}
-          />
-          <Button onClick={handleSave} disabled={isSaving || !saveName.trim()} className="bg-[#1d1d52] hover:bg-[#1d1d52]/90 shrink-0">
-            {isSaving ? 'Saving...' : 'Save Session'}
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2 ml-6">
-          {periods.length} period{periods.length !== 1 ? 's' : ''} will be saved
-        </p>
-      </Card>
 
       <div className="space-y-3">
         {sessionsLoading && <p className="text-sm text-muted-foreground text-center py-4">Loading sessions...</p>}
@@ -151,7 +87,10 @@ export function SessionManager({ periods, onRestoreSession, snapshotStartDate, s
           <Card key={session.id} className="p-4 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1 min-w-0">
-                <p className="font-medium text-sm truncate">{session.name}</p>
+                <p className="font-medium text-sm truncate">
+                  {session.name}
+                  {activeSessionId === session.id && <span className="ml-2 text-[10px] uppercase tracking-wide text-[#1C1F4F]/40">Current</span>}
+                </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{Array.isArray(session.periods) ? session.periods.length : 0}{' '}period{(Array.isArray(session.periods) ? session.periods.length : 0) !== 1 ? 's' : ''}</span>
                   <span>·</span>
@@ -171,7 +110,7 @@ export function SessionManager({ periods, onRestoreSession, snapshotStartDate, s
             </div>
           </Card>
         ))}
-        <Pagination page={sessionPage} total={sessionPages} onChange={setSessionPage} />
+        <Pagination page={safeSessionPage} total={sessionPages} onChange={setSessionPage} />
       </div>
     </div>
   )

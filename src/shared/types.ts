@@ -8,6 +8,7 @@ export interface PeriodConfig {
   locationIds: string[]
   startDate?: Date
   endDate?: Date
+  acquisitionCosts?: CompactCost[]
   visualizations?: VisualizationOption[]
 }
 
@@ -55,4 +56,43 @@ export interface PeriodCosts {
   periodId: string
   costs: CompactCost[]
   total: number
+}
+
+export interface ReferralSourceSummary {
+  referralType: string
+  npl: number
+  npeKept: number
+  conversionRate: number
+}
+
+export interface UnmappedReferralPatient {
+  id: string
+  name: string
+  createdAt: string
+  location: string
+}
+
+export interface AnalysisPeriodResult {
+  periodId: string
+  name: string
+  startDate: string
+  endDate: string
+  locationIds: string[]
+  totals: {
+    npl: number
+    npe: number
+    npeKept: number
+    netProduction: number
+    acquisitionCosts: number
+    netAfterCosts: number
+  }
+  referralSources: ReferralSourceSummary[]
+  unmappedReferralPatients: UnmappedReferralPatient[]
+  cached?: boolean
+}
+
+export interface PeriodQuery {
+  data: AnalysisPeriodResult | null
+  isLoading: boolean
+  error: string | null
 }

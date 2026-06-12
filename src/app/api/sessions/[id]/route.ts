@@ -30,6 +30,47 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const { user, unauthorizedResponse } = await requireAuthUser()
+    if (!user) return unauthorizedResponse
+
+    const body = await request.json()
+    const { name, periods, snapshotStartDate, snapshotEndDate } = body
+
+    if (!name) {
+      return NextResponse.json({ error: 'Session name required' }, { status: 400 })
+    }
+
+    const periodsData = (snapshotStartDate || snapshotEndDate)
+      ? { periods: periods ?? [], snapshotStartDate, snapshotEndDate }
+      : periods ?? []
+
+    const [updatedSession] = await db
+      .update(sessions)
+      .set({
+        name,
+        periods: periodsData,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(sessions.id, parseInt(id)), eq(sessions.userId, user.id)))
+      .returning()
+
+    if (!updatedSession) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, session: updatedSession })
+  } catch (error) {
+    console.error('Error updating session:', error)
+    return NextResponse.json({ error: 'Failed to update session' }, { status: 500 })
+  }
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

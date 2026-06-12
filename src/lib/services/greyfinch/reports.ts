@@ -9,6 +9,7 @@ const MAX_POLLS = 45 // 90 seconds max
 
 export type ReportType =
   | 'PATIENT_REFERRALS'
+  | 'PRACTICE_MONITOR'
   | 'PRODUCTION'
   | 'COLLECTIONS'
 
@@ -24,12 +25,31 @@ export interface ReportData {
   values: unknown[][]
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+function throwIfAborted(signal?: AbortSignal) {
+  signal?.throwIfAborted()
 }
 
-async function executeReport(type: ReportType, params: ReportParams): Promise<string> {
-  const result = await greyfinchService.makeGraphQLRequest(GQL_EXECUTE_REPORT, { type, params } as Record<string, unknown>)
+function sleep(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+      return
+    }
+    const timeoutId = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      clearTimeout(timeoutId)
+      reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+async function executeReport(type: ReportType, params: ReportParams, signal?: AbortSignal): Promise<string> {
+  throwIfAborted(signal)
+  const result = await greyfinchService.makeGraphQLRequest(GQL_EXECUTE_REPORT, { type, params } as Record<string, unknown>, { signal })
   const executionId = (result as { executeReport?: { reportExecutionId?: string } })?.executeReport?.reportExecutionId
   if (!executionId) {
     throw new Error(`executeReport did not return reportExecutionId for ${type}`)
@@ -37,10 +57,11 @@ async function executeReport(type: ReportType, params: ReportParams): Promise<st
   return executionId
 }
 
-async function pollUntilDone(executionId: string): Promise<string> {
+async function pollUntilDone(executionId: string, signal?: AbortSignal): Promise<string> {
   for (let i = 0; i < MAX_POLLS; i++) {
-    await sleep(POLL_INTERVAL_MS)
-    const result = await greyfinchService.makeGraphQLRequest(GQL_POLL_REPORT, { id: executionId } as Record<string, unknown>)
+    throwIfAborted(signal)
+    await sleep(POLL_INTERVAL_MS, signal)
+    const result = await greyfinchService.makeGraphQLRequest(GQL_POLL_REPORT, { id: executionId } as Record<string, unknown>, { signal })
     const execution = (result as { reportExecution?: { status?: string; url?: string } })?.reportExecution
     if (!execution) {
       throw new Error(`reportExecution(${executionId}) returned null`)
@@ -56,8 +77,9 @@ async function pollUntilDone(executionId: string): Promise<string> {
   throw new Error(`Report ${executionId} did not complete within ${(MAX_POLLS * POLL_INTERVAL_MS) / 1000}s`)
 }
 
-async function fetchS3Report(url: string): Promise<ReportData> {
-  const response = await fetch(url)
+async function fetchS3Report(url: string, signal?: AbortSignal): Promise<ReportData> {
+  throwIfAborted(signal)
+  const response = await fetch(url, { signal })
   if (!response.ok) {
     throw new Error(`S3 fetch failed: ${response.status}`)
   }
@@ -69,11 +91,11 @@ async function fetchS3Report(url: string): Promise<ReportData> {
   return { columns: json.columns, values: json.values }
 }
 
-export async function fetchReport(type: ReportType, params: ReportParams): Promise<ReportData> {
+export async function fetchReport(type: ReportType, params: ReportParams, options: { signal?: AbortSignal } = {}): Promise<ReportData> {
   console.log(`[greyfinch-reports] Starting ${type} report`)
-  const executionId = await executeReport(type, params)
+  const executionId = await executeReport(type, params, options.signal)
   console.log(`[greyfinch-reports] ${type} executionId: ${executionId}`)
-  const s3Url = await pollUntilDone(executionId)
+  const s3Url = await pollUntilDone(executionId, options.signal)
   console.log(`[greyfinch-reports] ${type} DONE, fetching S3 URL`)
-  return fetchS3Report(s3Url)
+  return fetchS3Report(s3Url, options.signal)
 }

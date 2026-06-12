@@ -2,32 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { requireAuthUser } from '@/lib/require-auth-user'
 
-type ReferralBreakdown = Record<string, number>
-
 type PeriodPayload = {
   title: string
   startDate: string | null
   endDate: string | null
   data: {
-    newPatientsCreated: number
-    leads: number
-    production: number
-    netProduction: number
-    npl: number
-    npe: number
-    npeKept: number
-    npeNoShow: number
-    npeScheduledRate: number
-    npeKeptRate: number
-    npeNoShowRate: number
-    referralBreakdown: ReferralBreakdown
-    conversionBreakdown: ReferralBreakdown
-    professionalSubSources: ReferralBreakdown
-    locationData: {
-      gilbert: { production: number; netProduction: number; leads: number; bookings: number }
-      phoenix: { production: number; netProduction: number; leads: number; bookings: number }
+    totals: {
+      npl: number
+      npe: number
+      npeKept: number
+      netProduction: number
+      acquisitionCosts: number
+      netAfterCosts: number
     }
-    trends: { weekly: Array<{ week: string; gilbert: number; phoenix: number; total: number }> }
+    referralSources: Array<{
+      referralType: string
+      npl: number
+      npeKept: number
+      conversionRate: number
+    }>
+    unmappedReferralPatientCount: number
   } | null
 }
 
@@ -66,42 +60,26 @@ function buildPrompt(periods: PeriodPayload[]): string {
     .filter((p) => p.data)
     .map((p) => {
       const d = p.data!
-      const topReferrals = Object.entries(d.referralBreakdown)
-        .sort((a, b) => b[1] - a[1])
-        .map(([type, count]) => {
-          const conv = d.conversionBreakdown[type]
-          return `  - ${type}: ${count} patients${conv != null ? ` (${fmtPct(conv)} produced revenue)` : ''}`
-        })
+      const topReferrals = d.referralSources
+        .map((source) => `  - ${source.referralType}: ${source.npl} NPL, ${source.npeKept} kept (${fmtPct(source.conversionRate)} conversion)`)
         .join('\n')
-
-      const topDDS = Object.entries(d.professionalSubSources ?? {})
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, count]) => `  - ${name}: ${count}`)
-        .join('\n')
-
-      const gilbertPct = d.locationData.gilbert.production + d.locationData.phoenix.production > 0
-        ? fmtPct((d.locationData.gilbert.production / (d.locationData.gilbert.production + d.locationData.phoenix.production)) * 100)
-        : 'N/A'
 
       return `
 === ${p.title} (${p.startDate ?? '?'} to ${p.endDate ?? '?'}) ===
 
-PRODUCTION
-  Gross: ${fmt$(d.production)}
-  Net: ${fmt$(d.netProduction)}
-  Gilbert gross: ${fmt$(d.locationData.gilbert.production)} (${gilbertPct} of total)
-  Phoenix gross: ${fmt$(d.locationData.phoenix.production)}
+FINANCIAL
+  Net production: ${fmt$(d.totals.netProduction)}
+  Acquisition costs: ${fmt$(d.totals.acquisitionCosts)}
+  Net after costs: ${fmt$(d.totals.netAfterCosts)}
 
 PATIENT ACQUISITION FUNNEL
-  NPL (new patient leads created this period): ${d.npl}
-  NPE scheduled (exam booked): ${d.npe} — ${fmtPct(d.npeScheduledRate)} of NPL
-  NPE kept (exam completed): ${d.npeKept} — ${fmtPct(d.npeKeptRate)} of NPL
-  NPE no-shows: ${d.npeNoShow} — ${fmtPct(d.npeNoShowRate)} of scheduled exams
+  NPL (new patient leads created this period): ${d.totals.npl}
+  NPE scheduled (exam booked): ${d.totals.npe}
+  NPE kept (exam completed): ${d.totals.npeKept}
 
 NEW PATIENTS BY REFERRAL SOURCE
 ${topReferrals || '  (none)'}
-${topDDS ? `\nPROFESSIONAL REFERRAL PROVIDERS (top 5)\n${topDDS}` : ''}`
+${d.unmappedReferralPatientCount > 0 ? `\nUNMAPPED REFERRALS\n  - ${d.unmappedReferralPatientCount} NPLs did not map to PATIENT_REFERRALS` : ''}`
     })
     .join('\n\n')
 
@@ -114,7 +92,7 @@ Key terminology:
 - NPE: new patient exam (exam appointment booked)
 - NPE Kept: exam was actually completed (not no-showed)
 - Referral types come directly from Greyfinch: Professional, Family Referral, Online, Other, Patient (Patient = friend referral)
-- Conversion rate = % of patients in that referral type who produced net revenue
+- Conversion rate = % of NPLs in that referral type who became NPE Kept
 
 ${periodBlocks}
 

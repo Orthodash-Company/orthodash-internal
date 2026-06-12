@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './use-auth';
 import { toast } from '@/hooks/use-toast';
+import type { CompactCost } from '@/shared/types';
 
 export interface PeriodFilterConfig {
   id: string;
@@ -8,6 +9,7 @@ export interface PeriodFilterConfig {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   locationIds: string[];
+  acquisitionCosts?: CompactCost[];
 }
 
 export interface SavedSession {
@@ -111,6 +113,28 @@ export function useSessionManager() {
     return result.session as SavedSession;
   }, [user?.id, loadSessions]);
 
+  const updateSession = useCallback(async (
+    sessionId: number,
+    name: string,
+    periodFilters: PeriodFilterConfig[],
+    snapshotStartDate?: string,
+    snapshotEndDate?: string,
+  ) => {
+    if (!user?.id) return;
+
+    const response = await fetch(`/api/sessions/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, periods: periodFilters, snapshotStartDate, snapshotEndDate }),
+    });
+
+    if (!response.ok) throw new Error(`Failed to update session: ${response.status}`);
+
+    const result = await response.json();
+    await loadSessions();
+    return result.session as SavedSession;
+  }, [user?.id, loadSessions]);
+
   const deleteSession = useCallback(async (sessionId: number) => {
     if (!user?.id) return;
 
@@ -126,5 +150,5 @@ export function useSessionManager() {
     return () => { loadAbortRef.current?.abort(); };
   }, [loadSessions]);
 
-  return { sessions, isLoading, loadSessions, saveSession, deleteSession };
+  return { sessions, isLoading, loadSessions, saveSession, updateSession, deleteSession };
 }

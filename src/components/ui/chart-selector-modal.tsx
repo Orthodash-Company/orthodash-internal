@@ -35,28 +35,28 @@ const CHART_OPTIONS: ChartOption[] = [
   {
     id: 'referral-sources',
     name: 'Referral Sources',
-    description: 'Pie chart: 6-bucket breakdown — DDS, Family, Friend, 7UP, Community & Events, Online. DDS drills down by individual doctor.',
+    description: 'Pie chart: where NPLs came from, grouped by Greyfinch referral type.',
     icon: <PieChart className="h-4 w-4" />,
     category: 'operational'
   },
   {
     id: 'conversion-rates',
     name: 'Conversion Rates',
-    description: 'Conversion % per referral bucket — how many new patients from each source generated net production.',
+    description: 'NPE Kept conversion by referral type, shown as count and percent.',
     icon: <BarChart3 className="h-4 w-4" />,
     category: 'operational'
   },
   {
     id: 'financial-summary',
     name: 'Financial Summary',
-    description: 'Bar chart: Gross Production, Net Production, Net Collection, and Acquisition Costs side by side.',
+    description: 'Bar chart: Net Production and Acquisition Costs side by side.',
     icon: <DollarSign className="h-4 w-4" />,
     category: 'financial'
   },
   {
     id: 'patient-metrics',
     name: 'Patient Funnel',
-    description: 'Bar chart: NPL → NPE Scheduled → NPE Kept → NPE No Show funnel volumes.',
+    description: 'Bar chart: NPL, NPE, and NPE Kept volumes.',
     icon: <Users className="h-4 w-4" />,
     category: 'operational'
   },

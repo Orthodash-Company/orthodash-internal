@@ -6,8 +6,7 @@ import { Download, Loader2 } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useToast } from '@/hooks/use-toast'
-import { PeriodConfig, CompactCost } from '@/shared/types'
-import type { PeriodSummary } from '@/lib/period-summary'
+import { PeriodConfig, type AnalysisPeriodResult } from '@/shared/types'
 
 interface PerPeriodAIResult {
   title: string
@@ -22,14 +21,13 @@ interface AIAnalysis {
 }
 
 interface PeriodQueryShape {
-  data?: PeriodSummary | null
+  data?: AnalysisPeriodResult | null
   isLoading?: boolean
 }
 
 interface PDFReportGeneratorProps {
   periods: PeriodConfig[]
   periodQueries: PeriodQueryShape[]
-  acquisitionCosts: CompactCost[]
   aiAnalysis?: AIAnalysis | null
 }
 
@@ -83,7 +81,6 @@ function wrappedText(doc: jsPDF, text: string, x: number, y: number, maxW: numbe
 function buildPdf(
   periods: PeriodConfig[],
   periodQueries: PeriodQueryShape[],
-  acquisitionCosts: CompactCost[],
   aiAnalysis: AIAnalysis | null | undefined,
 ) {
   const doc = new jsPDF()
@@ -162,9 +159,9 @@ function buildPdf(
     autoTable(doc, {
       head: [['Stage', 'Count']],
       body: [
-        ['NPL (New Patient Leads)', String(data.npl)],
-        ['NPE Scheduled', String(data.npe)],
-        ['NPE Kept', String(data.npeKept)],
+        ['NPL (New Patient Leads)', String(data.totals.npl)],
+        ['NPE Scheduled', String(data.totals.npe)],
+        ['NPE Kept', String(data.totals.npeKept)],
       ],
       startY: y,
       theme: 'grid',
@@ -176,27 +173,25 @@ function buildPdf(
     y = (doc as any).lastAutoTable.finalY + 8
 
     // REFERRAL SOURCES
-    const referralEntries = Object.entries(data.referralBreakdown ?? {}).sort((a, b) => b[1] - a[1])
+    const referralEntries = data.referralSources
     if (referralEntries.length > 0) {
       y = ensureSpace(doc, y, 40 + referralEntries.length * 8, pageH)
       y = sectionHeader(doc, 'Referral Sources', y, pageW)
-      const total = referralEntries.reduce((s, [, v]) => s + v, 0)
+      const total = referralEntries.reduce((s, source) => s + source.npl, 0)
 
-      // Build rows — inline sub-sources under Professional
       const rows: string[][] = []
-      for (const [type, count] of referralEntries) {
-        rows.push([type, String(count), fmtPct(total > 0 ? (count / total) * 100 : 0)])
-        if (type === 'Professional') {
-          const subs = Object.entries(data.professionalSubSources ?? {}).sort((a, b) => b[1] - a[1])
-          for (const [name, n] of subs.slice(0, 20)) {
-            rows.push(['  ' + name, String(n), ''])
-          }
-        }
+      for (const source of referralEntries) {
+        rows.push([
+          source.referralType,
+          String(source.npl),
+          String(source.npeKept),
+          fmtPct(source.conversionRate),
+        ])
       }
-      rows.push(['Total', String(total), '100.0%'])
+      rows.push(['Total', String(total), '', ''])
 
       autoTable(doc, {
-        head: [['Source', 'Count', '% of Total']],
+        head: [['Source', 'NPL', 'NPE Kept', 'Conversion']],
         body: rows,
         startY: y,
         theme: 'grid',
@@ -211,15 +206,11 @@ function buildPdf(
     // FINANCIAL
     y = ensureSpace(doc, y, 50, pageH)
     y = sectionHeader(doc, 'Financial', y, pageW)
-    const totalCosts = acquisitionCosts.reduce((s, c) => s + (c.amount ?? 0), 0)
     const financialRows: string[][] = [
-      ['Gross Production', fmtDollar(data.production)],
-      ['Net Production', fmtDollar(data.netProduction)],
+      ['Net Production', fmtDollar(data.totals.netProduction)],
+      ['Acquisition Costs', '-' + fmtDollar(data.totals.acquisitionCosts)],
+      ['Net After Costs', fmtDollar(data.totals.netAfterCosts)],
     ]
-    if (totalCosts > 0) {
-      financialRows.push(['Acquisition Costs', '-' + fmtDollar(totalCosts)])
-      financialRows.push(['Net After Costs', fmtDollar(data.netProduction - totalCosts)])
-    }
     autoTable(doc, {
       head: [['Metric', 'Amount']],
       body: financialRows,
@@ -317,7 +308,6 @@ function buildPdf(
 export function PDFReportGenerator({
   periods,
   periodQueries,
-  acquisitionCosts,
   aiAnalysis,
 }: PDFReportGeneratorProps) {
   const { toast } = useToast()
@@ -328,7 +318,7 @@ export function PDFReportGenerator({
   const generate = useCallback(async () => {
     setIsGenerating(true)
     try {
-      const doc = buildPdf(periods, periodQueries, acquisitionCosts, aiAnalysis ?? null)
+      const doc = buildPdf(periods, periodQueries, aiAnalysis ?? null)
       const fileName = 'team-ortho-report-' + new Date().toISOString().split('T')[0] + '.pdf'
       doc.save(fileName)
       toast({ title: 'PDF downloaded' })
@@ -338,7 +328,7 @@ export function PDFReportGenerator({
     } finally {
       setIsGenerating(false)
     }
-  }, [periods, periodQueries, acquisitionCosts, aiAnalysis, toast])
+  }, [periods, periodQueries, aiAnalysis, toast])
 
   return (
     <Button

@@ -9,8 +9,7 @@ import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "../costs/CompactCostManager";
 import { Plus, X, Edit3, Calendar, MapPin, Save, Minus, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-import { PeriodConfig, Location, CompactCost } from "@/shared/types";
-import type { PeriodQuery } from "@/lib/period-summary";
+import { PeriodConfig, Location, CompactCost, type PeriodQuery } from "@/shared/types";
 
 interface PeriodDraft {
   startDate?: Date;
@@ -44,7 +43,6 @@ export function HorizontalFixedColumnLayout({
   const [editingPeriods, setEditingPeriods] = useState<Set<string>>(new Set());
   const [editingTitles, setEditingTitles] = useState<Set<string>>(new Set());
   const [periodDrafts, setPeriodDrafts] = useState<Record<string, PeriodDraft>>({});
-  const [periodCosts, setPeriodCosts] = useState<Record<string, CompactCost[]>>({});
   const [newPeriodId, setNewPeriodId] = useState<string | null>(null);
 
   // Scroll to the new period after the DOM has updated
@@ -117,6 +115,7 @@ export function HorizontalFixedColumnLayout({
       title: `Period ${nextPeriodLetter}`,
       locationId: 'all',
       locationIds: [],
+      acquisitionCosts: [],
       startDate: undefined,
       endDate: undefined,
       visualizations: []
@@ -131,16 +130,7 @@ export function HorizontalFixedColumnLayout({
 
   // Handle costs update for a period
   const handleCostsUpdate = (periodId: string, costs: CompactCost[]) => {
-    setPeriodCosts(prev => ({
-      ...prev,
-      [periodId]: costs
-    }));
-  };
-
-  // Get total costs for a period
-  const getPeriodTotalCosts = (periodId: string) => {
-    const costs = periodCosts[periodId] || [];
-    return costs.reduce((sum, cost) => sum + cost.amount, 0);
+    onUpdatePeriod(periodId, { acquisitionCosts: costs });
   };
 
   return (
@@ -207,7 +197,7 @@ export function HorizontalFixedColumnLayout({
       >
         {periods.map((period, index) => {
           const query = periodQueries[index];
-          const periodCostsList = periodCosts[period.id] || [];
+          const periodCostsList = period.acquisitionCosts || [];
           const periodDraft = periodDrafts[period.id] || createDraftFromPeriod(period);
           const hasInvalidDateRange = Boolean(
             periodDraft.startDate &&
@@ -277,7 +267,7 @@ export function HorizontalFixedColumnLayout({
                           size="sm"
                           className="h-7 w-7 p-0 text-[#1C1F4F]/30 hover:text-[#1C1F4F] hover:bg-[#1C1F4F]/5 transition-colors"
                           onClick={() => onRefreshPeriod(period.id)}
-                          title="Bypass cache & refresh from Greyfinch"
+                          title="Refresh this period only"
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
                         </Button>
