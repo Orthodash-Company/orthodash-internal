@@ -8,7 +8,7 @@ import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
 import { MultiReferralSourceSelector } from "@/components/ui/multi-referral-source-selector";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "../costs/CompactCostManager";
-import { Plus, X, Edit3, Calendar, MapPin, Save, Minus, RefreshCw, Users } from "lucide-react";
+import { Plus, X, Edit3, Calendar, MapPin, Save, Minus, RefreshCw, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { PeriodConfig, Location, CompactCost, type PeriodQuery } from "@/shared/types";
 
@@ -46,6 +46,43 @@ export function HorizontalFixedColumnLayout({
   const [editingTitles, setEditingTitles] = useState<Set<string>>(new Set());
   const [periodDrafts, setPeriodDrafts] = useState<Record<string, PeriodDraft>>({});
   const [newPeriodId, setNewPeriodId] = useState<string | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollControls = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    setCanScrollLeft(container.scrollLeft > 4);
+    setCanScrollRight(container.scrollLeft < maxScrollLeft - 4);
+  };
+
+  const scrollPeriods = (direction: "left" | "right") => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.scrollBy({
+      left: (direction === "left" ? -1 : 1) * Math.max(container.clientWidth * 0.85, 320),
+      behavior: "smooth",
+    });
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    updateScrollControls();
+    container.addEventListener("scroll", updateScrollControls, { passive: true });
+    window.addEventListener("resize", updateScrollControls);
+
+    const frame = requestAnimationFrame(updateScrollControls);
+    return () => {
+      cancelAnimationFrame(frame);
+      container.removeEventListener("scroll", updateScrollControls);
+      window.removeEventListener("resize", updateScrollControls);
+    };
+  }, [periods.length]);
 
   // Scroll to the new period after the DOM has updated
   useEffect(() => {
@@ -195,6 +232,32 @@ export function HorizontalFixedColumnLayout({
         </Card>
       </div>
 
+      {canScrollLeft && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Scroll analysis periods left"
+          className="absolute left-2 top-1/2 z-20 h-8 w-8 -translate-y-1/2 rounded-full border-[#1C1F4F]/10 bg-white/95 text-[#1C1F4F]/60 shadow-md backdrop-blur hover:bg-white hover:text-[#1C1F4F]"
+          onClick={() => scrollPeriods("left")}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      )}
+
+      {canScrollRight && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Scroll analysis periods right"
+          className="absolute right-2 top-1/2 z-20 h-8 w-8 -translate-y-1/2 rounded-full border-[#1C1F4F]/10 bg-white/95 text-[#1C1F4F]/60 shadow-md backdrop-blur hover:bg-white hover:text-[#1C1F4F]"
+          onClick={() => scrollPeriods("right")}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+
       {/* Horizontal Scrolling Container with Fixed Height */}
       <div
         ref={scrollContainerRef}
@@ -309,21 +372,23 @@ export function HorizontalFixedColumnLayout({
 
                   {/* Date & location — click to edit */}
                   <button
-                    className="flex items-center gap-3 mt-2 text-left w-full group/meta"
+                    className="mt-3 flex w-full flex-col items-start gap-1.5 text-left group/meta"
                     onClick={() => setPeriodEditing(period, !editingPeriods.has(period.id))}
                     title="Click to edit"
                   >
-                    <span className="flex items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors">
+                    <span className="flex w-full min-w-0 items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors">
                       <Calendar className="h-3 w-3 flex-shrink-0" />
-                      {period.startDate && period.endDate
-                        ? `${format(new Date(period.startDate), 'MMM d')} – ${format(new Date(period.endDate), 'MMM d, yyyy')}`
-                        : 'Select date range'}
+                      <span className="truncate">
+                        {period.startDate && period.endDate
+                          ? `${format(new Date(period.startDate), 'MMM d')} – ${format(new Date(period.endDate), 'MMM d, yyyy')}`
+                          : 'Select date range'}
+                      </span>
                     </span>
-                    <span className="flex items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors">
+                    <span className="flex w-full min-w-0 items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors">
                       <MapPin className="h-3 w-3 flex-shrink-0" />
-                      {getLocationSummary(period)}
+                      <span className="truncate">{getLocationSummary(period)}</span>
                     </span>
-                    <span className="flex items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors min-w-0">
+                    <span className="flex w-full min-w-0 items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors">
                       <Users className="h-3 w-3 flex-shrink-0" />
                       <span className="truncate">{getReferralSummary(period)}</span>
                     </span>

@@ -92,16 +92,24 @@ export function MultiReferralSourceSelector({
               options.map((source) => {
                 const isSelected = selectedSources.includes(source);
                 return (
-                  <button
+                  <div
                     key={source}
-                    type="button"
-                    className="flex w-full items-center gap-2 p-3 text-left hover:bg-gray-50"
+                    role="option"
+                    aria-selected={isSelected}
+                    tabIndex={0}
+                    className="flex w-full cursor-pointer items-center gap-2 p-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
                     onClick={() => toggleSource(source)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        toggleSource(source);
+                      }
+                    }}
                   >
                     <Checkbox checked={isSelected} className="pointer-events-none" />
                     <span className="flex-1 text-sm">{source}</span>
                     {isSelected && <Check className="h-4 w-4 flex-shrink-0 text-blue-600" />}
-                  </button>
+                  </div>
                 );
               })
             )}
