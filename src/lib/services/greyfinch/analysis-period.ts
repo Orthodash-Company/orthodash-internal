@@ -6,7 +6,7 @@ import { fetchReport, type ReportData } from './reports'
 import { DASHBOARD_LOCATION_IDS, GQL_PATIENTS_FOR_PERIOD_WITH_SCHEDULING_STATUS, PRACTICE_TZ } from './queries'
 
 const CACHE_TTL_MS = 60 * 60 * 1000
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 const DB_CACHE_PREFIX = `analysis-period:${CACHE_VERSION}`
 
 type PeriodDefinition = {
@@ -15,6 +15,7 @@ type PeriodDefinition = {
   startDate: string
   endDate: string
   locationIds: string[]
+  referralSources?: string[]
   acquisitionCosts?: CompactCost[]
 }
 
@@ -113,6 +114,7 @@ function isSourceAnalysisResult(value: unknown): value is SourceAnalysisResult {
     typeof result.totals.npeKept === 'number' &&
     typeof result.totals.netProduction === 'number' &&
     Array.isArray(result.referralSources) &&
+    Array.isArray(result.availableReferralSources) &&
     Array.isArray(result.unmappedReferralPatients)
   )
 }
@@ -168,7 +170,7 @@ function buildReferralSources(
   patients: GreyfinchPatient[],
   referralTypeByPatientId: Map<string, string>,
 ): { referralSources: ReferralSourceSummary[]; unmappedReferralPatients: UnmappedReferralPatient[] } {
-  const byReferralType = new Map<string, { npl: number; npeKept: number }>()
+  const byReferralType = new Map<string, { npl: number; npe: number; npeKept: number }>()
   const unmappedReferralPatients: UnmappedReferralPatient[] = []
 
   for (const patient of patients) {
@@ -178,8 +180,9 @@ function buildReferralSources(
       continue
     }
 
-    const current = byReferralType.get(referralType) ?? { npl: 0, npeKept: 0 }
+    const current = byReferralType.get(referralType) ?? { npl: 0, npe: 0, npeKept: 0 }
     current.npl += 1
+    if (isScheduled(patient)) current.npe += 1
     if (isKept(patient)) current.npeKept += 1
     byReferralType.set(referralType, current)
   }
@@ -188,6 +191,7 @@ function buildReferralSources(
     .map(([referralType, value]) => ({
       referralType,
       npl: value.npl,
+      npe: value.npe,
       npeKept: value.npeKept,
       conversionRate: value.npl > 0 ? (value.npeKept / value.npl) * 100 : 0,
     }))
@@ -241,15 +245,33 @@ async function dbSet(definition: PeriodDefinition, data: SourceAnalysisResult): 
 
 function withCosts(definition: PeriodDefinition, source: SourceAnalysisResult, cached: boolean): AnalysisPeriodResult {
   const acquisitionCosts = totalCosts(definition.acquisitionCosts)
+  const selectedSources = new Set(definition.referralSources ?? [])
+  const referralSources = selectedSources.size > 0
+    ? source.referralSources.filter((entry) => selectedSources.has(entry.referralType))
+    : source.referralSources
+  const selectedTotals = referralSources.reduce(
+    (totals, entry) => ({
+      npl: totals.npl + entry.npl,
+      npe: totals.npe + entry.npe,
+      npeKept: totals.npeKept + entry.npeKept,
+    }),
+    { npl: 0, npe: 0, npeKept: 0 },
+  )
+
   return {
     ...source,
     periodId: definition.id,
     name: definition.name,
     totals: {
       ...source.totals,
+      ...(selectedSources.size > 0
+        ? selectedTotals
+        : {}),
       acquisitionCosts,
       netAfterCosts: source.totals.netProduction - acquisitionCosts,
     },
+    referralSources,
+    unmappedReferralPatients: selectedSources.size > 0 ? [] : source.unmappedReferralPatients,
     cached,
   }
 }
@@ -287,6 +309,7 @@ async function fetchSourceAnalysis(definition: PeriodDefinition, signal?: AbortS
     locationIds,
     totals: { npl, npe, npeKept, netProduction },
     referralSources,
+    availableReferralSources: referralSources.map((source) => source.referralType),
     unmappedReferralPatients,
   }
 }

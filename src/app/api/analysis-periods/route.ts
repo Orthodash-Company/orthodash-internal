@@ -17,6 +17,7 @@ const PeriodSchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   locationIds: z.array(z.string()).default([]),
+  referralSources: z.array(z.string().trim().min(1)).default([]),
   acquisitionCosts: z.array(CostSchema).default([]),
 })
 

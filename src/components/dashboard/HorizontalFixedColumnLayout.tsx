@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { CompactDateInput } from "@/components/ui/compact-date-input";
 import { MultiLocationSelector } from "@/components/ui/multi-location-selector";
+import { MultiReferralSourceSelector } from "@/components/ui/multi-referral-source-selector";
 import { PeriodColumn } from "./PeriodColumn";
 import { CompactCostManager } from "../costs/CompactCostManager";
-import { Plus, X, Edit3, Calendar, MapPin, Save, Minus, RefreshCw } from "lucide-react";
+import { Plus, X, Edit3, Calendar, MapPin, Save, Minus, RefreshCw, Users } from "lucide-react";
 import { format } from "date-fns";
 import { PeriodConfig, Location, CompactCost, type PeriodQuery } from "@/shared/types";
 
@@ -16,6 +17,7 @@ interface PeriodDraft {
   endDate?: Date;
   locationId: string;
   locationIds: string[];
+  referralSources: string[];
 }
 
 interface HorizontalFixedColumnLayoutProps {
@@ -60,6 +62,7 @@ export function HorizontalFixedColumnLayout({
     endDate: period.endDate ? new Date(period.endDate) : undefined,
     locationId: period.locationId,
     locationIds: [...(period.locationIds || [])],
+    referralSources: [...(period.referralSources || [])],
   });
 
   const setPeriodEditing = (period: PeriodConfig, isEditing: boolean) => {
@@ -107,6 +110,13 @@ export function HorizontalFixedColumnLayout({
     return `${selectedIds.length} locations`;
   };
 
+  const getReferralSummary = (period: PeriodConfig) => {
+    const selected = period.referralSources ?? [];
+    if (selected.length === 0) return "All Referral Sources";
+    if (selected.length === 1) return selected[0];
+    return `${selected.length} referral sources`;
+  };
+
   // Handle direct period addition
   const handleDirectAddPeriod = () => {
     const nextPeriodLetter = String.fromCharCode(65 + periods.length);
@@ -115,6 +125,7 @@ export function HorizontalFixedColumnLayout({
       title: `Period ${nextPeriodLetter}`,
       locationId: 'all',
       locationIds: [],
+      referralSources: [],
       acquisitionCosts: [],
       startDate: undefined,
       endDate: undefined,
@@ -312,6 +323,10 @@ export function HorizontalFixedColumnLayout({
                       <MapPin className="h-3 w-3 flex-shrink-0" />
                       {getLocationSummary(period)}
                     </span>
+                    <span className="flex items-center gap-1.5 text-xs text-[#1C1F4F]/40 group-hover/meta:text-[#1C1F4F]/70 transition-colors min-w-0">
+                      <Users className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{getReferralSummary(period)}</span>
+                    </span>
                   </button>
                 </CardHeader>
 
@@ -322,7 +337,7 @@ export function HorizontalFixedColumnLayout({
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                         <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
                           <Calendar className="h-4 w-4" />
-                          Edit Date Range
+                          Edit Period Filters
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
@@ -366,6 +381,23 @@ export function HorizontalFixedColumnLayout({
                             />
                           </div>
 
+                          <div>
+                            <Label className="text-sm font-medium text-blue-800">Referral Sources</Label>
+                            <MultiReferralSourceSelector
+                              className="mt-1"
+                              sources={query?.data?.availableReferralSources ?? []}
+                              selectedSources={periodDraft.referralSources}
+                              onSelectionChange={(referralSources) =>
+                                updatePeriodDraft(period.id, { referralSources })
+                              }
+                            />
+                            {!query?.data && (
+                              <p className="mt-1 text-xs text-blue-700/70">
+                                Referral sources become available after the period loads.
+                              </p>
+                            )}
+                          </div>
+
                           {hasInvalidDateRange && (
                             <p className="text-sm text-red-600">
                               End date cannot be before the start date.
@@ -382,6 +414,7 @@ export function HorizontalFixedColumnLayout({
                                   endDate: periodDraft.endDate,
                                   locationIds: periodDraft.locationIds,
                                   locationId: periodDraft.locationId,
+                                  referralSources: periodDraft.referralSources,
                                 });
                                 setPeriodEditing(period, false);
                               }}

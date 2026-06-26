@@ -125,7 +125,8 @@ function buildPdf(
     const range = p.startDate && p.endDate
       ? fmtDate(p.startDate) + ' - ' + fmtDate(p.endDate)
       : 'No dates set'
-    doc.text(status + '  ' + (p.title || p.name) + '   ' + range, 24, y)
+    const referral = p.referralSources?.length ? '   Referrals: ' + p.referralSources.join(', ') : ''
+    doc.text(status + '  ' + (p.title || p.name) + '   ' + range + referral, 24, y)
     y += 6
   })
 
@@ -153,6 +154,14 @@ function buildPdf(
     }
 
     y = 24
+
+    if (period.referralSources?.length) {
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      brand(doc)
+      doc.text('Referral sources: ' + period.referralSources.join(', '), 20, y)
+      y += 7
+    }
 
     // PATIENT FUNNEL
     y = sectionHeader(doc, 'Patient Funnel', y, pageW)
@@ -206,6 +215,13 @@ function buildPdf(
     // FINANCIAL
     y = ensureSpace(doc, y, 50, pageH)
     y = sectionHeader(doc, 'Financial', y, pageW)
+    if (period.referralSources?.length) {
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'normal')
+      gray(doc)
+      doc.text('Financial totals include all referral sources; source-level production is unavailable.', 20, y)
+      y += 6
+    }
     const financialRows: string[][] = [
       ['Net Production', fmtDollar(data.totals.netProduction)],
       ['Acquisition Costs', '-' + fmtDollar(data.totals.acquisitionCosts)],

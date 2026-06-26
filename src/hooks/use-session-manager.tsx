@@ -9,6 +9,8 @@ export interface PeriodFilterConfig {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   locationIds: string[];
+  referralSources?: string[];
+  referralSource?: string; // Legacy single-select sessions
   acquisitionCosts?: CompactCost[];
 }
 

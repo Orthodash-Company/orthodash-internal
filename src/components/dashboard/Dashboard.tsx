@@ -69,6 +69,7 @@ const periodFiltersFromConfigs = (periods: PeriodConfig[]): PeriodFilterConfig[]
     startDate: formatDateForSession(period.startDate),
     endDate: formatDateForSession(period.endDate),
     locationIds: period.locationIds ?? [],
+    referralSources: period.referralSources ?? [],
     acquisitionCosts: period.acquisitionCosts ?? [],
   }))
 }
@@ -80,6 +81,7 @@ const serializePeriodFilters = (filters: PeriodFilterConfig[]) => {
     startDate: filter.startDate,
     endDate: filter.endDate,
     locationIds: filter.locationIds ?? [],
+    referralSources: filter.referralSources ?? (filter.referralSource ? [filter.referralSource] : []),
     acquisitionCosts: filter.acquisitionCosts ?? [],
   })))
 }
@@ -267,6 +269,7 @@ export default function Dashboard() {
       startDate: formatLocalDateForApi(period.startDate),
       endDate: formatLocalDateForApi(period.endDate),
       locationIds: greyfinchLocationIds,
+      referralSources: period.referralSources ?? [],
       acquisitionCosts: period.acquisitionCosts ?? [],
     }
   }, [])
@@ -432,6 +435,7 @@ export default function Dashboard() {
       title: f.name,
       locationId: 'all',
       locationIds: f.locationIds ?? [],
+      referralSources: f.referralSources ?? (f.referralSource ? [f.referralSource] : []),
       startDate: f.startDate ? new Date(`${f.startDate}T00:00:00`) : undefined,
       endDate: f.endDate ? new Date(`${f.endDate}T00:00:00`) : undefined,
       acquisitionCosts: f.acquisitionCosts ?? [],

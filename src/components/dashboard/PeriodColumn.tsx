@@ -455,6 +455,11 @@ export function PeriodColumn({
 
         {/* Financial - compact */}
         <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
+          {(period.referralSources?.length ?? 0) > 0 && (
+            <div className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-800">
+              Financial totals include all referral sources; Greyfinch does not provide source-level production attribution.
+            </div>
+          )}
           <div className="divide-y divide-[#1C1F4F]/5">
             <div className="flex justify-between items-center px-3 py-2.5">
               <span className="text-xs text-[#1C1F4F]/50">Net Production</span>
@@ -635,6 +640,11 @@ export function PeriodColumn({
         {/* ── Section 3: Financial Summary ────────────────────────────── */}
         <div>
           <SectionLabel>Financial</SectionLabel>
+          {(period.referralSources?.length ?? 0) > 0 && (
+            <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-4 text-amber-800">
+              Financial totals include all referral sources; Greyfinch does not provide source-level production attribution.
+            </p>
+          )}
           <div className="rounded-xl border border-[#1C1F4F]/8 bg-white overflow-hidden">
             <div className="divide-y divide-[#1C1F4F]/5">
               <div className="flex justify-between items-center px-3 py-2.5">

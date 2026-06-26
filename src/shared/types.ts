@@ -6,6 +6,7 @@ export interface PeriodConfig {
   title: string
   locationId: string
   locationIds: string[]
+  referralSources?: string[]
   startDate?: Date
   endDate?: Date
   acquisitionCosts?: CompactCost[]
@@ -61,6 +62,7 @@ export interface PeriodCosts {
 export interface ReferralSourceSummary {
   referralType: string
   npl: number
+  npe: number
   npeKept: number
   conversionRate: number
 }
@@ -87,6 +89,7 @@ export interface AnalysisPeriodResult {
     netAfterCosts: number
   }
   referralSources: ReferralSourceSummary[]
+  availableReferralSources: string[]
   unmappedReferralPatients: UnmappedReferralPatient[]
   cached?: boolean
 }

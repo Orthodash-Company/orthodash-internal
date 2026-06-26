@@ -61,6 +61,7 @@ export function EnhancedAIAnalysis({
           title: period.title || period.name,
           startDate: formatDate(period.startDate),
           endDate: formatDate(period.endDate),
+          referralSources: period.referralSources ?? [],
           data: {
             totals: d.totals,
             referralSources: d.referralSources,

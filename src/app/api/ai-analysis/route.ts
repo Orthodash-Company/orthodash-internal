@@ -6,6 +6,7 @@ type PeriodPayload = {
   title: string
   startDate: string | null
   endDate: string | null
+  referralSources?: string[]
   data: {
     totals: {
       npl: number
@@ -66,11 +67,13 @@ function buildPrompt(periods: PeriodPayload[]): string {
 
       return `
 === ${p.title} (${p.startDate ?? '?'} to ${p.endDate ?? '?'}) ===
+REFERRAL FILTER: ${p.referralSources?.length ? p.referralSources.join(', ') : 'All referral sources'}
 
 FINANCIAL
   Net production: ${fmt$(d.totals.netProduction)}
   Acquisition costs: ${fmt$(d.totals.acquisitionCosts)}
   Net after costs: ${fmt$(d.totals.netAfterCosts)}
+  Scope: All referral sources (financial data cannot be attributed to a referral source)
 
 PATIENT ACQUISITION FUNNEL
   NPL (new patient leads created this period): ${d.totals.npl}
